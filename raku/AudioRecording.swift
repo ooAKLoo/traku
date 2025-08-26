@@ -26,12 +26,15 @@ struct AudioRecording: Identifiable {
 struct ContentView: View {
     @StateObject private var audioManager = AudioManager()
     @State private var showingDetail: AudioRecording? = nil
+    @AppStorage("isDarkMode") private var isDarkMode = true
     
     var body: some View {
         ZStack {
             // 背景渐变
             LinearGradient(
-                colors: [Color.black, Color(white: 0.05)],
+                colors: isDarkMode ? 
+                    [Color.black, Color(white: 0.05)] :
+                    [Color(white: 0.95), Color(white: 0.98)],
                 startPoint: .top,
                 endPoint: .bottom
             )
@@ -39,10 +42,11 @@ struct ContentView: View {
             
             RecordingsListView(
                 audioManager: audioManager,
-                showingDetail: $showingDetail
+                showingDetail: $showingDetail,
+                isDarkMode: isDarkMode
             )
         }
-        .preferredColorScheme(.dark)
+        .preferredColorScheme(isDarkMode ? .dark : .light)
     }
 }
 
@@ -52,6 +56,7 @@ struct ContentView: View {
 struct RecordingsListView: View {
     @ObservedObject var audioManager: AudioManager
     @Binding var showingDetail: AudioRecording?
+    let isDarkMode: Bool
     @State private var selectedFilter = "全部"
     @State private var showingSettings = false
     
@@ -70,10 +75,12 @@ struct RecordingsListView: View {
                         VStack(spacing: 8) {
                             Text(filter)
                                 .font(.system(size: 16, weight: selectedFilter == filter ? .semibold : .regular))
-                                .foregroundColor(selectedFilter == filter ? .white : .white.opacity(0.5))
+                                .foregroundColor(selectedFilter == filter ? 
+                                    (isDarkMode ? .white : .black) : 
+                                    (isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5)))
                             
                             Rectangle()
-                                .fill(Color.white)
+                                .fill(isDarkMode ? Color.white : Color.black)
                                 .frame(height: 2)
                                 .opacity(selectedFilter == filter ? 1 : 0)
                         }
@@ -88,7 +95,7 @@ struct RecordingsListView: View {
                 }) {
                     Image(systemName: "gearshape.fill")
                         .font(.system(size: 20))
-                        .foregroundColor(.white.opacity(0.7))
+                        .foregroundColor(isDarkMode ? .white.opacity(0.7) : .black.opacity(0.7))
                 }
             }
             .padding(.horizontal, 30)
@@ -98,7 +105,7 @@ struct RecordingsListView: View {
             ScrollView {
                 LazyVStack(spacing: 15) {
                     ForEach(audioManager.recordings) { recording in
-                        RecordingCardView(recording: recording)
+                        RecordingCardView(recording: recording, isDarkMode: isDarkMode)
                             .onTapGesture {
                                 showingDetail = recording
                             }
@@ -120,17 +127,18 @@ struct RecordingsListView: View {
 // MARK: - 录音卡片视图
 struct RecordingCardView: View {
     let recording: AudioRecording
+    let isDarkMode: Bool
     
     var body: some View {
         HStack(alignment: .top, spacing: 15) {
             // 时间线指示器
             VStack {
                 Circle()
-                    .fill(Color.white.opacity(0.3))
+                    .fill(isDarkMode ? Color.white.opacity(0.3) : Color.black.opacity(0.3))
                     .frame(width: 10, height: 10)
                 
                 Rectangle()
-                    .fill(Color.white.opacity(0.1))
+                    .fill(isDarkMode ? Color.white.opacity(0.1) : Color.black.opacity(0.1))
                     .frame(width: 1)
             }
             
@@ -139,18 +147,18 @@ struct RecordingCardView: View {
                 // 时间戳
                 Text(formatDate(recording.timestamp))
                     .font(.system(size: 12))
-                    .foregroundColor(.white.opacity(0.5))
+                    .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
                 
                 // 标题（总结的第一句）
                 Text(recording.summary.prefix(50) + "...")
                     .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(.white)
+                    .foregroundColor(isDarkMode ? .white : .black)
                     .lineLimit(2)
                 
                 // 标签
                 HStack(spacing: 8) {
                     ForEach(recording.tags, id: \.self) { tag in
-                        TagView(text: tag)
+                        TagView(text: tag, isDarkMode: isDarkMode)
                     }
                 }
                 
@@ -161,16 +169,16 @@ struct RecordingCardView: View {
                     Text("\(Int(recording.duration))秒")
                         .font(.system(size: 12))
                 }
-                .foregroundColor(.white.opacity(0.4))
+                .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4))
             }
             .padding()
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
                 RoundedRectangle(cornerRadius: 15)
-                    .fill(Color.white.opacity(0.05))
+                    .fill(isDarkMode ? Color.white.opacity(0.05) : Color.white)
                     .overlay(
                         RoundedRectangle(cornerRadius: 15)
-                            .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                            .stroke(isDarkMode ? Color.white.opacity(0.1) : Color.black.opacity(0.1), lineWidth: 1)
                     )
             )
         }
@@ -186,16 +194,17 @@ struct RecordingCardView: View {
 // MARK: - 标签视图
 struct TagView: View {
     let text: String
+    let isDarkMode: Bool
     
     var body: some View {
         Text(text)
             .font(.system(size: 11, weight: .medium))
-            .foregroundColor(.white.opacity(0.7))
+            .foregroundColor(isDarkMode ? .white.opacity(0.7) : .black.opacity(0.7))
             .padding(.horizontal, 10)
             .padding(.vertical, 4)
             .background(
                 Capsule()
-                    .stroke(Color.white.opacity(0.2), lineWidth: 1)
+                    .stroke(isDarkMode ? Color.white.opacity(0.2) : Color.black.opacity(0.2), lineWidth: 1)
             )
     }
 }
@@ -203,22 +212,49 @@ struct TagView: View {
 // MARK: - 设置视图
 struct SettingsView: View {
     @Environment(\.dismiss) var dismiss
+    @AppStorage("isDarkMode") private var isDarkMode = true
     
     var body: some View {
         NavigationView {
             ZStack {
                 // 背景
-                Color.black
+                (isDarkMode ? Color.black : Color(white: 0.95))
                     .ignoresSafeArea()
                 
                 VStack(spacing: 20) {
                     // 设置选项列表
                     VStack(spacing: 15) {
-                        SettingsRowView(icon: "person.circle", title: "账户", action: {})
-                        SettingsRowView(icon: "bell", title: "通知", action: {})
-                        SettingsRowView(icon: "lock", title: "隐私", action: {})
-                        SettingsRowView(icon: "questionmark.circle", title: "帮助", action: {})
-                        SettingsRowView(icon: "info.circle", title: "关于", action: {})
+                        // 外观设置
+                        HStack {
+                            Image(systemName: "sun.max.fill")
+                                .font(.system(size: 20))
+                                .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8))
+                                .frame(width: 30)
+                            
+                            Text("外观")
+                                .font(.system(size: 16))
+                                .foregroundColor(isDarkMode ? .white : .black)
+                            
+                            Spacer()
+                            
+                            Picker("", selection: $isDarkMode) {
+                                Text("深色").tag(true)
+                                Text("浅色").tag(false)
+                            }
+                            .pickerStyle(SegmentedPickerStyle())
+                            .frame(width: 120)
+                        }
+                        .padding()
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(isDarkMode ? Color.white.opacity(0.05) : Color.white)
+                        )
+                        
+                        SettingsRowView(icon: "person.circle", title: "账户", isDarkMode: isDarkMode, action: {})
+                        SettingsRowView(icon: "bell", title: "通知", isDarkMode: isDarkMode, action: {})
+                        SettingsRowView(icon: "lock", title: "隐私", isDarkMode: isDarkMode, action: {})
+                        SettingsRowView(icon: "questionmark.circle", title: "帮助", isDarkMode: isDarkMode, action: {})
+                        SettingsRowView(icon: "info.circle", title: "关于", isDarkMode: isDarkMode, action: {})
                     }
                     .padding(.horizontal)
                     
@@ -233,11 +269,11 @@ struct SettingsView: View {
                     Button("完成") {
                         dismiss()
                     }
-                    .foregroundColor(.white)
+                    .foregroundColor(isDarkMode ? .white : .black)
                 }
             }
         }
-        .preferredColorScheme(.dark)
+        .preferredColorScheme(isDarkMode ? .dark : .light)
     }
 }
 
@@ -245,6 +281,7 @@ struct SettingsView: View {
 struct SettingsRowView: View {
     let icon: String
     let title: String
+    let isDarkMode: Bool
     let action: () -> Void
     
     var body: some View {
@@ -252,23 +289,23 @@ struct SettingsRowView: View {
             HStack {
                 Image(systemName: icon)
                     .font(.system(size: 20))
-                    .foregroundColor(.white.opacity(0.8))
+                    .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8))
                     .frame(width: 30)
                 
                 Text(title)
                     .font(.system(size: 16))
-                    .foregroundColor(.white)
+                    .foregroundColor(isDarkMode ? .white : .black)
                 
                 Spacer()
                 
                 Image(systemName: "chevron.right")
                     .font(.system(size: 14))
-                    .foregroundColor(.white.opacity(0.3))
+                    .foregroundColor(isDarkMode ? .white.opacity(0.3) : .black.opacity(0.3))
             }
             .padding()
             .background(
                 RoundedRectangle(cornerRadius: 12)
-                    .fill(Color.white.opacity(0.05))
+                    .fill(isDarkMode ? Color.white.opacity(0.05) : Color.white)
             )
         }
     }

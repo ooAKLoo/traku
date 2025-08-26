@@ -18,12 +18,15 @@ struct RecordingDetailView: View {
     @State private var showTranscription = true
     @State private var showSummary = true
     @Environment(\.dismiss) private var dismiss
+    @AppStorage("isDarkMode") private var isDarkMode = true
     
     var body: some View {
         ZStack {
             // 背景
             LinearGradient(
-                colors: [Color.black, Color(white: 0.05)],
+                colors: isDarkMode ? 
+                    [Color.black, Color(white: 0.05)] :
+                    [Color(white: 0.95), Color(white: 0.98)],
                 startPoint: .top,
                 endPoint: .bottom
             )
@@ -78,7 +81,7 @@ struct RecordingDetailView: View {
                             // 标签
                             HStack(spacing: 8) {
                                 ForEach(recording.tags, id: \.self) { tag in
-                                    TagView(text: tag)
+                                    TagView(text: tag, isDarkMode: isDarkMode)
                                 }
                                 Spacer()
                             }
