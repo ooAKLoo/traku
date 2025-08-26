@@ -154,11 +154,11 @@ struct RecordingCardView: View {
             // 时间线指示器
             VStack {
                 Circle()
-                    .fill(isDarkMode ? Color.white.opacity(0.3) : Color.black.opacity(0.3))
+                    .fill(isDarkMode ? Color.white.opacity(0.3) : Color.black.opacity(0.15))
                     .frame(width: 10, height: 10)
                 
                 Rectangle()
-                    .fill(isDarkMode ? Color.white.opacity(0.1) : Color.black.opacity(0.1))
+                    .fill(isDarkMode ? Color.white.opacity(0.1) : Color.black.opacity(0.05))
                     .frame(width: 1)
             }
             
@@ -402,23 +402,27 @@ struct ConnectionControlButton: View {
 }
 
 // MARK: - 连接配置视图
+import SwiftUI
+
+// MARK: - 增强的连接配置视图
 struct ConnectionConfigView: View {
+    @StateObject private var discoveryService = DeviceDiscoveryService()
     @ObservedObject var audioManager: AudioManager
     @Environment(\.dismiss) private var dismiss
     @AppStorage("isDarkMode") private var isDarkMode = true
-    @State private var ssid = ""
-    @State private var password = ""
+    
+    @State private var selectedDevice: DeviceDiscoveryService.DiscoveredDevice?
     @State private var isConnecting = false
-    @State private var showAlert = false
-    @State private var alertMessage = ""
-    @State private var connectionStep = 0
+    @State private var showManualConfig = false
+    @State private var manualIP = ""
+    @State private var manualPort = "8888"
     
     var body: some View {
         NavigationView {
             ZStack {
                 // 背景
                 LinearGradient(
-                    colors: isDarkMode ? 
+                    colors: isDarkMode ?
                         [Color.black, Color(white: 0.05)] :
                         [Color(white: 0.95), Color(white: 0.98)],
                     startPoint: .top,
@@ -426,15 +430,14 @@ struct ConnectionConfigView: View {
                 )
                 .ignoresSafeArea()
                 
-                VStack(spacing: 30) {
+                VStack(spacing: 20) {
                     // 标题区域
                     VStack(spacing: 15) {
-                        // 设备图标
                         ZStack {
                             Circle()
                                 .fill(
                                     LinearGradient(
-                                        colors: isDarkMode ? 
+                                        colors: isDarkMode ?
                                             [Color.blue.opacity(0.2), Color.purple.opacity(0.2)] :
                                             [Color.blue.opacity(0.1), Color.purple.opacity(0.1)],
                                         startPoint: .topLeading,
@@ -443,151 +446,491 @@ struct ConnectionConfigView: View {
                                 )
                                 .frame(width: 80, height: 80)
                             
-                            Image("product")
-                                .resizable()
-                                .aspectRatio(contentMode: .fit)
-                                .frame(width: 40, height: 40)
+                            Image(systemName: "mic.circle.fill")
+                                .font(.system(size: 40))
                                 .foregroundColor(isDarkMode ? .white : .black)
                         }
                         
-                        Text("设备连接配置")
+                        Text("设备连接")
                             .font(.system(size: 24, weight: .bold))
                             .foregroundColor(isDarkMode ? .white : .black)
                         
-                        Text("配置设备连接Wi-Fi网络")
-                            .font(.system(size: 16))
-                            .foregroundColor(isDarkMode ? .white.opacity(0.7) : .black.opacity(0.7))
+                        if audioManager.isConnected {
+                            HStack {
+                                Circle()
+                                    .fill(Color.green)
+                                    .frame(width: 8, height: 8)
+                                Text(audioManager.connectionStatus)
+                                    .font(.system(size: 14))
+                                    .foregroundColor(Color.green)
+                            }
+                        } else {
+                            Text("选择一个设备进行连接")
+                                .font(.system(size: 16))
+                                .foregroundColor(isDarkMode ? .white.opacity(0.7) : .black.opacity(0.7))
+                        }
                     }
                     .padding(.top, 20)
                     
-                    // 连接步骤指示器
-                    ConnectionStepsView(currentStep: connectionStep, isDarkMode: isDarkMode)
-                    
-                    // 配置表单
-                    VStack(spacing: 20) {
-                        // Wi-Fi SSID输入
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Wi-Fi网络名称")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8))
+                    // 设备列表
+                    VStack(alignment: .leading, spacing: 12) {
+                        HStack {
+                            Text("发现的设备")
+                                .font(.system(size: 18, weight: .semibold))
+                                .foregroundColor(isDarkMode ? .white : .black)
                             
-                            TextField("输入Wi-Fi名称", text: $ssid)
-                                .textFieldStyle(ModernTextFieldStyle(isDarkMode: isDarkMode))
-                        }
-                        
-                        // Wi-Fi 密码输入
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text("Wi-Fi密码")
-                                .font(.system(size: 14, weight: .medium))
-                                .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8))
+                            Spacer()
                             
-                            SecureField("输入Wi-Fi密码", text: $password)
-                                .textFieldStyle(ModernTextFieldStyle(isDarkMode: isDarkMode))
+                            Button(action: {
+                                discoveryService.refreshDevices()
+                            }) {
+                                Image(systemName: "arrow.clockwise")
+                                    .font(.system(size: 16))
+                                    .foregroundColor(isDarkMode ? .white.opacity(0.7) : .black.opacity(0.7))
+                            }
                         }
+                        .padding(.horizontal)
                         
-                        // 连接按钮
-                        Button(action: startConnection) {
-                            HStack {
-                                if isConnecting {
-                                    ProgressView()
-                                        .progressViewStyle(CircularProgressViewStyle(tint: isDarkMode ? .black : .white))
-                                        .scaleEffect(0.8)
-                                }
+                        if discoveryService.discoveredDevices.isEmpty {
+                            // 没有发现设备
+                            VStack(spacing: 15) {
+                                Image(systemName: "wifi.slash")
+                                    .font(.system(size: 40))
+                                    .foregroundColor(isDarkMode ? .white.opacity(0.3) : .black.opacity(0.3))
                                 
-                                Text(isConnecting ? "正在连接..." : "开始配置")
-                                    .font(.system(size: 16, weight: .semibold))
+                                Text("正在搜索设备...")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
+                                
+                                ProgressView()
+                                    .progressViewStyle(CircularProgressViewStyle(tint: isDarkMode ? .white : .black))
+                                    .scaleEffect(0.8)
                             }
                             .frame(maxWidth: .infinity)
-                            .padding()
+                            .padding(.vertical, 40)
                             .background(
                                 RoundedRectangle(cornerRadius: 12)
-                                    .fill(isDarkMode ? Color.white : Color.black)
+                                    .fill(isDarkMode ? Color.white.opacity(0.05) : Color.white)
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 12)
+                                            .stroke(isDarkMode ? Color.white.opacity(0.1) : Color.black.opacity(0.1), lineWidth: 1)
+                                    )
                             )
-                            .foregroundColor(isDarkMode ? .black : .white)
+                            .padding(.horizontal)
+                        } else {
+                            // 设备列表
+                            ScrollView {
+                                VStack(spacing: 10) {
+                                    ForEach(discoveryService.discoveredDevices) { device in
+                                        DeviceRowView(
+                                            device: device,
+                                            isSelected: selectedDevice?.id == device.id,
+                                            isConnected: audioManager.connectedDevice?.id == device.id,
+                                            isDarkMode: isDarkMode
+                                        ) {
+                                            selectedDevice = device
+                                            connectToDevice(device)
+                                        }
+                                    }
+                                }
+                                .padding(.horizontal)
+                            }
+                            .frame(maxHeight: 200)
                         }
-                        .disabled(ssid.isEmpty || password.isEmpty || isConnecting)
-                        .opacity(ssid.isEmpty || password.isEmpty ? 0.5 : 1.0)
                     }
-                    .padding(.horizontal, 20)
+                    
+                    // 手动连接选项
+                    Button(action: {
+                        showManualConfig.toggle()
+                    }) {
+                        HStack {
+                            Image(systemName: "network")
+                                .font(.system(size: 16))
+                            Text("手动输入IP地址")
+                                .font(.system(size: 14))
+                        }
+                        .foregroundColor(isDarkMode ? .white.opacity(0.7) : .black.opacity(0.7))
+                    }
+                    
+                    if showManualConfig {
+                        ManualConfigView(
+                            manualIP: $manualIP,
+                            manualPort: $manualPort,
+                            isDarkMode: isDarkMode
+                        ) {
+                            connectManually()
+                        }
+                    }
+                    
+                    // 连接状态信息
+                    if isConnecting {
+                        HStack(spacing: 10) {
+                            ProgressView()
+                                .progressViewStyle(CircularProgressViewStyle(tint: isDarkMode ? .white : .black))
+                                .scaleEffect(0.8)
+                            Text("正在连接...")
+                                .font(.system(size: 14))
+                                .foregroundColor(isDarkMode ? .white.opacity(0.7) : .black.opacity(0.7))
+                        }
+                        .padding()
+                        .background(
+                            RoundedRectangle(cornerRadius: 10)
+                                .fill(isDarkMode ? Color.white.opacity(0.05) : Color.black.opacity(0.05))
+                        )
+                    }
                     
                     // 说明信息
-                    VStack(spacing: 10) {
+                    VStack(alignment: .leading, spacing: 10) {
                         HStack(spacing: 8) {
                             Image(systemName: "info.circle")
                                 .foregroundColor(isDarkMode ? .blue.opacity(0.8) : .blue)
-                            Text("配置步骤")
+                            Text("连接说明")
                                 .font(.system(size: 14, weight: .medium))
                                 .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8))
                             Spacer()
                         }
                         
                         VStack(alignment: .leading, spacing: 8) {
-                            Text("1. 确保设备处于配置模式")
-                            Text("2. 手机连接到设备热点")
-                            Text("3. 输入目标Wi-Fi信息并配置")
-                            Text("4. 等待设备重启并连接")
+                            Text("• 确保手机与ESP32设备在同一WiFi网络")
+                            Text("• 设备会自动被发现并显示在列表中")
+                            Text("• 点击设备即可连接")
+                            Text("• 如果未发现设备，可手动输入IP地址")
                         }
                         .font(.system(size: 12))
                         .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
-                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
-                    .padding(.horizontal, 20)
                     .padding()
                     .background(
                         RoundedRectangle(cornerRadius: 12)
                             .fill(isDarkMode ? Color.white.opacity(0.05) : Color.black.opacity(0.05))
                     )
-                    .padding(.horizontal, 20)
+                    .padding(.horizontal)
                     
                     Spacer()
                 }
             }
-            .navigationTitle("设备连接")
+            .navigationTitle("设备管理")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
-                    Button("取消") {
+                    Button("关闭") {
                         dismiss()
                     }
                     .foregroundColor(isDarkMode ? .white : .black)
                 }
-            }
-            .alert("连接状态", isPresented: $showAlert) {
-                Button("确定", role: .cancel) { }
-            } message: {
-                Text(alertMessage)
+                
+                if audioManager.isConnected {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button("断开") {
+                            audioManager.disconnectFromDevice()
+                        }
+                        .foregroundColor(.red)
+                    }
+                }
             }
         }
         .preferredColorScheme(isDarkMode ? .dark : .light)
     }
     
-    func startConnection() {
+    func connectToDevice(_ device: DeviceDiscoveryService.DiscoveredDevice) {
         isConnecting = true
-        connectionStep = 1
         
-        // 第一步：准备BLE连接
-        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-//            self.connectionStep = 2
-//            // 开始搜索BLE设备
-//            self.audioManager.startScanning()
-        }
+        // 使用音频管理器连接设备
+        audioManager.connectToDevice(device)
         
-        // 轮询检查连接状态
-        checkConnectionStatus()
-        
-        // 设置超时
-        DispatchQueue.main.asyncAfter(deadline: .now() + 30.0) {
-            if self.isConnecting {
-                self.isConnecting = false
-                self.connectionStep = 0
-                self.alertMessage = "连接超时，请重试"
-                self.showAlert = true
+        // 模拟连接延迟
+        DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+            isConnecting = false
+            if audioManager.isConnected {
+                dismiss()
             }
         }
     }
     
-    func checkConnectionStatus() {
-       
+    func connectManually() {
+        guard !manualIP.isEmpty else { return }
+        
+        let device = DeviceDiscoveryService.DiscoveredDevice(
+            name: "手动设备",
+            ipAddress: manualIP,
+            port: Int(manualPort) ?? 8888,
+            statusPort: 8889,
+            isStreaming: false
+        )
+        
+        connectToDevice(device)
+    }
+}
+
+// MARK: - 设备行视图
+struct DeviceRowView: View {
+    let device: DeviceDiscoveryService.DiscoveredDevice
+    let isSelected: Bool
+    let isConnected: Bool
+    let isDarkMode: Bool
+    let action: () -> Void
+    
+    private var backgroundView: some View {
+        let fillColor = isSelected ?
+                       (isDarkMode ? Color.white.opacity(0.1) : Color.black.opacity(0.05)) :
+                       (isDarkMode ? Color.white.opacity(0.05) : Color.white)
+        
+        let strokeColor = isConnected ? Color.green.opacity(0.5) :
+                         (isDarkMode ? Color.white.opacity(0.1) : Color.black.opacity(0.1))
+        
+        let strokeWidth: CGFloat = isConnected ? 2 : 1
+        
+        return RoundedRectangle(cornerRadius: 12)
+            .fill(fillColor)
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(strokeColor, lineWidth: strokeWidth)
+            )
+    }
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 15) {
+                // 设备图标
+                ZStack {
+                    let circleColor = isConnected ? Color.green.opacity(0.2) :
+                                     (isDarkMode ? Color.white.opacity(0.1) : Color.black.opacity(0.1))
+                    
+                    Circle()
+                        .fill(circleColor)
+                        .frame(width: 40, height: 40)
+                    
+                    let iconColor = isConnected ? Color.green :
+                                   (isDarkMode ? .white.opacity(0.7) : .black.opacity(0.7))
+                    
+                    Image(systemName: "mic.fill")
+                        .font(.system(size: 20))
+                        .foregroundColor(iconColor)
+                }
+                
+                // 设备信息
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(device.name)
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(isDarkMode ? .white : .black)
+                    
+                    Text(device.ipAddress)
+                        .font(.system(size: 12))
+                        .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
+                }
+                
+                Spacer()
+                
+                // 状态指示
+                if isConnected {
+                    Text("已连接")
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundColor(Color.green)
+                } else if device.isStreaming {
+                    HStack(spacing: 4) {
+                        Circle()
+                            .fill(Color.orange)
+                            .frame(width: 6, height: 6)
+                        Text("使用中")
+                            .font(.system(size: 12))
+                            .foregroundColor(Color.orange)
+                    }
+                }
+                
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14))
+                    .foregroundColor(isDarkMode ? .white.opacity(0.3) : .black.opacity(0.3))
+            }
+            .padding()
+            .background(backgroundView)
+        }
+    }
+}
+
+// MARK: - 手动配置视图
+struct ManualConfigView: View {
+    @Binding var manualIP: String
+    @Binding var manualPort: String
+    let isDarkMode: Bool
+    let onConnect: () -> Void
+    
+    var body: some View {
+        VStack(spacing: 15) {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("IP地址")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8))
+                
+                TextField("192.168.1.100", text: $manualIP)
+                    .textFieldStyle(ModernTextFieldStyle(isDarkMode: isDarkMode))
+                    .keyboardType(.numbersAndPunctuation)
+            }
+            
+            VStack(alignment: .leading, spacing: 8) {
+                Text("端口")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8))
+                
+                TextField("8888", text: $manualPort)
+                    .textFieldStyle(ModernTextFieldStyle(isDarkMode: isDarkMode))
+                    .keyboardType(.numberPad)
+            }
+            
+            Button(action: onConnect) {
+                Text("连接")
+                    .font(.system(size: 16, weight: .semibold))
+                    .frame(maxWidth: .infinity)
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(isDarkMode ? Color.white : Color.black)
+                    )
+                    .foregroundColor(isDarkMode ? .black : .white)
+            }
+            .disabled(manualIP.isEmpty)
+            .opacity(manualIP.isEmpty ? 0.5 : 1.0)
+        }
+        .padding()
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(isDarkMode ? Color.white.opacity(0.05) : Color.white)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(isDarkMode ? Color.white.opacity(0.1) : Color.black.opacity(0.1), lineWidth: 1)
+                )
+        )
+        .padding(.horizontal)
+    }
+}
+
+// MARK: - 主界面录音控制
+struct RecordingControlView: View {
+    @ObservedObject var audioManager: AudioManager
+    @State private var isRecording = false
+    @State private var recordingTime: TimeInterval = 0
+    @State private var timer: Timer?
+    @AppStorage("isDarkMode") private var isDarkMode = true
+    
+    var body: some View {
+        VStack(spacing: 30) {
+            // 音频波形可视化
+            if audioManager.isRecording {
+                AudioWaveformView(levels: audioManager.audioLevels, isDarkMode: isDarkMode)
+                    .frame(height: 100)
+                    .padding(.horizontal)
+            }
+            
+            // 录音时间
+            if isRecording {
+                Text(formatTime(recordingTime))
+                    .font(.system(size: 48, weight: .thin, design: .monospaced))
+                    .foregroundColor(isDarkMode ? .white : .black)
+            }
+            
+            // 录音按钮
+            Button(action: toggleRecording) {
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: isRecording ?
+                                    [Color.red, Color.red.opacity(0.8)] :
+                                    [Color.blue, Color.purple],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 100, height: 100)
+                        .shadow(color: isRecording ? Color.red.opacity(0.5) : Color.blue.opacity(0.5),
+                               radius: isRecording ? 20 : 10)
+                    
+                    Image(systemName: isRecording ? "stop.fill" : "mic.fill")
+                        .font(.system(size: 40))
+                        .foregroundColor(.white)
+                        .scaleEffect(isRecording ? 0.8 : 1.0)
+                        .animation(.easeInOut(duration: 0.2), value: isRecording)
+                }
+            }
+            .disabled(!audioManager.isConnected)
+            .opacity(audioManager.isConnected ? 1.0 : 0.5)
+            
+            // 连接状态提示
+            if !audioManager.isConnected {
+                Text("请先连接设备")
+                    .font(.system(size: 14))
+                    .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
+            }
+        }
+        .padding()
+    }
+    
+    func toggleRecording() {
+        if isRecording {
+            // 停止录音
+            audioManager.stopRecording()
+            timer?.invalidate()
+            timer = nil
+            recordingTime = 0
+        } else {
+            // 开始录音
+            audioManager.startRecording()
+            recordingTime = 0
+            timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
+                recordingTime += 0.1
+            }
+        }
+        
+        withAnimation(.spring()) {
+            isRecording.toggle()
+        }
+    }
+    
+    func formatTime(_ time: TimeInterval) -> String {
+        let minutes = Int(time) / 60
+        let seconds = Int(time) % 60
+        let milliseconds = Int((time.truncatingRemainder(dividingBy: 1)) * 10)
+        return String(format: "%02d:%02d.%d", minutes, seconds, milliseconds)
+    }
+}
+
+// MARK: - 音频波形视图
+struct AudioWaveformView: View {
+    let levels: [Float]
+    let isDarkMode: Bool
+    
+    var body: some View {
+        HStack(spacing: 2) {
+            ForEach(0..<50, id: \.self) { index in
+                RoundedRectangle(cornerRadius: 2)
+                    .fill(
+                        LinearGradient(
+                            colors: [
+                                colorForLevel(getLevel(at: index)),
+                                colorForLevel(getLevel(at: index)).opacity(0.5)
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
+                    .frame(width: 4, height: CGFloat(20 + getLevel(at: index) * 80))
+                    .animation(.easeInOut(duration: 0.1), value: levels)
+            }
+        }
+    }
+    
+    func getLevel(at index: Int) -> Float {
+        guard index < levels.count else { return 0.1 }
+        return levels[index]
+    }
+    
+    func colorForLevel(_ level: Float) -> Color {
+        if level > 0.7 {
+            return Color.red
+        } else if level > 0.4 {
+            return Color.orange
+        } else {
+            return Color.green
+        }
     }
 }
 
@@ -654,7 +997,7 @@ struct ConnectionStepsView: View {
     }
     
     func getInactiveColor() -> Color {
-        return isDarkMode ? .white.opacity(0.2) : .black.opacity(0.2)
+        return isDarkMode ? .white.opacity(0.2) : .black.opacity(0.1)
     }
 }
 

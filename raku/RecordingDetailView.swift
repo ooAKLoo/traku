@@ -370,140 +370,140 @@ struct CollapsibleCard<Content: View>: View {
 }
 
 // MARK: - 音频管理器
-class AudioManager: ObservableObject {
-    @Published var isConnected = false
-    @Published var isRecording = false
-    @Published var recordings: [AudioRecording] = []
-    @Published var audioLevels: [Float] = []
-    
-    private var webSocketTask: URLSessionWebSocketTask?
-    private var audioData = Data()
-    private var recordingStartTime: Date?
-    
-    init() {
-        setupWebSocket()
-        loadMockData() // 加载模拟数据用于演示
-    }
-    
-    func setupWebSocket() {
-        guard let url = URL(string: "ws://192.168.1.100:81/") else { return }
-        
-        let session = URLSession(configuration: .default)
-        webSocketTask = session.webSocketTask(with: url)
-        webSocketTask?.resume()
-        
-        isConnected = true
-        receiveMessage()
-    }
-    
-    func receiveMessage() {
-        webSocketTask?.receive { [weak self] result in
-            switch result {
-            case .success(let message):
-                switch message {
-                case .data(let data):
-                    self?.processAudioData(data)
-                case .string(let text):
-                    print("Received text: \(text)")
-                @unknown default:
-                    break
-                }
-                self?.receiveMessage()
-            case .failure(let error):
-                print("WebSocket error: \(error)")
-                self?.isConnected = false
-            }
-        }
-    }
-    
-    func startRecording() {
-        isRecording = true
-        audioData = Data()
-        recordingStartTime = Date()
-        
-        let message = URLSessionWebSocketTask.Message.string("START")
-        webSocketTask?.send(message) { error in
-            if let error = error {
-                print("Send error: \(error)")
-            }
-        }
-        
-        // 模拟音频级别变化
-        Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { timer in
-            if !self.isRecording {
-                timer.invalidate()
-                return
-            }
-            
-            // 生成模拟的音频级别
-            var levels: [Float] = []
-            for _ in 0..<50 {
-                levels.append(Float.random(in: 0.1...1.0))
-            }
-            self.audioLevels = levels
-        }
-    }
-    
-    func stopRecording() {
-        isRecording = false
-        
-        let message = URLSessionWebSocketTask.Message.string("STOP")
-        webSocketTask?.send(message) { error in
-            if let error = error {
-                print("Send error: \(error)")
-            }
-        }
-        
-        // 创建录音记录
-        if let startTime = recordingStartTime {
-            let duration = Date().timeIntervalSince(startTime)
-            let recording = AudioRecording(
-                timestamp: startTime,
-                duration: duration,
-                transcription: "这是一段转写的文本内容。这里会显示通过语音识别得到的原始文字...",
-                summary: "这是对录音内容的智能总结。系统会自动提取关键信息并生成结构化的摘要...",
-                tags: ["会议", "项目"],
-                audioData: audioData
-            )
-            recordings.insert(recording, at: 0)
-        }
-        
-        audioLevels = []
-    }
-    
-    func processAudioData(_ data: Data) {
-        audioData.append(data)
-        // 处理接收到的音频数据
-    }
-    
-    func loadMockData() {
-        // 加载一些模拟数据用于UI展示
-        recordings = [
-            AudioRecording(
-                timestamp: Date().addingTimeInterval(-3600),
-                duration: 180,
-                transcription: "今天的产品会议主要讨论了新功能的开发进度...",
-                summary: "产品会议总结：确定了Q2季度的产品路线图，重点关注用户体验优化和性能提升。",
-                tags: ["会议", "产品"],
-                audioData: nil
-            ),
-            AudioRecording(
-                timestamp: Date().addingTimeInterval(-7200),
-                duration: 120,
-                transcription: "关于机器学习模型的优化方案...",
-                summary: "技术讨论：探讨了模型训练的优化策略，包括数据增强和超参数调整。",
-                tags: ["技术", "AI"],
-                audioData: nil
-            )
-        ]
-    }
-}
+//class AudioManager: ObservableObject {
+//    @Published var isConnected = false
+//    @Published var isRecording = false
+//    @Published var recordings: [AudioRecording] = []
+//    @Published var audioLevels: [Float] = []
+//    
+//    private var webSocketTask: URLSessionWebSocketTask?
+//    private var audioData = Data()
+//    private var recordingStartTime: Date?
+//    
+//    init() {
+//        setupWebSocket()
+//        loadMockData() // 加载模拟数据用于演示
+//    }
+//    
+//    func setupWebSocket() {
+//        guard let url = URL(string: "ws://192.168.5.33:8888/") else { return }
+//        
+//        let session = URLSession(configuration: .default)
+//        webSocketTask = session.webSocketTask(with: url)
+//        webSocketTask?.resume()
+//        
+//        isConnected = true
+//        receiveMessage()
+//    }
+//    
+//    func receiveMessage() {
+//        webSocketTask?.receive { [weak self] result in
+//            switch result {
+//            case .success(let message):
+//                switch message {
+//                case .data(let data):
+//                    self?.processAudioData(data)
+//                case .string(let text):
+//                    print("Received text: \(text)")
+//                @unknown default:
+//                    break
+//                }
+//                self?.receiveMessage()
+//            case .failure(let error):
+//                print("WebSocket error: \(error)")
+//                self?.isConnected = false
+//            }
+//        }
+//    }
+//    
+//    func startRecording() {
+//        isRecording = true
+//        audioData = Data()
+//        recordingStartTime = Date()
+//        
+//        let message = URLSessionWebSocketTask.Message.string("START")
+//        webSocketTask?.send(message) { error in
+//            if let error = error {
+//                print("Send error: \(error)")
+//            }
+//        }
+//        
+//        // 模拟音频级别变化
+//        Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { timer in
+//            if !self.isRecording {
+//                timer.invalidate()
+//                return
+//            }
+//            
+//            // 生成模拟的音频级别
+//            var levels: [Float] = []
+//            for _ in 0..<50 {
+//                levels.append(Float.random(in: 0.1...1.0))
+//            }
+//            self.audioLevels = levels
+//        }
+//    }
+//    
+//    func stopRecording() {
+//        isRecording = false
+//        
+//        let message = URLSessionWebSocketTask.Message.string("STOP")
+//        webSocketTask?.send(message) { error in
+//            if let error = error {
+//                print("Send error: \(error)")
+//            }
+//        }
+//        
+//        // 创建录音记录
+//        if let startTime = recordingStartTime {
+//            let duration = Date().timeIntervalSince(startTime)
+//            let recording = AudioRecording(
+//                timestamp: startTime,
+//                duration: duration,
+//                transcription: "这是一段转写的文本内容。这里会显示通过语音识别得到的原始文字...",
+//                summary: "这是对录音内容的智能总结。系统会自动提取关键信息并生成结构化的摘要...",
+//                tags: ["会议", "项目"],
+//                audioData: audioData
+//            )
+//            recordings.insert(recording, at: 0)
+//        }
+//        
+//        audioLevels = []
+//    }
+//    
+//    func processAudioData(_ data: Data) {
+//        audioData.append(data)
+//        // 处理接收到的音频数据
+//    }
+//    
+//    func loadMockData() {
+//        // 加载一些模拟数据用于UI展示
+//        recordings = [
+//            AudioRecording(
+//                timestamp: Date().addingTimeInterval(-3600),
+//                duration: 180,
+//                transcription: "今天的产品会议主要讨论了新功能的开发进度...",
+//                summary: "产品会议总结：确定了Q2季度的产品路线图，重点关注用户体验优化和性能提升。",
+//                tags: ["会议", "产品"],
+//                audioData: nil
+//            ),
+//            AudioRecording(
+//                timestamp: Date().addingTimeInterval(-7200),
+//                duration: 120,
+//                transcription: "关于机器学习模型的优化方案...",
+//                summary: "技术讨论：探讨了模型训练的优化策略，包括数据增强和超参数调整。",
+//                tags: ["技术", "AI"],
+//                audioData: nil
+//            )
+//        ]
+//    }
+//}
 
-// MARK: - App主入口
-struct ESP32AudioApp: App {
-    var body: some Scene {
-        WindowGroup {
-            ContentView()
-        }
-    }
-}
+//// MARK: - App主入口
+//struct ESP32AudioApp: App {
+//    var body: some Scene {
+//        WindowGroup {
+//            ContentView()
+//        }
+//    }
+//}
