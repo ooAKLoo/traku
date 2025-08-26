@@ -1,0 +1,501 @@
+//
+//  RecordingDetailView.swift
+//  raku
+//
+//  Created by 杨东举 on 2025/8/26.
+//
+
+
+import SwiftUI
+import AVFoundation
+import Combine
+
+// MARK: - 录音详情视图
+struct RecordingDetailView: View {
+    let recording: AudioRecording
+    @State private var isPlaying = false
+    @State private var playProgress: Double = 0
+    @State private var showTranscription = true
+    @State private var showSummary = true
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        ZStack {
+            // 背景
+            LinearGradient(
+                colors: [Color.black, Color(white: 0.05)],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .ignoresSafeArea()
+            
+            VStack(spacing: 0) {
+                // 顶部导航栏
+                HStack {
+                    Button(action: { dismiss() }) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 18))
+                            .foregroundColor(.white.opacity(0.7))
+                            .frame(width: 32, height: 32)
+                            .background(Circle().fill(Color.white.opacity(0.1)))
+                    }
+                    
+                    Spacer()
+                    
+                    Menu {
+                        Button(action: shareRecording) {
+                            Label("分享", systemImage: "square.and.arrow.up")
+                        }
+                        Button(action: exportRecording) {
+                            Label("导出", systemImage: "doc.on.doc")
+                        }
+                        Button(role: .destructive, action: deleteRecording) {
+                            Label("删除", systemImage: "trash")
+                        }
+                    } label: {
+                        Image(systemName: "ellipsis")
+                            .font(.system(size: 18))
+                            .foregroundColor(.white.opacity(0.7))
+                            .frame(width: 32, height: 32)
+                            .background(Circle().fill(Color.white.opacity(0.1)))
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.vertical, 15)
+                
+                ScrollView {
+                    VStack(spacing: 25) {
+                        // 标题区域
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text(formatDate(recording.timestamp))
+                                .font(.system(size: 14))
+                                .foregroundColor(.white.opacity(0.5))
+                            
+                            Text(extractTitle(from: recording.summary))
+                                .font(.system(size: 24, weight: .semibold))
+                                .foregroundColor(.white)
+                            
+                            // 标签
+                            HStack(spacing: 8) {
+                                ForEach(recording.tags, id: \.self) { tag in
+                                    TagView(text: tag)
+                                }
+                                Spacer()
+                            }
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 20)
+                        .padding(.top, 10)
+                        
+                        // 音频播放器模块
+                        AudioPlayerCard(
+                            duration: recording.duration,
+                            isPlaying: $isPlaying,
+                            progress: $playProgress
+                        )
+                        
+                        // 转写文本模块
+                        CollapsibleCard(
+                            title: "转写文本",
+                            icon: "text.alignleft",
+                            isExpanded: $showTranscription
+                        ) {
+                            Text(recording.transcription)
+                                .font(.system(size: 15))
+                                .foregroundColor(.white.opacity(0.9))
+                                .lineSpacing(8)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                        
+                        // 总结模块
+                        CollapsibleCard(
+                            title: "智能总结",
+                            icon: "brain",
+                            isExpanded: $showSummary
+                        ) {
+                            VStack(alignment: .leading, spacing: 15) {
+                                // 概要段落
+                                Text(recording.summary)
+                                    .font(.system(size: 15))
+                                    .foregroundColor(.white.opacity(0.9))
+                                    .lineSpacing(8)
+                                
+                                Divider()
+                                    .background(Color.white.opacity(0.1))
+                                
+                                // 要点列表
+                                VStack(alignment: .leading, spacing: 10) {
+                                    Text("关键要点")
+                                        .font(.system(size: 13, weight: .semibold))
+                                        .foregroundColor(.white.opacity(0.6))
+                                    
+                                    ForEach(extractKeyPoints(from: recording.summary), id: \.self) { point in
+                                        HStack(alignment: .top, spacing: 10) {
+                                            Circle()
+                                                .fill(Color.white.opacity(0.3))
+                                                .frame(width: 4, height: 4)
+                                                .offset(y: 7)
+                                            
+                                            Text(point)
+                                                .font(.system(size: 14))
+                                                .foregroundColor(.white.opacity(0.85))
+                                        }
+                                    }
+                                }
+                                
+                                // 复制按钮
+                                Button(action: copySummary) {
+                                    HStack {
+                                        Image(systemName: "doc.on.doc")
+                                            .font(.system(size: 14))
+                                        Text("复制总结")
+                                            .font(.system(size: 14, weight: .medium))
+                                    }
+                                    .foregroundColor(.black)
+                                    .frame(maxWidth: .infinity)
+                                    .padding(.vertical, 12)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 10)
+                                            .fill(Color.white)
+                                    )
+                                }
+                                .padding(.top, 10)
+                            }
+                        }
+                    }
+                    .padding(.bottom, 30)
+                }
+            }
+        }
+        .preferredColorScheme(.dark)
+    }
+    
+    // 辅助函数
+    func formatDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyy年MM月dd日 HH:mm"
+        return formatter.string(from: date)
+    }
+    
+    func extractTitle(from summary: String) -> String {
+        let sentences = summary.components(separatedBy: "。")
+        return sentences.first ?? "录音记录"
+    }
+    
+    func extractKeyPoints(from summary: String) -> [String] {
+        // 这里可以集成AI来提取要点
+        // 现在暂时返回模拟数据
+        return [
+            "讨论了项目的整体进度安排",
+            "确定了下周的关键交付物",
+            "分配了各团队成员的具体任务"
+        ]
+    }
+    
+    func shareRecording() {
+        // 实现分享功能
+    }
+    
+    func exportRecording() {
+        // 实现导出功能
+    }
+    
+    func deleteRecording() {
+        // 实现删除功能
+        dismiss()
+    }
+    
+    func copySummary() {
+        UIPasteboard.general.string = recording.summary
+    }
+}
+
+// MARK: - 音频播放器卡片
+struct AudioPlayerCard: View {
+    let duration: TimeInterval
+    @Binding var isPlaying: Bool
+    @Binding var progress: Double
+    
+    var body: some View {
+        VStack(spacing: 20) {
+            // 音波动画
+            HStack(spacing: 3) {
+                ForEach(0..<30) { index in
+                    RoundedRectangle(cornerRadius: 2)
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    Color.white.opacity(0.6),
+                                    Color.white.opacity(0.2)
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                        )
+                        .frame(width: 3, height: CGFloat.random(in: 10...40))
+                        .animation(
+                            isPlaying ?
+                                .easeInOut(duration: 0.5)
+                                .repeatForever(autoreverses: true)
+                                .delay(Double(index) * 0.05) :
+                                .default,
+                            value: isPlaying
+                        )
+                }
+            }
+            .frame(height: 40)
+            
+            // 播放控制
+            HStack(spacing: 30) {
+                // 播放按钮
+                Button(action: { isPlaying.toggle() }) {
+                    ZStack {
+                        Circle()
+                            .fill(Color.white)
+                            .frame(width: 56, height: 56)
+                        
+                        Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                            .font(.system(size: 24))
+                            .foregroundColor(.black)
+                            .offset(x: isPlaying ? 0 : 2)
+                    }
+                }
+                
+                // 进度条和时间
+                VStack(spacing: 8) {
+                    // 进度条
+                    GeometryReader { geometry in
+                        ZStack(alignment: .leading) {
+                            RoundedRectangle(cornerRadius: 2)
+                                .fill(Color.white.opacity(0.2))
+                                .frame(height: 4)
+                            
+                            RoundedRectangle(cornerRadius: 2)
+                                .fill(Color.white)
+                                .frame(width: geometry.size.width * progress, height: 4)
+                        }
+                    }
+                    .frame(height: 4)
+                    
+                    // 时间显示
+                    HStack {
+                        Text(formatTime(duration * progress))
+                            .font(.system(size: 12, design: .monospaced))
+                        Spacer()
+                        Text(formatTime(duration))
+                            .font(.system(size: 12, design: .monospaced))
+                    }
+                    .foregroundColor(.white.opacity(0.6))
+                }
+            }
+        }
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(Color.white.opacity(0.05))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20)
+                        .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                )
+        )
+        .padding(.horizontal, 20)
+    }
+    
+    func formatTime(_ time: TimeInterval) -> String {
+        let minutes = Int(time) / 60
+        let seconds = Int(time) % 60
+        return String(format: "%02d:%02d", minutes, seconds)
+    }
+}
+
+// MARK: - 可折叠卡片
+struct CollapsibleCard<Content: View>: View {
+    let title: String
+    let icon: String
+    @Binding var isExpanded: Bool
+    let content: () -> Content
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // 标题栏
+            Button(action: {
+                withAnimation(.spring(response: 0.3)) {
+                    isExpanded.toggle()
+                }
+            }) {
+                HStack {
+                    Image(systemName: icon)
+                        .font(.system(size: 16))
+                        .foregroundColor(.white.opacity(0.7))
+                    
+                    Text(title)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(.white.opacity(0.7))
+                    
+                    Spacer()
+                    
+                    Image(systemName: "chevron.down")
+                        .font(.system(size: 14))
+                        .foregroundColor(.white.opacity(0.5))
+                        .rotationEffect(.degrees(isExpanded ? 180 : 0))
+                }
+                .padding(16)
+            }
+            
+            // 内容区域
+            if isExpanded {
+                content()
+                    .padding(16)
+                    .padding(.top, -8)
+            }
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 20)
+                .fill(Color.white.opacity(0.05))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 20)
+                        .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                )
+        )
+        .padding(.horizontal, 20)
+    }
+}
+
+// MARK: - 音频管理器
+class AudioManager: ObservableObject {
+    @Published var isConnected = false
+    @Published var isRecording = false
+    @Published var recordings: [AudioRecording] = []
+    @Published var audioLevels: [Float] = []
+    
+    private var webSocketTask: URLSessionWebSocketTask?
+    private var audioData = Data()
+    private var recordingStartTime: Date?
+    
+    init() {
+        setupWebSocket()
+        loadMockData() // 加载模拟数据用于演示
+    }
+    
+    func setupWebSocket() {
+        guard let url = URL(string: "ws://192.168.1.100:81/") else { return }
+        
+        let session = URLSession(configuration: .default)
+        webSocketTask = session.webSocketTask(with: url)
+        webSocketTask?.resume()
+        
+        isConnected = true
+        receiveMessage()
+    }
+    
+    func receiveMessage() {
+        webSocketTask?.receive { [weak self] result in
+            switch result {
+            case .success(let message):
+                switch message {
+                case .data(let data):
+                    self?.processAudioData(data)
+                case .string(let text):
+                    print("Received text: \(text)")
+                @unknown default:
+                    break
+                }
+                self?.receiveMessage()
+            case .failure(let error):
+                print("WebSocket error: \(error)")
+                self?.isConnected = false
+            }
+        }
+    }
+    
+    func startRecording() {
+        isRecording = true
+        audioData = Data()
+        recordingStartTime = Date()
+        
+        let message = URLSessionWebSocketTask.Message.string("START")
+        webSocketTask?.send(message) { error in
+            if let error = error {
+                print("Send error: \(error)")
+            }
+        }
+        
+        // 模拟音频级别变化
+        Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { timer in
+            if !self.isRecording {
+                timer.invalidate()
+                return
+            }
+            
+            // 生成模拟的音频级别
+            var levels: [Float] = []
+            for _ in 0..<50 {
+                levels.append(Float.random(in: 0.1...1.0))
+            }
+            self.audioLevels = levels
+        }
+    }
+    
+    func stopRecording() {
+        isRecording = false
+        
+        let message = URLSessionWebSocketTask.Message.string("STOP")
+        webSocketTask?.send(message) { error in
+            if let error = error {
+                print("Send error: \(error)")
+            }
+        }
+        
+        // 创建录音记录
+        if let startTime = recordingStartTime {
+            let duration = Date().timeIntervalSince(startTime)
+            let recording = AudioRecording(
+                timestamp: startTime,
+                duration: duration,
+                transcription: "这是一段转写的文本内容。这里会显示通过语音识别得到的原始文字...",
+                summary: "这是对录音内容的智能总结。系统会自动提取关键信息并生成结构化的摘要...",
+                tags: ["会议", "项目"],
+                audioData: audioData
+            )
+            recordings.insert(recording, at: 0)
+        }
+        
+        audioLevels = []
+    }
+    
+    func processAudioData(_ data: Data) {
+        audioData.append(data)
+        // 处理接收到的音频数据
+    }
+    
+    func loadMockData() {
+        // 加载一些模拟数据用于UI展示
+        recordings = [
+            AudioRecording(
+                timestamp: Date().addingTimeInterval(-3600),
+                duration: 180,
+                transcription: "今天的产品会议主要讨论了新功能的开发进度...",
+                summary: "产品会议总结：确定了Q2季度的产品路线图，重点关注用户体验优化和性能提升。",
+                tags: ["会议", "产品"],
+                audioData: nil
+            ),
+            AudioRecording(
+                timestamp: Date().addingTimeInterval(-7200),
+                duration: 120,
+                transcription: "关于机器学习模型的优化方案...",
+                summary: "技术讨论：探讨了模型训练的优化策略，包括数据增强和超参数调整。",
+                tags: ["技术", "AI"],
+                audioData: nil
+            )
+        ]
+    }
+}
+
+// MARK: - App主入口
+struct ESP32AudioApp: App {
+    var body: some Scene {
+        WindowGroup {
+            ContentView()
+        }
+    }
+}
