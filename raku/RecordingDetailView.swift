@@ -38,9 +38,9 @@ struct RecordingDetailView: View {
                     Button(action: { dismiss() }) {
                         Image(systemName: "xmark")
                             .font(.system(size: 18))
-                            .foregroundColor(.white.opacity(0.7))
+                            .foregroundColor(isDarkMode ? .white.opacity(0.7) : .black.opacity(0.7))
                             .frame(width: 32, height: 32)
-                            .background(Circle().fill(Color.white.opacity(0.1)))
+                            .background(Circle().fill(isDarkMode ? Color.white.opacity(0.1) : Color.black.opacity(0.1)))
                     }
                     
                     Spacer()
@@ -58,9 +58,9 @@ struct RecordingDetailView: View {
                     } label: {
                         Image(systemName: "ellipsis")
                             .font(.system(size: 18))
-                            .foregroundColor(.white.opacity(0.7))
+                            .foregroundColor(isDarkMode ? .white.opacity(0.7) : .black.opacity(0.7))
                             .frame(width: 32, height: 32)
-                            .background(Circle().fill(Color.white.opacity(0.1)))
+                            .background(Circle().fill(isDarkMode ? Color.white.opacity(0.1) : Color.black.opacity(0.1)))
                     }
                 }
                 .padding(.horizontal, 20)
@@ -72,11 +72,11 @@ struct RecordingDetailView: View {
                         VStack(alignment: .leading, spacing: 12) {
                             Text(formatDate(recording.timestamp))
                                 .font(.system(size: 14))
-                                .foregroundColor(.white.opacity(0.5))
+                                .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
                             
                             Text(extractTitle(from: recording.summary))
                                 .font(.system(size: 24, weight: .semibold))
-                                .foregroundColor(.white)
+                                .foregroundColor(isDarkMode ? .white : .black)
                             
                             // 标签
                             HStack(spacing: 8) {
@@ -105,7 +105,7 @@ struct RecordingDetailView: View {
                         ) {
                             Text(recording.transcription)
                                 .font(.system(size: 15))
-                                .foregroundColor(.white.opacity(0.9))
+                                .foregroundColor(isDarkMode ? .white.opacity(0.9) : .black.opacity(0.9))
                                 .lineSpacing(8)
                                 .frame(maxWidth: .infinity, alignment: .leading)
                         }
@@ -120,28 +120,28 @@ struct RecordingDetailView: View {
                                 // 概要段落
                                 Text(recording.summary)
                                     .font(.system(size: 15))
-                                    .foregroundColor(.white.opacity(0.9))
+                                    .foregroundColor(isDarkMode ? .white.opacity(0.9) : .black.opacity(0.9))
                                     .lineSpacing(8)
                                 
                                 Divider()
-                                    .background(Color.white.opacity(0.1))
+                                    .background(isDarkMode ? Color.white.opacity(0.1) : Color.black.opacity(0.1))
                                 
                                 // 要点列表
                                 VStack(alignment: .leading, spacing: 10) {
                                     Text("关键要点")
                                         .font(.system(size: 13, weight: .semibold))
-                                        .foregroundColor(.white.opacity(0.6))
+                                        .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
                                     
                                     ForEach(extractKeyPoints(from: recording.summary), id: \.self) { point in
                                         HStack(alignment: .top, spacing: 10) {
                                             Circle()
-                                                .fill(Color.white.opacity(0.3))
+                                                .fill(isDarkMode ? Color.white.opacity(0.3) : Color.black.opacity(0.3))
                                                 .frame(width: 4, height: 4)
                                                 .offset(y: 7)
                                             
                                             Text(point)
                                                 .font(.system(size: 14))
-                                                .foregroundColor(.white.opacity(0.85))
+                                                .foregroundColor(isDarkMode ? .white.opacity(0.85) : .black.opacity(0.85))
                                         }
                                     }
                                 }
@@ -154,12 +154,12 @@ struct RecordingDetailView: View {
                                         Text("复制总结")
                                             .font(.system(size: 14, weight: .medium))
                                     }
-                                    .foregroundColor(.black)
+                                    .foregroundColor(isDarkMode ? .black : .white)
                                     .frame(maxWidth: .infinity)
                                     .padding(.vertical, 12)
                                     .background(
                                         RoundedRectangle(cornerRadius: 10)
-                                            .fill(Color.white)
+                                            .fill(isDarkMode ? Color.white : Color.black)
                                     )
                                 }
                                 .padding(.top, 10)
@@ -218,6 +218,7 @@ struct AudioPlayerCard: View {
     let duration: TimeInterval
     @Binding var isPlaying: Bool
     @Binding var progress: Double
+    @AppStorage("isDarkMode") private var isDarkMode = true
     
     var body: some View {
         VStack(spacing: 20) {
@@ -227,9 +228,12 @@ struct AudioPlayerCard: View {
                     RoundedRectangle(cornerRadius: 2)
                         .fill(
                             LinearGradient(
-                                colors: [
+                                colors: isDarkMode ? [
                                     Color.white.opacity(0.6),
                                     Color.white.opacity(0.2)
+                                ] : [
+                                    Color.black.opacity(0.6),
+                                    Color.black.opacity(0.2)
                                 ],
                                 startPoint: .top,
                                 endPoint: .bottom
@@ -254,12 +258,12 @@ struct AudioPlayerCard: View {
                 Button(action: { isPlaying.toggle() }) {
                     ZStack {
                         Circle()
-                            .fill(Color.white)
+                            .fill(isDarkMode ? Color.white : Color.black)
                             .frame(width: 56, height: 56)
                         
                         Image(systemName: isPlaying ? "pause.fill" : "play.fill")
                             .font(.system(size: 24))
-                            .foregroundColor(.black)
+                            .foregroundColor(isDarkMode ? .black : .white)
                             .offset(x: isPlaying ? 0 : 2)
                     }
                 }
@@ -270,11 +274,11 @@ struct AudioPlayerCard: View {
                     GeometryReader { geometry in
                         ZStack(alignment: .leading) {
                             RoundedRectangle(cornerRadius: 2)
-                                .fill(Color.white.opacity(0.2))
+                                .fill(isDarkMode ? Color.white.opacity(0.2) : Color.black.opacity(0.2))
                                 .frame(height: 4)
                             
                             RoundedRectangle(cornerRadius: 2)
-                                .fill(Color.white)
+                                .fill(isDarkMode ? Color.white : Color.black)
                                 .frame(width: geometry.size.width * progress, height: 4)
                         }
                     }
@@ -288,17 +292,17 @@ struct AudioPlayerCard: View {
                         Text(formatTime(duration))
                             .font(.system(size: 12, design: .monospaced))
                     }
-                    .foregroundColor(.white.opacity(0.6))
+                    .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
                 }
             }
         }
         .padding(20)
         .background(
             RoundedRectangle(cornerRadius: 20)
-                .fill(Color.white.opacity(0.05))
+                .fill(isDarkMode ? Color.white.opacity(0.05) : Color.white)
                 .overlay(
                     RoundedRectangle(cornerRadius: 20)
-                        .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                        .stroke(isDarkMode ? Color.white.opacity(0.1) : Color.black.opacity(0.1), lineWidth: 1)
                 )
         )
         .padding(.horizontal, 20)
@@ -317,6 +321,7 @@ struct CollapsibleCard<Content: View>: View {
     let icon: String
     @Binding var isExpanded: Bool
     let content: () -> Content
+    @AppStorage("isDarkMode") private var isDarkMode = true
     
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -329,17 +334,17 @@ struct CollapsibleCard<Content: View>: View {
                 HStack {
                     Image(systemName: icon)
                         .font(.system(size: 16))
-                        .foregroundColor(.white.opacity(0.7))
+                        .foregroundColor(isDarkMode ? .white.opacity(0.7) : .black.opacity(0.7))
                     
                     Text(title)
                         .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(.white.opacity(0.7))
+                        .foregroundColor(isDarkMode ? .white.opacity(0.7) : .black.opacity(0.7))
                     
                     Spacer()
                     
                     Image(systemName: "chevron.down")
                         .font(.system(size: 14))
-                        .foregroundColor(.white.opacity(0.5))
+                        .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
                         .rotationEffect(.degrees(isExpanded ? 180 : 0))
                 }
                 .padding(16)
@@ -354,10 +359,10 @@ struct CollapsibleCard<Content: View>: View {
         }
         .background(
             RoundedRectangle(cornerRadius: 20)
-                .fill(Color.white.opacity(0.05))
+                .fill(isDarkMode ? Color.white.opacity(0.05) : Color.white)
                 .overlay(
                     RoundedRectangle(cornerRadius: 20)
-                        .stroke(Color.white.opacity(0.1), lineWidth: 1)
+                        .stroke(isDarkMode ? Color.white.opacity(0.1) : Color.black.opacity(0.1), lineWidth: 1)
                 )
         )
         .padding(.horizontal, 20)
