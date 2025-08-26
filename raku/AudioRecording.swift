@@ -53,6 +53,7 @@ struct RecordingsListView: View {
     @ObservedObject var audioManager: AudioManager
     @Binding var showingDetail: AudioRecording?
     @State private var selectedFilter = "全部"
+    @State private var showingSettings = false
     
     let filters = ["全部", "标签", "时间"]
     
@@ -78,7 +79,17 @@ struct RecordingsListView: View {
                         }
                     }
                 }
+                
                 Spacer()
+                
+                // 设置按钮
+                Button(action: {
+                    showingSettings = true
+                }) {
+                    Image(systemName: "gearshape.fill")
+                        .font(.system(size: 20))
+                        .foregroundColor(.white.opacity(0.7))
+                }
             }
             .padding(.horizontal, 30)
             .padding(.vertical, 20)
@@ -99,6 +110,9 @@ struct RecordingsListView: View {
         }
         .sheet(item: $showingDetail) { recording in
             RecordingDetailView(recording: recording)
+        }
+        .sheet(isPresented: $showingSettings) {
+            SettingsView()
         }
     }
 }
@@ -183,6 +197,80 @@ struct TagView: View {
                 Capsule()
                     .stroke(Color.white.opacity(0.2), lineWidth: 1)
             )
+    }
+}
+
+// MARK: - 设置视图
+struct SettingsView: View {
+    @Environment(\.dismiss) var dismiss
+    
+    var body: some View {
+        NavigationView {
+            ZStack {
+                // 背景
+                Color.black
+                    .ignoresSafeArea()
+                
+                VStack(spacing: 20) {
+                    // 设置选项列表
+                    VStack(spacing: 15) {
+                        SettingsRowView(icon: "person.circle", title: "账户", action: {})
+                        SettingsRowView(icon: "bell", title: "通知", action: {})
+                        SettingsRowView(icon: "lock", title: "隐私", action: {})
+                        SettingsRowView(icon: "questionmark.circle", title: "帮助", action: {})
+                        SettingsRowView(icon: "info.circle", title: "关于", action: {})
+                    }
+                    .padding(.horizontal)
+                    
+                    Spacer()
+                }
+                .padding(.top, 20)
+            }
+            .navigationTitle("设置")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("完成") {
+                        dismiss()
+                    }
+                    .foregroundColor(.white)
+                }
+            }
+        }
+        .preferredColorScheme(.dark)
+    }
+}
+
+// MARK: - 设置行视图
+struct SettingsRowView: View {
+    let icon: String
+    let title: String
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack {
+                Image(systemName: icon)
+                    .font(.system(size: 20))
+                    .foregroundColor(.white.opacity(0.8))
+                    .frame(width: 30)
+                
+                Text(title)
+                    .font(.system(size: 16))
+                    .foregroundColor(.white)
+                
+                Spacer()
+                
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14))
+                    .foregroundColor(.white.opacity(0.3))
+            }
+            .padding()
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(Color.white.opacity(0.05))
+            )
+        }
     }
 }
 
