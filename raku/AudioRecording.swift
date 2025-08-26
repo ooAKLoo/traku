@@ -26,6 +26,7 @@ struct AudioRecording: Identifiable {
 struct ContentView: View {
     @StateObject private var audioManager = AudioManager()
     @State private var showingDetail: AudioRecording? = nil
+    @State private var showingConnectionConfig = false
     @AppStorage("isDarkMode") private var isDarkMode = true
     
     var body: some View {
@@ -45,8 +46,27 @@ struct ContentView: View {
                 showingDetail: $showingDetail,
                 isDarkMode: isDarkMode
             )
+            
+            // 底部连接控制按钮
+            VStack {
+                Spacer()
+                HStack {
+                    Spacer()
+                    ConnectionControlButton(
+                        isConnected: audioManager.isConnected,
+                        isDarkMode: isDarkMode
+                    ) {
+                        showingConnectionConfig = true
+                    }
+                    Spacer()
+                }
+                .padding(.bottom, 50)
+            }
         }
         .preferredColorScheme(isDarkMode ? .dark : .light)
+        .sheet(isPresented: $showingConnectionConfig) {
+            ConnectionConfigView(audioManager: audioManager)
+        }
     }
 }
 
@@ -98,7 +118,7 @@ struct RecordingsListView: View {
                         .foregroundColor(isDarkMode ? .white.opacity(0.7) : .black.opacity(0.7))
                 }
             }
-            .padding(.horizontal, 30)
+            .padding(.trailing, 30)
             .padding(.vertical, 20)
             
             // 录音列表
@@ -308,6 +328,352 @@ struct SettingsRowView: View {
                     .fill(isDarkMode ? Color.white.opacity(0.05) : Color.white)
             )
         }
+    }
+}
+
+// MARK: - 连接控制按钮
+struct ConnectionControlButton: View {
+    let isConnected: Bool
+    let isDarkMode: Bool
+    let action: () -> Void
+    @State private var rotation: Double = 0
+    
+    var body: some View {
+        Button(action: action) {
+            ZStack {
+                // 背景圆圈
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: isDarkMode ? 
+                                [Color.white.opacity(0.1), Color.white.opacity(0.05)] :
+                                [Color.black.opacity(0.05), Color.black.opacity(0.1)],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 60, height: 60)
+                    .overlay(
+                        Circle()
+                            .stroke(
+                                isDarkMode ? Color.white.opacity(0.2) : Color.black.opacity(0.2),
+                                lineWidth: 1
+                            )
+                    )
+                
+                // 产品图片
+                Image("product")
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 32, height: 32)
+                    .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8))
+                    .rotationEffect(.degrees(rotation))
+                    .onAppear {
+                        withAnimation(
+                            .linear(duration: 3.0)
+                            .repeatForever(autoreverses: false)
+                        ) {
+                            rotation = 360
+                        }
+                    }
+                
+                // 连接状态指示器
+                if isConnected {
+                    Circle()
+                        .fill(Color.green)
+                        .frame(width: 8, height: 8)
+                        .offset(x: 20, y: -20)
+                        .overlay(
+                            Circle()
+                                .stroke(isDarkMode ? Color.black : Color.white, lineWidth: 2)
+                                .frame(width: 8, height: 8)
+                                .offset(x: 20, y: -20)
+                        )
+                }
+            }
+        }
+        .shadow(
+            color: isDarkMode ? .white.opacity(0.1) : .black.opacity(0.1),
+            radius: 10,
+            x: 0,
+            y: 5
+        )
+    }
+}
+
+// MARK: - 连接配置视图
+struct ConnectionConfigView: View {
+    @ObservedObject var audioManager: AudioManager
+    @Environment(\.dismiss) private var dismiss
+    @AppStorage("isDarkMode") private var isDarkMode = true
+    @State private var ssid = ""
+    @State private var password = ""
+    @State private var isConnecting = false
+    @State private var showAlert = false
+    @State private var alertMessage = ""
+    @State private var connectionStep = 0
+    
+    var body: some View {
+        NavigationView {
+            ZStack {
+                // 背景
+                LinearGradient(
+                    colors: isDarkMode ? 
+                        [Color.black, Color(white: 0.05)] :
+                        [Color(white: 0.95), Color(white: 0.98)],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+                .ignoresSafeArea()
+                
+                VStack(spacing: 30) {
+                    // 标题区域
+                    VStack(spacing: 15) {
+                        // 设备图标
+                        ZStack {
+                            Circle()
+                                .fill(
+                                    LinearGradient(
+                                        colors: isDarkMode ? 
+                                            [Color.blue.opacity(0.2), Color.purple.opacity(0.2)] :
+                                            [Color.blue.opacity(0.1), Color.purple.opacity(0.1)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .frame(width: 80, height: 80)
+                            
+                            Image("product")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 40, height: 40)
+                                .foregroundColor(isDarkMode ? .white : .black)
+                        }
+                        
+                        Text("设备连接配置")
+                            .font(.system(size: 24, weight: .bold))
+                            .foregroundColor(isDarkMode ? .white : .black)
+                        
+                        Text("配置设备连接Wi-Fi网络")
+                            .font(.system(size: 16))
+                            .foregroundColor(isDarkMode ? .white.opacity(0.7) : .black.opacity(0.7))
+                    }
+                    .padding(.top, 20)
+                    
+                    // 连接步骤指示器
+                    ConnectionStepsView(currentStep: connectionStep, isDarkMode: isDarkMode)
+                    
+                    // 配置表单
+                    VStack(spacing: 20) {
+                        // Wi-Fi SSID输入
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Wi-Fi网络名称")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8))
+                            
+                            TextField("输入Wi-Fi名称", text: $ssid)
+                                .textFieldStyle(ModernTextFieldStyle(isDarkMode: isDarkMode))
+                        }
+                        
+                        // Wi-Fi 密码输入
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("Wi-Fi密码")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8))
+                            
+                            SecureField("输入Wi-Fi密码", text: $password)
+                                .textFieldStyle(ModernTextFieldStyle(isDarkMode: isDarkMode))
+                        }
+                        
+                        // 连接按钮
+                        Button(action: startConnection) {
+                            HStack {
+                                if isConnecting {
+                                    ProgressView()
+                                        .progressViewStyle(CircularProgressViewStyle(tint: isDarkMode ? .black : .white))
+                                        .scaleEffect(0.8)
+                                }
+                                
+                                Text(isConnecting ? "正在连接..." : "开始配置")
+                                    .font(.system(size: 16, weight: .semibold))
+                            }
+                            .frame(maxWidth: .infinity)
+                            .padding()
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(isDarkMode ? Color.white : Color.black)
+                            )
+                            .foregroundColor(isDarkMode ? .black : .white)
+                        }
+                        .disabled(ssid.isEmpty || password.isEmpty || isConnecting)
+                        .opacity(ssid.isEmpty || password.isEmpty ? 0.5 : 1.0)
+                    }
+                    .padding(.horizontal, 20)
+                    
+                    // 说明信息
+                    VStack(spacing: 10) {
+                        HStack(spacing: 8) {
+                            Image(systemName: "info.circle")
+                                .foregroundColor(isDarkMode ? .blue.opacity(0.8) : .blue)
+                            Text("配置步骤")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8))
+                            Spacer()
+                        }
+                        
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text("1. 确保设备处于配置模式")
+                            Text("2. 手机连接到设备热点")
+                            Text("3. 输入目标Wi-Fi信息并配置")
+                            Text("4. 等待设备重启并连接")
+                        }
+                        .font(.system(size: 12))
+                        .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                    }
+                    .padding(.horizontal, 20)
+                    .padding()
+                    .background(
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(isDarkMode ? Color.white.opacity(0.05) : Color.black.opacity(0.05))
+                    )
+                    .padding(.horizontal, 20)
+                    
+                    Spacer()
+                }
+            }
+            .navigationTitle("设备连接")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("取消") {
+                        dismiss()
+                    }
+                    .foregroundColor(isDarkMode ? .white : .black)
+                }
+            }
+            .alert("连接状态", isPresented: $showAlert) {
+                Button("确定", role: .cancel) { }
+            } message: {
+                Text(alertMessage)
+            }
+        }
+        .preferredColorScheme(isDarkMode ? .dark : .light)
+    }
+    
+    func startConnection() {
+        isConnecting = true
+        connectionStep = 1
+        
+        // 第一步：准备BLE连接
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+//            self.connectionStep = 2
+//            // 开始搜索BLE设备
+//            self.audioManager.startScanning()
+        }
+        
+        // 轮询检查连接状态
+        checkConnectionStatus()
+        
+        // 设置超时
+        DispatchQueue.main.asyncAfter(deadline: .now() + 30.0) {
+            if self.isConnecting {
+                self.isConnecting = false
+                self.connectionStep = 0
+                self.alertMessage = "连接超时，请重试"
+                self.showAlert = true
+            }
+        }
+    }
+    
+    func checkConnectionStatus() {
+       
+    }
+}
+
+// MARK: - 连接步骤视图
+struct ConnectionStepsView: View {
+    let currentStep: Int
+    let isDarkMode: Bool
+    
+    let steps = ["准备", "连接BLE", "传递凭证", "完成"]
+    
+    var body: some View {
+        HStack(spacing: 15) {
+            ForEach(0..<steps.count, id: \.self) { index in
+                HStack(spacing: 8) {
+                    // 步骤圆圈
+                    ZStack {
+                        Circle()
+                            .fill(getStepColor(index))
+                            .frame(width: 24, height: 24)
+                        
+                        if index < currentStep {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(isDarkMode ? .black : .white)
+                        } else {
+                            Text("\(index + 1)")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundColor(getStepTextColor(index))
+                        }
+                    }
+                    
+                    // 连接线
+                    if index < steps.count - 1 {
+                        Rectangle()
+                            .fill(index < currentStep - 1 ? getActiveColor() : getInactiveColor())
+                            .frame(width: 30, height: 2)
+                    }
+                }
+            }
+        }
+        .padding(.horizontal, 20)
+    }
+    
+    func getStepColor(_ index: Int) -> Color {
+        if index < currentStep {
+            return getActiveColor()
+        } else if index == currentStep {
+            return getActiveColor().opacity(0.8)
+        } else {
+            return getInactiveColor()
+        }
+    }
+    
+    func getStepTextColor(_ index: Int) -> Color {
+        if index <= currentStep {
+            return isDarkMode ? .black : .white
+        } else {
+            return isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5)
+        }
+    }
+    
+    func getActiveColor() -> Color {
+        return isDarkMode ? .white : .black
+    }
+    
+    func getInactiveColor() -> Color {
+        return isDarkMode ? .white.opacity(0.2) : .black.opacity(0.2)
+    }
+}
+
+// MARK: - 现代文本框样式
+struct ModernTextFieldStyle: TextFieldStyle {
+    let isDarkMode: Bool
+    
+    func _body(configuration: TextField<Self._Label>) -> some View {
+        configuration
+            .padding()
+            .background(
+                RoundedRectangle(cornerRadius: 10)
+                    .fill(isDarkMode ? Color.white.opacity(0.05) : Color.white)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 10)
+                            .stroke(isDarkMode ? Color.white.opacity(0.2) : Color.black.opacity(0.2), lineWidth: 1)
+                    )
+            )
+            .foregroundColor(isDarkMode ? .white : .black)
     }
 }
 
