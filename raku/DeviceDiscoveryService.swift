@@ -45,6 +45,39 @@ class DeviceDiscoveryService: ObservableObject {
     
     init() {
         startDiscovery()
+        // 添加一些模拟设备用于测试
+        addMockDevices()
+    }
+    
+    // 添加模拟设备数据
+    private func addMockDevices() {
+        let mockDevices = [
+            DiscoveredDevice(
+                name: "ESP32-音频设备-1",
+                ipAddress: "192.168.1.100",
+                port: 8888,
+                statusPort: 8889,
+                isStreaming: false
+            ),
+            DiscoveredDevice(
+                name: "ESP32-会议室",
+                ipAddress: "192.168.1.101", 
+                port: 8888,
+                statusPort: 8889,
+                isStreaming: true
+            ),
+            DiscoveredDevice(
+                name: "ESP32-办公室",
+                ipAddress: "192.168.1.102",
+                port: 8888,
+                statusPort: 8889,
+                isStreaming: false
+            )
+        ]
+        
+        DispatchQueue.main.async {
+            self.discoveredDevices = mockDevices
+        }
     }
     
     func startDiscovery() {
@@ -595,11 +628,67 @@ class AudioManager: ObservableObject {
     func loadMockData() {
         recordings = [
             AudioRecording(
-                timestamp: Date().addingTimeInterval(-3600),
+                timestamp: Date().addingTimeInterval(-7200), // 2小时前
+                duration: 240,
+                transcription: "本次技术讨论会议主要围绕系统架构的优化展开。团队成员提出了多个方案，包括微服务架构的改进、数据库性能优化以及前端渲染效率的提升。经过深入讨论，我们决定分阶段实施这些改进措施。",
+                summary: "技术架构优化会议：确定了三个主要优化方向，预计可提升系统性能30%。",
+                tags: ["技术", "架构", "优化"],
+                audioData: nil
+            ),
+            AudioRecording(
+                timestamp: Date().addingTimeInterval(-3600), // 1小时前
                 duration: 180,
-                transcription: "今天的产品会议主要讨论了新功能的开发进度...",
-                summary: "产品会议总结：确定了Q2季度的产品路线图。",
-                tags: ["会议", "产品"],
+                transcription: "今天的产品会议主要讨论了新功能的开发进度，产品经理介绍了用户反馈分析结果，设计团队展示了新UI原型，开发团队汇报了当前的技术挑战和解决方案。",
+                summary: "产品会议总结：确定了Q2季度的产品路线图，重点关注用户体验改善。",
+                tags: ["会议", "产品", "规划"],
+                audioData: nil
+            ),
+            AudioRecording(
+                timestamp: Date().addingTimeInterval(-1800), // 30分钟前
+                duration: 90,
+                transcription: "客户电话会议记录：客户对我们最新版本的产品表示满意，特别赞赏了新增的数据分析功能。同时提出了一些定制化需求，希望能够在下个版本中考虑实现。",
+                summary: "客户反馈积极，提出3个定制化需求，已记录并纳入需求池。",
+                tags: ["客户", "反馈", "需求"],
+                audioData: nil
+            ),
+            AudioRecording(
+                timestamp: Date().addingTimeInterval(-900), // 15分钟前
+                duration: 60,
+                transcription: "团队站会内容：前端完成了登录页面的重构，后端API接口开发进度达到80%，测试团队发现了2个中等严重程度的bug，已分配给相应开发人员修复。",
+                summary: "日常站会：项目进度正常，需要关注2个bug的修复进度。",
+                tags: ["站会", "进度", "bug"],
+                audioData: nil
+            ),
+            AudioRecording(
+                timestamp: Date().addingTimeInterval(-300), // 5分钟前
+                duration: 45,
+                transcription: "个人备忘录：下周需要准备季度汇报材料，整理本季度的工作成果和下季度的工作计划。记得预约会议室，通知相关人员参会时间。",
+                summary: "个人任务提醒：准备季度汇报，预约会议室。",
+                tags: ["备忘", "计划", "个人"],
+                audioData: nil
+            ),
+            AudioRecording(
+                timestamp: Date().addingTimeInterval(-86400), // 1天前
+                duration: 300,
+                transcription: "培训课程记录：今天参加了关于人工智能在软件开发中应用的培训。讲师详细介绍了AI辅助编程、自动化测试和智能代码审查等应用场景，并通过实际案例展示了AI工具的使用方法。",
+                summary: "AI培训总结：学习了3种AI开发工具的使用，计划在项目中试用。",
+                tags: ["培训", "AI", "学习"],
+                audioData: nil
+            ),
+            AudioRecording(
+                timestamp: Date().addingTimeInterval(-172800), // 2天前
+                duration: 120,
+                transcription: "头脑风暴会议：团队围绕如何提升用户留存率展开讨论。提出了包括增加社交功能、优化新手引导、建立积分系统等多个创意方案。",
+                summary: "创意会议：产出5个提升用户留存的方案，下周进行可行性评估。",
+                tags: ["创意", "用户体验", "讨论"],
+                audioData: nil
+            ),
+            AudioRecording(
+                timestamp: Date().addingTimeInterval(-259200), // 3天前
+                duration: 150,
+                transcription: "项目复盘会议：对刚刚上线的版本进行复盘。总结了项目中的成功经验，如敏捷开发流程的优化；也分析了遇到的问题，如需求变更频繁导致的进度延误。",
+                summary: "项目复盘：总结3个成功经验和2个待改进点，形成最佳实践文档。",
+                tags: ["复盘", "总结", "改进"],
                 audioData: nil
             )
         ]

@@ -67,6 +67,10 @@ struct ContentView: View {
         .sheet(isPresented: $showingConnectionConfig) {
             ConnectionConfigView(audioManager: audioManager)
         }
+        .onAppear {
+            // 加载模拟数据
+            audioManager.loadMockData()
+        }
     }
 }
 
