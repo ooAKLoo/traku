@@ -30,7 +30,6 @@ struct AudioRecording: Identifiable, Equatable {
 struct ContentView: View {
     @StateObject private var audioManager = AudioManager()
     @State private var showingDetail: AudioRecording? = nil
-    @State private var showingConnectionConfig = false
     @AppStorage("isDarkMode") private var isDarkMode = true
     
     var body: some View {
@@ -50,27 +49,8 @@ struct ContentView: View {
                 showingDetail: $showingDetail,
                 isDarkMode: isDarkMode
             )
-            
-            // 底部连接控制按钮
-            VStack {
-                Spacer()
-                HStack {
-                    Spacer()
-                    ConnectionControlButton(
-                        isConnected: audioManager.isConnected,
-                        isDarkMode: isDarkMode
-                    ) {
-                        showingConnectionConfig = true
-                    }
-                    Spacer()
-                }
-                .padding(.bottom, 50)
-            }
         }
         .preferredColorScheme(isDarkMode ? .dark : .light)
-        .sheet(isPresented: $showingConnectionConfig) {
-            ConnectionConfigView(audioManager: audioManager)
-        }
         .onAppear {
             // 加载模拟数据
             audioManager.loadMockData()
@@ -88,14 +68,123 @@ struct RecordingsListView: View {
     @State private var selectedFilter = "全部"
     @State private var showingSettings = false
     @State private var hoveredFilter: String? = nil
+    @State private var searchText = ""
+    @State private var showingConnectionConfig = false
     
     let filters = ["全部", "标签", "时间"]
     
+    var filteredRecordings: [AudioRecording] {
+        if searchText.isEmpty {
+            return audioManager.recordings
+        } else {
+            return audioManager.recordings.filter { recording in
+                recording.summary.localizedCaseInsensitiveContains(searchText) ||
+                recording.transcription.localizedCaseInsensitiveContains(searchText) ||
+                recording.tags.contains { $0.localizedCaseInsensitiveContains(searchText) }
+            }
+        }
+    }
+    
     var body: some View {
         VStack(spacing: 0) {
-            // 顶部筛选栏
-            HStack(spacing: 30) {
-                ForEach(filters, id: \.self) { filter in
+            // 顶部栏
+            VStack(spacing: 16) {
+                // 第一行：设备连接状态、搜索框、设置按钮
+                HStack(spacing: 16) {
+                    // 设备连接圆环（左侧）
+                    Button(action: {
+                        showingConnectionConfig = true
+                    }) {
+                        ZStack {
+                            Circle()
+                                .fill(
+                                    LinearGradient(
+                                        colors: isDarkMode ? 
+                                            [Color.white.opacity(0.1), Color.white.opacity(0.05)] :
+                                            [Color.black.opacity(0.05), Color.black.opacity(0.1)],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .frame(width: 40, height: 40)
+                                .overlay(
+                                    Circle()
+                                        .stroke(
+                                            isDarkMode ? Color.white.opacity(0.2) : Color.black.opacity(0.2),
+                                            lineWidth: 1
+                                        )
+                                )
+                            
+                            Image(systemName: "mic.circle.fill")
+                                .font(.system(size: 20))
+                                .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8))
+                            
+                            // 连接状态指示器
+                            if audioManager.isConnected {
+                                Circle()
+                                    .fill(Color.green)
+                                    .frame(width: 8, height: 8)
+                                    .offset(x: 12, y: -12)
+                                    .overlay(
+                                        Circle()
+                                            .stroke(isDarkMode ? Color.black : Color.white, lineWidth: 1.5)
+                                            .frame(width: 8, height: 8)
+                                            .offset(x: 12, y: -12)
+                                    )
+                            }
+                        }
+                    }
+                    
+                    // 搜索框（中间）
+                    HStack {
+                        Image(systemName: "magnifyingglass")
+                            .font(.system(size: 14))
+                            .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4))
+                        
+                        TextField("搜索录音...", text: $searchText)
+                            .textFieldStyle(PlainTextFieldStyle())
+                            .font(.system(size: 14))
+                            .foregroundColor(isDarkMode ? .white : .black)
+                        
+                        if !searchText.isEmpty {
+                            Button(action: {
+                                searchText = ""
+                            }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4))
+                            }
+                        }
+                    }
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(isDarkMode ? Color.white.opacity(0.05) : Color.black.opacity(0.05))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 8)
+                                    .stroke(isDarkMode ? Color.white.opacity(0.1) : Color.black.opacity(0.1), lineWidth: 1)
+                            )
+                    )
+                    
+                    // 设置按钮（右侧）
+                    Button(action: {
+                        showingSettings = true
+                    }) {
+                        Image(systemName: "gearshape.fill")
+                            .font(.system(size: 20))
+                            .foregroundColor(isDarkMode ? .white.opacity(0.7) : .black.opacity(0.7))
+                            .frame(width: 40, height: 40)
+                            .background(
+                                Circle()
+                                    .fill(isDarkMode ? Color.white.opacity(0.05) : Color.black.opacity(0.05))
+                            )
+                    }
+                }
+                
+                // 第二行：筛选栏
+                HStack(spacing: 30) {
+                    ForEach(filters, id: \.self) { filter in
                     Button(action: {
                         withAnimation(.interactiveSpring(response: 0.3, dampingFraction: 0.8, blendDuration: 0)) {
                             selectedFilter = filter
@@ -148,18 +237,11 @@ struct RecordingsListView: View {
                 }
                 
                 Spacer()
-                
-                // 设置按钮
-                Button(action: {
-                    showingSettings = true
-                }) {
-                    Image(systemName: "gearshape.fill")
-                        .font(.system(size: 20))
-                        .foregroundColor(isDarkMode ? .white.opacity(0.7) : .black.opacity(0.7))
-                }
+            }
             }
             .padding(.horizontal, 20)
-            .padding(.vertical, 16)
+            .padding(.top, 20)
+            .padding(.bottom, 16)
             .background(
                 ZStack {
                     // 背景色
@@ -185,7 +267,7 @@ struct RecordingsListView: View {
             // 录音列表
             ScrollView {
                 LazyVStack(spacing: 15) {
-                    ForEach(Array(audioManager.recordings.enumerated()), id: \.element.id) { index, recording in
+                    ForEach(Array(filteredRecordings.enumerated()), id: \.element.id) { index, recording in
                         RecordingCardView(recording: recording, isDarkMode: isDarkMode)
                             .onTapGesture {
                                 withAnimation(.easeInOut(duration: 0.3)) {
@@ -208,6 +290,9 @@ struct RecordingsListView: View {
         }
         .sheet(isPresented: $showingSettings) {
             SettingsView()
+        }
+        .sheet(isPresented: $showingConnectionConfig) {
+            ConnectionConfigView(audioManager: audioManager)
         }
     }
 }
