@@ -11,7 +11,7 @@ import AVFoundation
 import Combine
 
 // MARK: - 数据模型
-struct AudioRecording: Identifiable {
+struct AudioRecording: Identifiable, Equatable {
     let id = UUID()
     let timestamp: Date
     let duration: TimeInterval
@@ -20,6 +20,10 @@ struct AudioRecording: Identifiable {
     let tags: [String]
     let audioData: Data?
     var isPlaying: Bool = false
+    
+    static func == (lhs: AudioRecording, rhs: AudioRecording) -> Bool {
+        return lhs.id == rhs.id
+    }
 }
 
 // MARK: - 主视图
@@ -83,30 +87,62 @@ struct RecordingsListView: View {
     let isDarkMode: Bool
     @State private var selectedFilter = "全部"
     @State private var showingSettings = false
+    @State private var hoveredFilter: String? = nil
     
     let filters = ["全部", "标签", "时间"]
     
     var body: some View {
         VStack(spacing: 0) {
             // 顶部筛选栏
-            HStack(spacing: 20) {
+            HStack(spacing: 30) {
                 ForEach(filters, id: \.self) { filter in
                     Button(action: {
-                        withAnimation(.spring(response: 0.3)) {
+                        withAnimation(.interactiveSpring(response: 0.3, dampingFraction: 0.8, blendDuration: 0)) {
                             selectedFilter = filter
                         }
                     }) {
-                        VStack(spacing: 8) {
+                        VStack(spacing: 6) {
                             Text(filter)
                                 .font(.system(size: 16, weight: selectedFilter == filter ? .semibold : .regular))
                                 .foregroundColor(selectedFilter == filter ? 
                                     (isDarkMode ? .white : .black) : 
-                                    (isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5)))
+                                    (hoveredFilter == filter ? 
+                                        (isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8)) :
+                                        (isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))))
+                                .animation(.easeInOut(duration: 0.2), value: selectedFilter)
+                                .animation(.easeInOut(duration: 0.15), value: hoveredFilter)
                             
-                            Rectangle()
-                                .fill(isDarkMode ? Color.white : Color.black)
-                                .frame(height: 2)
-                                .opacity(selectedFilter == filter ? 1 : 0)
+                            // 底部指示线
+                            ZStack {
+                                // 背景透明线条（占位）
+                                Rectangle()
+                                    .fill(Color.clear)
+                                    .frame(width: 40, height: 2)
+                                
+                                // 实际显示的线条
+                                Rectangle()
+                                    .fill(
+                                        LinearGradient(
+                                            colors: [
+                                                (isDarkMode ? Color.white : Color.black).opacity(0.8),
+                                                (isDarkMode ? Color.white : Color.black)
+                                            ],
+                                            startPoint: .leading,
+                                            endPoint: .trailing
+                                        )
+                                    )
+                                    .frame(width: 24, height: 2)
+                                    .cornerRadius(1)
+                                    .scaleEffect(x: selectedFilter == filter ? 1 : 0, y: 1)
+                                    .opacity(selectedFilter == filter ? 1 : 0)
+                                    .animation(.interactiveSpring(response: 0.25, dampingFraction: 0.8), value: selectedFilter)
+                            }
+                        }
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                    .onHover { isHovered in
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            hoveredFilter = isHovered ? filter : nil
                         }
                     }
                 }
@@ -122,17 +158,45 @@ struct RecordingsListView: View {
                         .foregroundColor(isDarkMode ? .white.opacity(0.7) : .black.opacity(0.7))
                 }
             }
-            .padding(.trailing, 30)
-            .padding(.vertical, 20)
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+            .background(
+                ZStack {
+                    // 背景色
+                    (isDarkMode ? Color.black : Color(white: 0.98))
+                        .ignoresSafeArea(edges: .top)
+                    
+                    // 底部阴影
+                    VStack {
+                        Spacer()
+                        LinearGradient(
+                            colors: [
+                                (isDarkMode ? Color.black : Color.black).opacity(0.05),
+                                Color.clear
+                            ],
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                        .frame(height: 1)
+                    }
+                }
+            )
             
             // 录音列表
             ScrollView {
                 LazyVStack(spacing: 15) {
-                    ForEach(audioManager.recordings) { recording in
+                    ForEach(Array(audioManager.recordings.enumerated()), id: \.element.id) { index, recording in
                         RecordingCardView(recording: recording, isDarkMode: isDarkMode)
                             .onTapGesture {
-                                showingDetail = recording
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    showingDetail = recording
+                                }
                             }
+                            .transition(.asymmetric(
+                                insertion: .opacity.combined(with: .move(edge: .trailing)),
+                                removal: .opacity.combined(with: .scale)
+                            ))
+                            .animation(.easeInOut(duration: 0.3).delay(Double(index) * 0.05))
                     }
                 }
                 .padding(.horizontal, 20)
@@ -152,6 +216,7 @@ struct RecordingsListView: View {
 struct RecordingCardView: View {
     let recording: AudioRecording
     let isDarkMode: Bool
+    @State private var isHovered = false
     
     var body: some View {
         HStack(alignment: .top, spacing: 15) {
@@ -205,6 +270,11 @@ struct RecordingCardView: View {
                             .stroke(isDarkMode ? Color.white.opacity(0.1) : Color.black.opacity(0.1), lineWidth: 1)
                     )
             )
+            .scaleEffect(isHovered ? 1.02 : 1.0)
+            .animation(.easeInOut(duration: 0.2), value: isHovered)
+        }
+        .onHover { hovering in
+            isHovered = hovering
         }
     }
     
