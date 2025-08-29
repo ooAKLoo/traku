@@ -9,7 +9,7 @@ import SwiftUI
 
 struct ConnectionConfigView: View {
     @StateObject private var discoveryService = DeviceDiscoveryService()
-    @ObservedObject var audioManager: AudioManager
+    @ObservedObject var audioManager: AudioManagerAdapter
     @Environment(\.dismiss) private var dismiss
     @AppStorage("isDarkMode") private var isDarkMode = true
     

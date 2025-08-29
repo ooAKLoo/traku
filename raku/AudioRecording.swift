@@ -28,7 +28,7 @@ struct AudioRecording: Identifiable, Equatable {
 
 // MARK: - 主视图
 struct ContentView: View {
-    @StateObject private var audioManager = AudioManager()
+    @StateObject private var audioManager = AudioManagerAdapter()
     @State private var showingDetail: AudioRecording? = nil
     @AppStorage("isDarkMode") private var isDarkMode = true
     
@@ -55,7 +55,7 @@ struct ContentView: View {
 
 // MARK: - 录音列表视图
 struct RecordingsListView: View {
-    @ObservedObject var audioManager: AudioManager
+    @ObservedObject var audioManager: AudioManagerAdapter
     @Binding var showingDetail: AudioRecording?
     let isDarkMode: Bool
     @State private var selectedFilter = "全部"
@@ -363,7 +363,7 @@ struct TagView: View {
 
 // MARK: - 主界面录音控制
 struct RecordingControlView: View {
-    @ObservedObject var audioManager: AudioManager
+    @ObservedObject var audioManager: AudioManagerAdapter
     @State private var isRecording = false
     @State private var recordingTime: TimeInterval = 0
     @State private var timer: Timer?
@@ -496,7 +496,7 @@ struct AudioWaveformView: View {
 // 预览专用的 ContentView 包装器，可以覆盖 isDarkMode 设置
 struct PreviewContentView: View {
     let forcedDarkMode: Bool
-    @StateObject private var audioManager = AudioManager()
+    @StateObject private var audioManager = AudioManagerAdapter()
     @State private var showingDetail: AudioRecording? = nil
     
     var body: some View {
