@@ -99,7 +99,7 @@ struct RecordingsListView: View {
                                     y: 3
                                 )
                             
-                            Image(systemName: "mic.circle.fill")
+                            Image(systemName: "mic")
                                 .font(.system(size: 20))
                                 .foregroundColor(isDarkMode ? .white : .black)
                             
@@ -162,7 +162,7 @@ struct RecordingsListView: View {
                                     y: 3
                                 )
                             
-                            Image(systemName: "gearshape.fill")
+                            Image(systemName: "gearshape")
                                 .font(.system(size: 18))
                                 .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.7))
                         }
@@ -252,6 +252,7 @@ struct RecordingsListView: View {
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 10)
+                .background(.white)
             }
         }
         .sheet(item: $showingDetail) { recording in
