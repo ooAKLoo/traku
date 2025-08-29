@@ -38,6 +38,20 @@ class AudioManagerAdapter: ObservableObject {
         esp32Service.connectToDevice(device)
     }
     
+    /// 直接连接到ESP32设备
+    func connectToESP32(ip: String, port: Int) {
+        // 创建一个临时设备对象用于显示
+        let device = DeviceDiscoveryService.DiscoveredDevice(
+            name: "ESP32设备",
+            ipAddress: ip,
+            port: port,
+            statusPort: 8889,
+            isStreaming: false
+        )
+        connectedDevice = device
+        esp32Service.connectToESP32(ip: ip, port: port)
+    }
+    
     /// 断开设备连接
     func disconnectFromDevice() {
         connectedDevice = nil

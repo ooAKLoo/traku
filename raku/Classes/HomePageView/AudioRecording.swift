@@ -233,6 +233,112 @@ struct RecordingsListView: View {
                 (isDarkMode ? Color.black : Color.white)
             )
             
+            // 录音控制按钮区域
+            HStack(spacing: 20) {
+                // 开始录音按钮
+                Button(action: {
+                    print("开始录音按钮被点击，连接状态: \(audioManager.isConnected), 录音状态: \(audioManager.isRecording)")
+                    if audioManager.isConnected {
+                        audioManager.startRecording()
+                        print("发送START命令")
+                    } else {
+                        print("设备未连接，无法开始录音")
+                    }
+                }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "record.circle")
+                            .font(.system(size: 20, weight: .medium))
+                        Text("开始录音")
+                            .font(.system(size: 16, weight: .medium))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 12)
+                    .background(
+                        LinearGradient(
+                            colors: [Color.red, Color.red.opacity(0.8)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .clipShape(Capsule())
+                    .shadow(color: Color.red.opacity(0.3), radius: 8, x: 0, y: 4)
+                }
+                .disabled(!audioManager.isConnected || audioManager.isRecording)
+                .opacity((!audioManager.isConnected || audioManager.isRecording) ? 0.6 : 1.0)
+                
+                // 停止录音按钮
+                Button(action: {
+                    print("停止录音按钮被点击，连接状态: \(audioManager.isConnected), 录音状态: \(audioManager.isRecording)")
+                    if audioManager.isConnected {
+                        audioManager.stopRecording()
+                        print("发送STOP命令")
+                    } else {
+                        print("设备未连接，无法停止录音")
+                    }
+                }) {
+                    HStack(spacing: 8) {
+                        Image(systemName: "stop.circle")
+                            .font(.system(size: 20, weight: .medium))
+                        Text("停止录音")
+                            .font(.system(size: 16, weight: .medium))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 24)
+                    .padding(.vertical, 12)
+                    .background(
+                        LinearGradient(
+                            colors: [Color.gray, Color.gray.opacity(0.8)],
+                            startPoint: .leading,
+                            endPoint: .trailing
+                        )
+                    )
+                    .clipShape(Capsule())
+                    .shadow(color: Color.gray.opacity(0.3), radius: 8, x: 0, y: 4)
+                }
+                .disabled(!audioManager.isConnected || !audioManager.isRecording)
+                .opacity((!audioManager.isConnected || !audioManager.isRecording) ? 0.6 : 1.0)
+            }
+            .padding(.horizontal, 20)
+            .padding(.vertical, 16)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(isDarkMode ? Color.white.opacity(0.05) : Color.white)
+                    .shadow(
+                        color: Color.black.opacity(isDarkMode ? 0.3 : 0.08),
+                        radius: 8,
+                        x: 0,
+                        y: 4
+                    )
+            )
+            .padding(.horizontal, 20)
+            .padding(.bottom, 16)
+            
+            // 连接状态提示
+            HStack {
+                Text("连接状态: \(audioManager.isConnected ? "已连接" : "未连接")")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(audioManager.isConnected ? Color.green : Color.red)
+                Text("| 状态: \(audioManager.connectionStatus)")
+                    .font(.system(size: 12))
+                    .foregroundColor(isDarkMode ? .white.opacity(0.7) : .black.opacity(0.7))
+                if let device = audioManager.connectedDevice {
+                    Text("| 设备: \(device.name)")
+                        .font(.system(size: 12))
+                        .foregroundColor(isDarkMode ? .white.opacity(0.7) : .black.opacity(0.7))
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 8)
+            
+            if !audioManager.isConnected {
+                Text("请先连接ESP32设备后再录音")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(isDarkMode ? Color.yellow.opacity(0.8) : Color.orange)
+                    .padding(.horizontal, 20)
+                    .padding(.bottom, 8)
+            }
+            
             // 录音列表
             ScrollView {
                 LazyVStack(spacing: 15) {

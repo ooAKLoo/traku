@@ -81,14 +81,18 @@ class ESP32AudioService: NSObject, ObservableObject {
     /// 连接到指定设备
     func connectToDevice(_ device: DeviceDiscoveryService.DiscoveredDevice) {
         currentDevice = device
-        
+        connectToESP32(ip: device.ipAddress, port: 81)
+    }
+    
+    /// 直接连接到ESP32设备
+    func connectToESP32(ip: String, port: Int) {
         // 先断开现有连接
         disconnect()
         
         // 创建新的 WebSocket 配置
         let newConfig = WebSocketConfiguration(
-            host: device.ipAddress,
-            port: 81, // ESP32 的 WebSocket 端口
+            host: ip,
+            port: port,
             path: "/",
             timeoutInterval: 10,
             reconnectInterval: 3,
@@ -99,10 +103,13 @@ class ESP32AudioService: NSObject, ObservableObject {
         webSocketModule = WebSocketModule(configuration: newConfig)
         webSocketModule.delegate = self
         
+        // 重新设置绑定！这是关键
+        setupBindings()
+        
         // 开始连接
         webSocketModule.connect()
         
-        print("正在连接到设备: \(device.name) (\(device.ipAddress):81)")
+        print("正在连接到ESP32设备: \(ip):\(port)")
     }
     
     /// 连接到设备
@@ -165,6 +172,9 @@ class ESP32AudioService: NSObject, ObservableObject {
     // MARK: - Private Methods
     
     private func setupBindings() {
+        // 清理旧的绑定
+        cancellables.removeAll()
+        
         // WebSocket 状态绑定
         webSocketModule.$isConnected
             .receive(on: DispatchQueue.main)
@@ -194,6 +204,8 @@ class ESP32AudioService: NSObject, ObservableObject {
                 self?.updateAudioLevels(amplitude)
             }
             .store(in: &cancellables)
+            
+        print("ESP32AudioService: 状态绑定已重新设置")
     }
     
     private func setupDelegates() {

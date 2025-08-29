@@ -19,6 +19,7 @@ struct RecordingDetailView: View {
     @State private var showSummary = true
     @Environment(\.dismiss) private var dismiss
     @AppStorage("isDarkMode") private var isDarkMode = true
+    @StateObject private var audioManager = AudioManagerAdapter()
     
     var body: some View {
         ZStack {
@@ -104,9 +105,11 @@ struct RecordingDetailView: View {
                         
                         // 音频播放器模块
                         AudioPlayerCard(
+                            recording: recording,
                             duration: recording.duration,
                             isPlaying: $isPlaying,
-                            progress: $playProgress
+                            progress: $playProgress,
+                            audioManager: audioManager
                         )
                         
                         // 转写文本模块
@@ -227,9 +230,11 @@ struct RecordingDetailView: View {
 
 // MARK: - 音频播放器卡片
 struct AudioPlayerCard: View {
+    let recording: AudioRecording
     let duration: TimeInterval
     @Binding var isPlaying: Bool
     @Binding var progress: Double
+    let audioManager: AudioManagerAdapter
     @AppStorage("isDarkMode") private var isDarkMode = true
     
     var body: some View {
@@ -255,7 +260,7 @@ struct AudioPlayerCard: View {
             // 播放控制
             HStack(spacing: 30) {
                 // 播放按钮
-                Button(action: { isPlaying.toggle() }) {
+                Button(action: togglePlayback) {
                     ZStack {
                         Circle()
                             .fill(isDarkMode ? Color.white.opacity(0.08) : Color.white)
@@ -314,6 +319,44 @@ struct AudioPlayerCard: View {
                 )
         )
         .padding(.horizontal, 20)
+    }
+    
+    func togglePlayback() {
+        if isPlaying {
+            // 停止播放
+            audioManager.stopPlaying()
+            isPlaying = false
+            print("停止播放录音")
+        } else {
+            // 检查是否是模拟数据
+            if let audioData = recording.audioData {
+                let dataString = String(data: audioData, encoding: .utf8)
+                if dataString?.contains("mock audio data") == true {
+                    // 这是模拟数据，显示提示而不是播放
+                    print("这是模拟录音数据，无法播放真实音频")
+                    showMockDataAlert()
+                } else {
+                    // 真实录音数据，尝试播放
+                    audioManager.playRecording(recording)
+                    isPlaying = true
+                    print("开始播放录音")
+                }
+            } else {
+                print("录音数据为空，无法播放")
+            }
+        }
+    }
+    
+    private func showMockDataAlert() {
+        // 模拟播放状态，给用户反馈
+        isPlaying = true
+        
+        // 3秒后自动"停止播放"
+        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+            isPlaying = false
+        }
+        
+        print("模拟播放：这是展示用的测试数据，实际录音功能需要连接ESP32设备")
     }
     
     func formatTime(_ time: TimeInterval) -> String {
