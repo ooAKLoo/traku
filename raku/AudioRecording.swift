@@ -34,15 +34,9 @@ struct ContentView: View {
     
     var body: some View {
         ZStack {
-            // 背景渐变
-            LinearGradient(
-                colors: isDarkMode ? 
-                    [Color.black, Color(white: 0.05)] :
-                    [Color(white: 0.95), Color(white: 0.98)],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            .ignoresSafeArea()
+            // 极简背景
+            (isDarkMode ? Color.black : Color(white: 0.98))
+                .ignoresSafeArea()
             
             RecordingsListView(
                 audioManager: audioManager,
@@ -97,40 +91,25 @@ struct RecordingsListView: View {
                     }) {
                         ZStack {
                             Circle()
-                                .fill(
-                                    LinearGradient(
-                                        colors: isDarkMode ? 
-                                            [Color.white.opacity(0.1), Color.white.opacity(0.05)] :
-                                            [Color.black.opacity(0.05), Color.black.opacity(0.1)],
-                                        startPoint: .topLeading,
-                                        endPoint: .bottomTrailing
-                                    )
-                                )
-                                .frame(width: 40, height: 40)
-                                .overlay(
-                                    Circle()
-                                        .stroke(
-                                            isDarkMode ? Color.white.opacity(0.2) : Color.black.opacity(0.2),
-                                            lineWidth: 1
-                                        )
+                                .fill(isDarkMode ? Color.white.opacity(0.08) : Color.white)
+                                .frame(width: 44, height: 44)
+                                .shadow(
+                                    color: Color.black.opacity(isDarkMode ? 0.5 : 0.12),
+                                    radius: 6,
+                                    x: 0,
+                                    y: 3
                                 )
                             
                             Image(systemName: "mic.circle.fill")
                                 .font(.system(size: 20))
-                                .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8))
+                                .foregroundColor(isDarkMode ? .white : .black)
                             
                             // 连接状态指示器
                             if audioManager.isConnected {
                                 Circle()
-                                    .fill(Color.green)
-                                    .frame(width: 8, height: 8)
+                                    .fill(isDarkMode ? Color.white : Color.black)
+                                    .frame(width: 6, height: 6)
                                     .offset(x: 12, y: -12)
-                                    .overlay(
-                                        Circle()
-                                            .stroke(isDarkMode ? Color.black : Color.white, lineWidth: 1.5)
-                                            .frame(width: 8, height: 8)
-                                            .offset(x: 12, y: -12)
-                                    )
                             }
                         }
                     }
@@ -156,14 +135,16 @@ struct RecordingsListView: View {
                             }
                         }
                     }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
                     .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(isDarkMode ? Color.white.opacity(0.05) : Color.black.opacity(0.05))
-                            .overlay(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .stroke(isDarkMode ? Color.white.opacity(0.1) : Color.black.opacity(0.1), lineWidth: 1)
+                        RoundedRectangle(cornerRadius: 12)
+                            .fill(isDarkMode ? Color.white.opacity(0.08) : Color.white)
+                            .shadow(
+                                color: isDarkMode ? Color.black.opacity(0.3) : Color.black.opacity(0.08),
+                                radius: isDarkMode ? 10 : 8,
+                                x: 0,
+                                y: isDarkMode ? 2 : 4
                             )
                     )
                     
@@ -171,14 +152,21 @@ struct RecordingsListView: View {
                     Button(action: {
                         showingSettings = true
                     }) {
-                        Image(systemName: "gearshape.fill")
-                            .font(.system(size: 20))
-                            .foregroundColor(isDarkMode ? .white.opacity(0.7) : .black.opacity(0.7))
-                            .frame(width: 40, height: 40)
-                            .background(
-                                Circle()
-                                    .fill(isDarkMode ? Color.white.opacity(0.05) : Color.black.opacity(0.05))
-                            )
+                        ZStack {
+                            Circle()
+                                .fill(isDarkMode ? Color.white.opacity(0.08) : Color.white)
+                                .frame(width: 44, height: 44)
+                                .shadow(
+                                    color: Color.black.opacity(isDarkMode ? 0.5 : 0.12),
+                                    radius: 6,
+                                    x: 0,
+                                    y: 3
+                                )
+                            
+                            Image(systemName: "gearshape.fill")
+                                .font(.system(size: 18))
+                                .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.7))
+                        }
                     }
                 }
                 
@@ -243,25 +231,14 @@ struct RecordingsListView: View {
             .padding(.top, 20)
             .padding(.bottom, 16)
             .background(
-                ZStack {
-                    // 背景色
-                    (isDarkMode ? Color.black : Color(white: 0.98))
-                        .ignoresSafeArea(edges: .top)
-                    
-                    // 底部阴影
-                    VStack {
-                        Spacer()
-                        LinearGradient(
-                            colors: [
-                                (isDarkMode ? Color.black : Color.black).opacity(0.05),
-                                Color.clear
-                            ],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                        .frame(height: 1)
-                    }
-                }
+                (isDarkMode ? Color.black : Color(white: 0.98))
+                    .ignoresSafeArea(edges: .top)
+                    .shadow(
+                        color: Color.black.opacity(isDarkMode ? 0.4 : 0.03),
+                        radius: 8,
+                        x: 0,
+                        y: 2
+                    )
             )
             
             // 录音列表
@@ -345,17 +322,19 @@ struct RecordingCardView: View {
                 }
                 .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4))
             }
-            .padding()
+            .padding(16)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
-                RoundedRectangle(cornerRadius: 15)
+                RoundedRectangle(cornerRadius: 12)
                     .fill(isDarkMode ? Color.white.opacity(0.05) : Color.white)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 15)
-                            .stroke(isDarkMode ? Color.white.opacity(0.1) : Color.black.opacity(0.1), lineWidth: 1)
+                    .shadow(
+                        color: Color.black.opacity(isDarkMode ? 0.3 : 0.05),
+                        radius: isHovered ? 8 : 4,
+                        x: 0,
+                        y: isHovered ? 4 : 2
                     )
             )
-            .scaleEffect(isHovered ? 1.02 : 1.0)
+            .scaleEffect(isHovered ? 1.01 : 1.0)
             .animation(.easeInOut(duration: 0.2), value: isHovered)
         }
         .onHover { hovering in
@@ -378,12 +357,12 @@ struct TagView: View {
     var body: some View {
         Text(text)
             .font(.system(size: 11, weight: .medium))
-            .foregroundColor(isDarkMode ? .white.opacity(0.7) : .black.opacity(0.7))
+            .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.7))
             .padding(.horizontal, 10)
             .padding(.vertical, 4)
             .background(
                 Capsule()
-                    .stroke(isDarkMode ? Color.white.opacity(0.2) : Color.black.opacity(0.2), lineWidth: 1)
+                    .fill(isDarkMode ? Color.white.opacity(0.15) : Color.black.opacity(0.08))
             )
     }
 }
