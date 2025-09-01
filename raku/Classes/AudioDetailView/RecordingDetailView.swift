@@ -77,7 +77,7 @@ struct RecordingDetailView: View {
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 0) {
                         // 标题区域 - 更紧凑
-                        VStack(alignment: .leading, spacing: 10) {
+                        VStack(alignment: .leading, spacing: 16) {
                             Text(extractTitle(from: recording.summary))
                                 .font(.system(size: 24, weight: .semibold))
                                 .foregroundColor(isDarkMode ? .white.opacity(0.95) : .black.opacity(0.95))
@@ -111,7 +111,7 @@ struct RecordingDetailView: View {
                         }
                         .padding(.horizontal, 24)
                         .padding(.top, 20)
-                        .padding(.bottom, 40)
+                        .padding(.bottom, 30)
                         
                         // 转写文本部分 - 引用样式
                         VStack(alignment: .leading, spacing: 20) {
