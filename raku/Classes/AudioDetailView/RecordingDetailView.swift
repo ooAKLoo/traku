@@ -102,7 +102,7 @@ struct RecordingDetailView: View {
                         }
                         .padding(.horizontal, 24)
                         .padding(.top, 20)
-                        .padding(.bottom, 32)
+                        .padding(.bottom, 40)
                         
                         // 转写文本部分 - 引用样式
                         VStack(alignment: .leading, spacing: 16) {
@@ -119,23 +119,11 @@ struct RecordingDetailView: View {
                                 .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
                                 .lineSpacing(10)
                                 .padding(.horizontal, 32)
-                            
-                            // 分隔线 - 极细
-                            Rectangle()
-                                .fill(isDarkMode ? Color.white.opacity(0.08) : Color.black.opacity(0.08))
-                                .frame(height: 0.5)
-                                .padding(.horizontal, 24)
-                                .padding(.vertical, 24)
                         }
+                        .padding(.bottom, 48)
                         
-                        // AI总结部分 - 黑体强调
+                        // AI总结部分 - 黑体强调，无标题
                         VStack(alignment: .leading, spacing: 20) {
-                            // 小标题
-                            Text("智能总结")
-                                .font(.system(size: 11, weight: .medium))
-                                .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4))
-                                .padding(.horizontal, 24)
-                            
                             // 总结内容 - 黑体醒目
                             Text(recording.summary)
                                 .font(.system(size: 16, weight: .medium))
@@ -163,28 +151,6 @@ struct RecordingDetailView: View {
                                 .padding(.horizontal, 24)
                                 .padding(.top, 8)
                             }
-                            
-                            // 底部操作区 - 极简按钮
-                            HStack(spacing: 16) {
-                                Button(action: copySummary) {
-                                    Text("复制总结")
-                                        .font(.system(size: 13, weight: .medium))
-                                        .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
-                                        .padding(.vertical, 10)
-                                        .padding(.horizontal, 20)
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 20)
-                                                .strokeBorder(
-                                                    isDarkMode ? Color.white.opacity(0.15) : Color.black.opacity(0.15),
-                                                    lineWidth: 1
-                                                )
-                                        )
-                                }
-                                
-                                Spacer()
-                            }
-                            .padding(.horizontal, 24)
-                            .padding(.top, 24)
                         }
                         
                         // 底部留白
@@ -245,7 +211,7 @@ struct RecordingDetailView: View {
         转写内容：
         \(recording.transcription)
         
-        智能总结：
+        总结：
         \(recording.summary)
         """
         
