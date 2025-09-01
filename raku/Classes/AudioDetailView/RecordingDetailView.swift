@@ -15,7 +15,7 @@ struct RecordingDetailView: View {
     @State private var isPlaying = false
     @State private var playProgress: Double = 0
     @Environment(\.dismiss) private var dismiss
-    @AppStorage("isDarkMode") private var isDarkMode = true
+    @AppStorage("isDarkMode") private var isDarkMode = false
     @StateObject private var audioManager = AudioManagerAdapter()
     
     var body: some View {
@@ -28,8 +28,8 @@ struct RecordingDetailView: View {
                 // 顶部导航栏 - 更加精简
                 HStack {
                     Button(action: { dismiss() }) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 16, weight: .regular))
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 20, weight: .regular))
                             .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
                             .frame(width: 44, height: 44)
                     }
@@ -66,38 +66,47 @@ struct RecordingDetailView: View {
                             Label("删除", systemImage: "trash")
                         }
                     } label: {
-                        Image(systemName: "ellipsis")
-                            .font(.system(size: 16, weight: .regular))
+                        Image(systemName: "ellipsis.circle")
+                            .font(.system(size: 20, weight: .regular))
                             .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
                             .frame(width: 44, height: 44)
                     }
                 }
-                .padding(.horizontal, 16)
-                .padding(.vertical, 8)
+                .padding(.horizontal, 8)
                 
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 0) {
                         // 标题区域 - 更紧凑
-                        VStack(alignment: .leading, spacing: 8) {
-                            Text(formatDate(recording.timestamp))
-                                .font(.system(size: 12, weight: .regular))
-                                .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4))
-                            
+                        VStack(alignment: .leading, spacing: 10) {
                             Text(extractTitle(from: recording.summary))
-                                .font(.system(size: 20, weight: .semibold))
+                                .font(.system(size: 24, weight: .semibold))
                                 .foregroundColor(isDarkMode ? .white.opacity(0.95) : .black.opacity(0.95))
                                 .lineLimit(2)
                             
-                            // 标签 - 更简洁
-                            if !recording.tags.isEmpty {
-                                HStack(spacing: 6) {
-                                    ForEach(recording.tags.prefix(3), id: \.self) { tag in
-                                        Text("#\(tag)")
-                                            .font(.system(size: 11, weight: .regular))
-                                            .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
+                            // 时间和标签在同一行
+                            HStack(spacing: 12) {
+                                Text(formatDate(recording.timestamp))
+                                    .font(.system(size: 14, weight: .regular))
+                                    .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4))
+                                
+                                // 标签 - 更简洁
+                                if !recording.tags.isEmpty {
+                                    HStack(spacing: 8) {
+                                        ForEach(recording.tags.prefix(3), id: \.self) { tag in
+                                            Text("#\(tag)")
+                                                .font(.system(size: 13, weight: .regular))
+                                                .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
+                                                .padding(.horizontal, 8)
+                                                .padding(.vertical, 4)
+                                                .background(
+                                                    RoundedRectangle(cornerRadius: 8)
+                                                        .fill(isDarkMode ? Color.gray.opacity(0.2) : Color.gray.opacity(0.15))
+                                                )
+                                        }
                                     }
                                 }
-                                .padding(.top, 4)
+                                
+                                Spacer()
                             }
                         }
                         .padding(.horizontal, 24)
@@ -105,51 +114,52 @@ struct RecordingDetailView: View {
                         .padding(.bottom, 40)
                         
                         // 转写文本部分 - 引用样式
-                        VStack(alignment: .leading, spacing: 16) {
-                            // 引用符号
-                            Image(systemName: "quote.opening")
-                                .font(.system(size: 20))
-                                .foregroundColor(isDarkMode ? .white.opacity(0.15) : .black.opacity(0.15))
-                                .padding(.leading, 24)
-                            
-                            // 转写内容 - 浅色斜体
-                            Text(recording.transcription)
-                                .font(.system(size: 15, weight: .regular))
-                                .italic()
-                                .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
-                                .lineSpacing(10)
-                                .padding(.horizontal, 32)
+                        VStack(alignment: .leading, spacing: 20) {
+                            HStack(alignment: .top, spacing: 16) {
+                                // 竖线
+                                Rectangle()
+                                    .fill(isDarkMode ? Color.white.opacity(0.15) : Color.gray.opacity(0.2))
+                                    .frame(width: 3)
+                                
+                                // 转写内容 - 浅色斜体
+                                Text(recording.transcription)
+                                    .font(.system(size: 17, weight: .regular))
+                                    .italic()
+                                    .foregroundColor(isDarkMode ? .white.opacity(0.5) : .gray.opacity(0.6))
+                                    .lineSpacing(12)
+                            }
+                            .padding(.horizontal, 18)
                         }
                         .padding(.bottom, 48)
                         
                         // AI总结部分 - 黑体强调，无标题
-                        VStack(alignment: .leading, spacing: 20) {
+                        VStack(alignment: .leading, spacing: 24) {
                             // 总结内容 - 黑体醒目
                             Text(recording.summary)
-                                .font(.system(size: 16, weight: .medium))
+                                .font(.system(size: 18, weight: .medium))
                                 .foregroundColor(isDarkMode ? .white.opacity(0.9) : .black.opacity(0.9))
-                                .lineSpacing(12)
+                                .lineSpacing(14)
                                 .padding(.horizontal, 24)
                             
                             // 要点提炼 - 如果有的话
                             if !extractKeyPoints(from: recording.summary).isEmpty {
-                                VStack(alignment: .leading, spacing: 12) {
+                                VStack(alignment: .leading, spacing: 14) {
                                     ForEach(extractKeyPoints(from: recording.summary), id: \.self) { point in
                                         HStack(alignment: .top, spacing: 12) {
                                             Circle()
                                                 .fill(isDarkMode ? Color.white.opacity(0.3) : Color.black.opacity(0.3))
-                                                .frame(width: 3, height: 3)
-                                                .offset(y: 8)
+                                                .frame(width: 4, height: 4)
+                                                .offset(y: 9)
                                             
                                             Text(point)
-                                                .font(.system(size: 14, weight: .regular))
+                                                .font(.system(size: 16, weight: .regular))
                                                 .foregroundColor(isDarkMode ? .white.opacity(0.75) : .black.opacity(0.75))
-                                                .lineSpacing(8)
+                                                .lineSpacing(10)
                                         }
                                     }
                                 }
                                 .padding(.horizontal, 24)
-                                .padding(.top, 8)
+                                .padding(.top, 12)
                             }
                         }
                         
