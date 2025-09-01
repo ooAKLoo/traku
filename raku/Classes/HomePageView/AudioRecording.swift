@@ -29,20 +29,20 @@ struct AudioRecording: Identifiable, Equatable {
 // MARK: - 主视图
 struct ContentView: View {
     @StateObject private var audioManager = AudioManagerAdapter()
-    @State private var showingDetail: AudioRecording? = nil
     @AppStorage("isDarkMode") private var isDarkMode = true
     
     var body: some View {
-        ZStack {
-            // 极简背景
-            (isDarkMode ? Color.black : Color(white: 0.98))
-                .ignoresSafeArea()
-            
-            RecordingsListView(
-                audioManager: audioManager,
-                showingDetail: $showingDetail,
-                isDarkMode: isDarkMode
-            )
+        NavigationView {
+            ZStack {
+                // 极简背景
+                (isDarkMode ? Color.black : Color(white: 0.98))
+                    .ignoresSafeArea()
+                
+                RecordingsListView(
+                    audioManager: audioManager,
+                    isDarkMode: isDarkMode
+                )
+            }
         }
         .preferredColorScheme(isDarkMode ? .dark : .light)
         .onAppear {
@@ -56,7 +56,6 @@ struct ContentView: View {
 // MARK: - 录音列表视图
 struct RecordingsListView: View {
     @ObservedObject var audioManager: AudioManagerAdapter
-    @Binding var showingDetail: AudioRecording?
     let isDarkMode: Bool
     @State private var selectedFilter = "全部"
     @State private var showingSettings = false
@@ -343,26 +342,24 @@ struct RecordingsListView: View {
             ScrollView {
                 LazyVStack(spacing: 15) {
                     ForEach(Array(filteredRecordings.enumerated()), id: \.element.id) { index, recording in
-                        RecordingCardView(recording: recording, isDarkMode: isDarkMode)
-                            .onTapGesture {
-                                withAnimation(.easeInOut(duration: 0.3)) {
-                                    showingDetail = recording
-                                }
-                            }
-                            .transition(.asymmetric(
-                                insertion: .opacity.combined(with: .move(edge: .trailing)),
-                                removal: .opacity.combined(with: .scale)
-                            ))
-                            .animation(.easeInOut(duration: 0.3).delay(Double(index) * 0.05))
+                        NavigationLink(destination: 
+                            RecordingDetailView(recording: recording)
+                                .navigationBarHidden(true)
+                        ) {
+                            RecordingCardView(recording: recording, isDarkMode: isDarkMode)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        .transition(.asymmetric(
+                            insertion: .opacity.combined(with: .move(edge: .trailing)),
+                            removal: .opacity.combined(with: .scale)
+                        ))
+                        .animation(.easeInOut(duration: 0.3).delay(Double(index) * 0.05))
                     }
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 10)
                 .background(.white)
             }
-        }
-        .sheet(item: $showingDetail) { recording in
-            RecordingDetailView(recording: recording)
         }
         .sheet(isPresented: $showingSettings) {
             SettingsView()
@@ -603,19 +600,19 @@ struct AudioWaveformView: View {
 struct PreviewContentView: View {
     let forcedDarkMode: Bool
     @StateObject private var audioManager = AudioManagerAdapter()
-    @State private var showingDetail: AudioRecording? = nil
     
     var body: some View {
-        ZStack {
-            // 极简背景
-            (forcedDarkMode ? Color.black : Color(white: 0.98))
-                .ignoresSafeArea()
-            
-            RecordingsListView(
-                audioManager: audioManager,
-                showingDetail: $showingDetail,
-                isDarkMode: forcedDarkMode
-            )
+        NavigationView {
+            ZStack {
+                // 极简背景
+                (forcedDarkMode ? Color.black : Color(white: 0.98))
+                    .ignoresSafeArea()
+                
+                RecordingsListView(
+                    audioManager: audioManager,
+                    isDarkMode: forcedDarkMode
+                )
+            }
         }
         .preferredColorScheme(forcedDarkMode ? .dark : .light)
         .onAppear {
