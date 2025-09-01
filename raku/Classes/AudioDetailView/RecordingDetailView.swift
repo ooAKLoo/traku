@@ -5,7 +5,6 @@
 //  Created by 杨东举 on 2025/8/26.
 //
 
-
 import SwiftUI
 import AVFoundation
 import Combine
@@ -15,8 +14,6 @@ struct RecordingDetailView: View {
     let recording: AudioRecording
     @State private var isPlaying = false
     @State private var playProgress: Double = 0
-    @State private var showTranscription = true
-    @State private var showSummary = true
     @Environment(\.dismiss) private var dismiss
     @AppStorage("isDarkMode") private var isDarkMode = true
     @StateObject private var audioManager = AudioManagerAdapter()
@@ -28,52 +25,33 @@ struct RecordingDetailView: View {
                 .ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // 顶部导航栏
+                // 顶部导航栏 - 更加精简
                 HStack {
                     Button(action: { dismiss() }) {
                         Image(systemName: "xmark")
-                            .font(.system(size: 18))
-                            .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8))
-                            .frame(width: 32, height: 32)
-                            .background(
-                                Circle()
-                                    .fill(isDarkMode ? Color.white.opacity(0.08) : Color.white)
-                                    .shadow(
-                                        color: Color.black.opacity(isDarkMode ? 0.3 : 0.08),
-                                        radius: 4,
-                                        x: 0,
-                                        y: 2
-                                    )
-                            )
+                            .font(.system(size: 16, weight: .regular))
+                            .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
+                            .frame(width: 44, height: 44)
                     }
                     
                     Spacer()
                     
-                    // 简化的播放控件（胶囊形状）
-                    HStack(spacing: 12) {
-                        Button(action: togglePlayback) {
+                    // 播放控件 - 更简洁
+                    Button(action: togglePlayback) {
+                        HStack(spacing: 8) {
                             Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                                .font(.system(size: 16))
-                                .foregroundColor(isDarkMode ? .black : .white)
-                                .frame(width: 24, height: 24)
+                                .font(.system(size: 14))
+                            Text(formatTime(recording.duration))
+                                .font(.system(size: 13, weight: .medium, design: .monospaced))
                         }
-                        
-                        Text(formatTime(recording.duration))
-                            .font(.system(size: 14, design: .monospaced))
-                            .foregroundColor(isDarkMode ? .black : .white)
+                        .foregroundColor(isDarkMode ? .white.opacity(0.7) : .black.opacity(0.7))
+                        .padding(.horizontal, 16)
+                        .padding(.vertical, 8)
+                        .background(
+                            Capsule()
+                                .fill(isDarkMode ? Color.white.opacity(0.08) : Color.black.opacity(0.05))
+                        )
                     }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background(
-                        Capsule()
-                            .fill(isDarkMode ? Color.white.opacity(0.9) : Color.black.opacity(0.9))
-                            .shadow(
-                                color: Color.black.opacity(isDarkMode ? 0.3 : 0.08),
-                                radius: 4,
-                                x: 0,
-                                y: 2
-                            )
-                    )
                     
                     Spacer()
                     
@@ -89,119 +67,129 @@ struct RecordingDetailView: View {
                         }
                     } label: {
                         Image(systemName: "ellipsis")
-                            .font(.system(size: 18))
-                            .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8))
-                            .frame(width: 32, height: 32)
-                            .background(
-                                Circle()
-                                    .fill(isDarkMode ? Color.white.opacity(0.08) : Color.white)
-                                    .shadow(
-                                        color: Color.black.opacity(isDarkMode ? 0.3 : 0.08),
-                                        radius: 4,
-                                        x: 0,
-                                        y: 2
-                                    )
-                            )
+                            .font(.system(size: 16, weight: .regular))
+                            .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
+                            .frame(width: 44, height: 44)
                     }
                 }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 15)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
                 
-                ScrollView {
-                    VStack(spacing: 25) {
-                        // 标题区域
-                        VStack(alignment: .leading, spacing: 12) {
+                ScrollView(.vertical, showsIndicators: false) {
+                    VStack(alignment: .leading, spacing: 0) {
+                        // 标题区域 - 更紧凑
+                        VStack(alignment: .leading, spacing: 8) {
                             Text(formatDate(recording.timestamp))
-                                .font(.system(size: 14))
-                                .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
+                                .font(.system(size: 12, weight: .regular))
+                                .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4))
                             
                             Text(extractTitle(from: recording.summary))
-                                .font(.system(size: 24, weight: .semibold))
-                                .foregroundColor(isDarkMode ? .white : .black)
+                                .font(.system(size: 20, weight: .semibold))
+                                .foregroundColor(isDarkMode ? .white.opacity(0.95) : .black.opacity(0.95))
+                                .lineLimit(2)
                             
-                            // 标签
-                            HStack(spacing: 8) {
-                                ForEach(recording.tags, id: \.self) { tag in
-                                    TagView(text: tag, isDarkMode: isDarkMode)
+                            // 标签 - 更简洁
+                            if !recording.tags.isEmpty {
+                                HStack(spacing: 6) {
+                                    ForEach(recording.tags.prefix(3), id: \.self) { tag in
+                                        Text("#\(tag)")
+                                            .font(.system(size: 11, weight: .regular))
+                                            .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
+                                    }
                                 }
-                                Spacer()
+                                .padding(.top, 4)
                             }
                         }
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(.horizontal, 20)
-                        .padding(.top, 10)
+                        .padding(.horizontal, 24)
+                        .padding(.top, 20)
+                        .padding(.bottom, 32)
                         
-                        
-                        // 转写文本模块
-                        CollapsibleCard(
-                            title: "转写文本",
-                            icon: "text.alignleft",
-                            isExpanded: $showTranscription
-                        ) {
+                        // 转写文本部分 - 引用样式
+                        VStack(alignment: .leading, spacing: 16) {
+                            // 引用符号
+                            Image(systemName: "quote.opening")
+                                .font(.system(size: 20))
+                                .foregroundColor(isDarkMode ? .white.opacity(0.15) : .black.opacity(0.15))
+                                .padding(.leading, 24)
+                            
+                            // 转写内容 - 浅色斜体
                             Text(recording.transcription)
-                                .font(.system(size: 15))
-                                .foregroundColor(isDarkMode ? .white.opacity(0.9) : .black.opacity(0.9))
-                                .lineSpacing(8)
-                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .font(.system(size: 15, weight: .regular))
+                                .italic()
+                                .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
+                                .lineSpacing(10)
+                                .padding(.horizontal, 32)
+                            
+                            // 分隔线 - 极细
+                            Rectangle()
+                                .fill(isDarkMode ? Color.white.opacity(0.08) : Color.black.opacity(0.08))
+                                .frame(height: 0.5)
+                                .padding(.horizontal, 24)
+                                .padding(.vertical, 24)
                         }
                         
-                        // 总结模块
-                        CollapsibleCard(
-                            title: "智能总结",
-                            icon: "brain",
-                            isExpanded: $showSummary
-                        ) {
-                            VStack(alignment: .leading, spacing: 15) {
-                                // 概要段落
-                                Text(recording.summary)
-                                    .font(.system(size: 15))
-                                    .foregroundColor(isDarkMode ? .white.opacity(0.9) : .black.opacity(0.9))
-                                    .lineSpacing(8)
-                                
-                                Divider()
-                                    .background(isDarkMode ? Color.white.opacity(0.1) : Color.black.opacity(0.1))
-                                
-                                // 要点列表
-                                VStack(alignment: .leading, spacing: 10) {
-                                    Text("关键要点")
-                                        .font(.system(size: 13, weight: .semibold))
-                                        .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
-                                    
+                        // AI总结部分 - 黑体强调
+                        VStack(alignment: .leading, spacing: 20) {
+                            // 小标题
+                            Text("智能总结")
+                                .font(.system(size: 11, weight: .medium))
+                                .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4))
+                                .padding(.horizontal, 24)
+                            
+                            // 总结内容 - 黑体醒目
+                            Text(recording.summary)
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(isDarkMode ? .white.opacity(0.9) : .black.opacity(0.9))
+                                .lineSpacing(12)
+                                .padding(.horizontal, 24)
+                            
+                            // 要点提炼 - 如果有的话
+                            if !extractKeyPoints(from: recording.summary).isEmpty {
+                                VStack(alignment: .leading, spacing: 12) {
                                     ForEach(extractKeyPoints(from: recording.summary), id: \.self) { point in
-                                        HStack(alignment: .top, spacing: 10) {
+                                        HStack(alignment: .top, spacing: 12) {
                                             Circle()
                                                 .fill(isDarkMode ? Color.white.opacity(0.3) : Color.black.opacity(0.3))
-                                                .frame(width: 4, height: 4)
-                                                .offset(y: 7)
+                                                .frame(width: 3, height: 3)
+                                                .offset(y: 8)
                                             
                                             Text(point)
-                                                .font(.system(size: 14))
-                                                .foregroundColor(isDarkMode ? .white.opacity(0.85) : .black.opacity(0.85))
+                                                .font(.system(size: 14, weight: .regular))
+                                                .foregroundColor(isDarkMode ? .white.opacity(0.75) : .black.opacity(0.75))
+                                                .lineSpacing(8)
                                         }
                                     }
                                 }
-                                
-                                // 复制按钮
-                                Button(action: copySummary) {
-                                    HStack {
-                                        Image(systemName: "doc.on.doc")
-                                            .font(.system(size: 14))
-                                        Text("复制总结")
-                                            .font(.system(size: 14, weight: .medium))
-                                    }
-                                    .foregroundColor(isDarkMode ? .white : .black)
-                                    .frame(maxWidth: .infinity)
-                                    .padding(.vertical, 12)
-                                    .background(
-                                        RoundedRectangle(cornerRadius: 8)
-                                            .fill(isDarkMode ? Color.white.opacity(0.15) : Color.black.opacity(0.08))
-                                    )
-                                }
-                                .padding(.top, 10)
+                                .padding(.horizontal, 24)
+                                .padding(.top, 8)
                             }
+                            
+                            // 底部操作区 - 极简按钮
+                            HStack(spacing: 16) {
+                                Button(action: copySummary) {
+                                    Text("复制总结")
+                                        .font(.system(size: 13, weight: .medium))
+                                        .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
+                                        .padding(.vertical, 10)
+                                        .padding(.horizontal, 20)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 20)
+                                                .strokeBorder(
+                                                    isDarkMode ? Color.white.opacity(0.15) : Color.black.opacity(0.15),
+                                                    lineWidth: 1
+                                                )
+                                        )
+                                }
+                                
+                                Spacer()
+                            }
+                            .padding(.horizontal, 24)
+                            .padding(.top, 24)
                         }
+                        
+                        // 底部留白
+                        Color.clear.frame(height: 60)
                     }
-                    .padding(.bottom, 30)
                 }
             }
         }
@@ -211,13 +199,32 @@ struct RecordingDetailView: View {
     // 辅助函数
     func formatDate(_ date: Date) -> String {
         let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy年MM月dd日 HH:mm"
+        
+        // 判断是否为今天
+        if Calendar.current.isDateInToday(date) {
+            formatter.dateFormat = "今天 HH:mm"
+        } else if Calendar.current.isDateInYesterday(date) {
+            formatter.dateFormat = "昨天 HH:mm"
+        } else if let days = Calendar.current.dateComponents([.day], from: date, to: Date()).day, days < 7 {
+            formatter.dateFormat = "EEEE HH:mm"
+        } else {
+            formatter.dateFormat = "MM月dd日 HH:mm"
+        }
+        
         return formatter.string(from: date)
     }
     
     func extractTitle(from summary: String) -> String {
-        let sentences = summary.components(separatedBy: "。")
-        return sentences.first ?? "录音记录"
+        // 从总结中提取第一句作为标题
+        let sentences = summary.components(separatedBy: CharacterSet(charactersIn: "。！？"))
+        if let firstSentence = sentences.first, !firstSentence.isEmpty {
+            // 限制标题长度
+            if firstSentence.count > 30 {
+                return String(firstSentence.prefix(30)) + "..."
+            }
+            return firstSentence
+        }
+        return "录音记录"
     }
     
     func extractKeyPoints(from summary: String) -> [String] {
@@ -232,10 +239,30 @@ struct RecordingDetailView: View {
     
     func shareRecording() {
         // 实现分享功能
+        let text = """
+        \(extractTitle(from: recording.summary))
+        
+        转写内容：
+        \(recording.transcription)
+        
+        智能总结：
+        \(recording.summary)
+        """
+        
+        let activityVC = UIActivityViewController(
+            activityItems: [text],
+            applicationActivities: nil
+        )
+        
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let rootVC = windowScene.windows.first?.rootViewController {
+            rootVC.present(activityVC, animated: true)
+        }
     }
     
     func exportRecording() {
         // 实现导出功能
+        copySummary()
     }
     
     func deleteRecording() {
@@ -244,45 +271,38 @@ struct RecordingDetailView: View {
     }
     
     func copySummary() {
-        UIPasteboard.general.string = recording.summary
+        let fullContent = """
+        \(recording.transcription)
+        
+        ---
+        
+        \(recording.summary)
+        """
+        UIPasteboard.general.string = fullContent
     }
     
     func togglePlayback() {
         if isPlaying {
-            // 停止播放
             audioManager.stopPlaying()
             isPlaying = false
-            print("停止播放录音")
         } else {
-            // 检查是否是模拟数据
             if let audioData = recording.audioData {
                 let dataString = String(data: audioData, encoding: .utf8)
                 if dataString?.contains("mock audio data") == true {
-                    // 这是模拟数据，显示提示而不是播放
-                    print("这是模拟录音数据，无法播放真实音频")
                     showMockDataAlert()
                 } else {
-                    // 真实录音数据，尝试播放
                     audioManager.playRecording(recording)
                     isPlaying = true
-                    print("开始播放录音")
                 }
-            } else {
-                print("录音数据为空，无法播放")
             }
         }
     }
     
     private func showMockDataAlert() {
-        // 模拟播放状态，给用户反馈
         isPlaying = true
-        
-        // 3秒后自动"停止播放"
         DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
             isPlaying = false
         }
-        
-        print("模拟播放：这是展示用的测试数据，实际录音功能需要连接ESP32设备")
     }
     
     func formatTime(_ time: TimeInterval) -> String {
@@ -292,59 +312,18 @@ struct RecordingDetailView: View {
     }
 }
 
-
-// MARK: - 可折叠卡片
-struct CollapsibleCard<Content: View>: View {
-    let title: String
-    let icon: String
-    @Binding var isExpanded: Bool
-    let content: () -> Content
-    @AppStorage("isDarkMode") private var isDarkMode = true
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // 标题栏
-            Button(action: {
-                withAnimation(.spring(response: 0.3)) {
-                    isExpanded.toggle()
-                }
-            }) {
-                HStack {
-                    Image(systemName: icon)
-                        .font(.system(size: 16))
-                        .foregroundColor(isDarkMode ? .white.opacity(0.7) : .black.opacity(0.7))
-                    
-                    Text(title)
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(isDarkMode ? .white.opacity(0.7) : .black.opacity(0.7))
-                    
-                    Spacer()
-                    
-                    Image(systemName: "chevron.down")
-                        .font(.system(size: 14))
-                        .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
-                        .rotationEffect(.degrees(isExpanded ? 180 : 0))
-                }
-                .padding(16)
-            }
-            
-            // 内容区域
-            if isExpanded {
-                content()
-                    .padding(16)
-                    .padding(.top, -8)
-            }
-        }
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(isDarkMode ? Color.white.opacity(0.05) : Color.white)
-                .shadow(
-                    color: Color.black.opacity(isDarkMode ? 0.3 : 0.05),
-                    radius: 8,
-                    x: 0,
-                    y: 4
-                )
+// MARK: - 预览
+struct RecordingDetailView_Previews: PreviewProvider {
+    static var previews: some View {
+        RecordingDetailView(
+            recording: AudioRecording(
+                timestamp: Date(),
+                duration: 185,
+                transcription: "这是一段会议录音的转写内容，讨论了关于新产品开发的进度和计划。我们需要在下个季度完成主要功能的开发，并准备进行用户测试。",
+                summary: "产品开发会议总结：确定了Q2的开发目标，包括核心功能完成、用户界面优化和测试计划制定。团队将采用敏捷开发方法，每两周进行一次迭代评审。",
+                tags: ["会议", "产品", "开发"],
+                audioData: "mock audio data".data(using: .utf8)
+            )
         )
-        .padding(.horizontal, 20)
     }
 }
