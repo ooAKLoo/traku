@@ -49,6 +49,34 @@ struct RecordingDetailView: View {
                     
                     Spacer()
                     
+                    // 简化的播放控件（胶囊形状）
+                    HStack(spacing: 12) {
+                        Button(action: togglePlayback) {
+                            Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                                .font(.system(size: 16))
+                                .foregroundColor(isDarkMode ? .black : .white)
+                                .frame(width: 24, height: 24)
+                        }
+                        
+                        Text(formatTime(recording.duration))
+                            .font(.system(size: 14, design: .monospaced))
+                            .foregroundColor(isDarkMode ? .black : .white)
+                    }
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 8)
+                    .background(
+                        Capsule()
+                            .fill(isDarkMode ? Color.white.opacity(0.9) : Color.black.opacity(0.9))
+                            .shadow(
+                                color: Color.black.opacity(isDarkMode ? 0.3 : 0.08),
+                                radius: 4,
+                                x: 0,
+                                y: 2
+                            )
+                    )
+                    
+                    Spacer()
+                    
                     Menu {
                         Button(action: shareRecording) {
                             Label("分享", systemImage: "square.and.arrow.up")
@@ -103,14 +131,6 @@ struct RecordingDetailView: View {
                         .padding(.horizontal, 20)
                         .padding(.top, 10)
                         
-                        // 音频播放器模块
-                        AudioPlayerCard(
-                            recording: recording,
-                            duration: recording.duration,
-                            isPlaying: $isPlaying,
-                            progress: $playProgress,
-                            audioManager: audioManager
-                        )
                         
                         // 转写文本模块
                         CollapsibleCard(
@@ -226,100 +246,6 @@ struct RecordingDetailView: View {
     func copySummary() {
         UIPasteboard.general.string = recording.summary
     }
-}
-
-// MARK: - 音频播放器卡片
-struct AudioPlayerCard: View {
-    let recording: AudioRecording
-    let duration: TimeInterval
-    @Binding var isPlaying: Bool
-    @Binding var progress: Double
-    let audioManager: AudioManagerAdapter
-    @AppStorage("isDarkMode") private var isDarkMode = true
-    
-    var body: some View {
-        VStack(spacing: 20) {
-            // 音波动画
-            HStack(spacing: 3) {
-                ForEach(0..<30) { index in
-                    RoundedRectangle(cornerRadius: 2)
-                        .fill(isDarkMode ? Color.white.opacity(0.4) : Color.black.opacity(0.4))
-                        .frame(width: 3, height: CGFloat.random(in: 10...40))
-                        .animation(
-                            isPlaying ?
-                                .easeInOut(duration: 0.5)
-                                .repeatForever(autoreverses: true)
-                                .delay(Double(index) * 0.05) :
-                                .default,
-                            value: isPlaying
-                        )
-                }
-            }
-            .frame(height: 40)
-            
-            // 播放控制
-            HStack(spacing: 30) {
-                // 播放按钮
-                Button(action: togglePlayback) {
-                    ZStack {
-                        Circle()
-                            .fill(isDarkMode ? Color.white.opacity(0.08) : Color.white)
-                            .frame(width: 56, height: 56)
-                            .shadow(
-                                color: Color.black.opacity(isDarkMode ? 0.3 : 0.08),
-                                radius: 6,
-                                x: 0,
-                                y: 3
-                            )
-                        
-                        Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                            .font(.system(size: 24))
-                            .foregroundColor(isDarkMode ? .white : .black)
-                            .offset(x: isPlaying ? 0 : 2)
-                    }
-                }
-                
-                // 进度条和时间
-                VStack(spacing: 8) {
-                    // 进度条
-                    GeometryReader { geometry in
-                        ZStack(alignment: .leading) {
-                            RoundedRectangle(cornerRadius: 2)
-                                .fill(isDarkMode ? Color.white.opacity(0.2) : Color.black.opacity(0.2))
-                                .frame(height: 4)
-                            
-                            RoundedRectangle(cornerRadius: 2)
-                                .fill(isDarkMode ? Color.white : Color.black)
-                                .frame(width: geometry.size.width * progress, height: 4)
-                        }
-                    }
-                    .frame(height: 4)
-                    
-                    // 时间显示
-                    HStack {
-                        Text(formatTime(duration * progress))
-                            .font(.system(size: 12, design: .monospaced))
-                        Spacer()
-                        Text(formatTime(duration))
-                            .font(.system(size: 12, design: .monospaced))
-                    }
-                    .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
-                }
-            }
-        }
-        .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(isDarkMode ? Color.white.opacity(0.05) : Color.white)
-                .shadow(
-                    color: Color.black.opacity(isDarkMode ? 0.3 : 0.05),
-                    radius: 8,
-                    x: 0,
-                    y: 4
-                )
-        )
-        .padding(.horizontal, 20)
-    }
     
     func togglePlayback() {
         if isPlaying {
@@ -365,6 +291,7 @@ struct AudioPlayerCard: View {
         return String(format: "%02d:%02d", minutes, seconds)
     }
 }
+
 
 // MARK: - 可折叠卡片
 struct CollapsibleCard<Content: View>: View {
