@@ -84,7 +84,7 @@ struct RecordingDetailView: View {
                                 .lineLimit(2)
                             
                             // 时间和标签在同一行
-                            HStack(spacing: 12) {
+                            HStack(spacing: 22) {
                                 Text(formatDate(recording.timestamp))
                                     .font(.system(size: 14, weight: .regular))
                                     .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4))
@@ -111,15 +111,16 @@ struct RecordingDetailView: View {
                         }
                         .padding(.horizontal, 24)
                         .padding(.top, 20)
-                        .padding(.bottom, 30)
+                        .padding(.bottom, 50)
                         
                         // 转写文本部分 - 引用样式
                         VStack(alignment: .leading, spacing: 20) {
-                            HStack(alignment: .top, spacing: 16) {
-                                // 竖线
-                                Rectangle()
-                                    .fill(isDarkMode ? Color.white.opacity(0.15) : Color.gray.opacity(0.2))
-                                    .frame(width: 3)
+                            HStack(alignment: .top, spacing: 10) {
+                                // 引用符号
+                                Text("“")
+                                    .font(.system(size: 48, weight: .semibold))
+                                    .foregroundColor(isDarkMode ? Color.white.opacity(0.15) : Color.gray.opacity(0.2))
+                                    .offset(y: -11)
                                 
                                 // 转写内容 - 浅色斜体
                                 Text(recording.transcription)
@@ -130,7 +131,7 @@ struct RecordingDetailView: View {
                             }
                             .padding(.horizontal, 18)
                         }
-                        .padding(.bottom, 48)
+                        .padding(.bottom, 58)
                         
                         // AI总结部分 - 黑体强调，无标题
                         VStack(alignment: .leading, spacing: 24) {
