@@ -37,20 +37,32 @@ struct RecordingDetailView: View {
                     Spacer()
                     
                     // 播放控件 - 更简洁
-                    Button(action: togglePlayback) {
-                        HStack(spacing: 8) {
-                            Image(systemName: isPlaying ? "pause.fill" : "play.fill")
-                                .font(.system(size: 14))
-                            Text(formatTime(recording.duration))
-                                .font(.system(size: 13, weight: .medium, design: .monospaced))
+                    HStack(spacing: 12) {
+                        Button(action: togglePlayback) {
+                            HStack(spacing: 8) {
+                                Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                                    .font(.system(size: 14))
+                                Text(formatTime(recording.duration))
+                                    .font(.system(size: 13, weight: .medium, design: .monospaced))
+                            }
+                            .foregroundColor(isDarkMode ? .white.opacity(0.7) : .black.opacity(0.7))
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 8)
+                            .background(
+                                Capsule()
+                                    .fill(isDarkMode ? Color.white.opacity(0.08) : Color.black.opacity(0.05))
+                            )
                         }
-                        .foregroundColor(isDarkMode ? .white.opacity(0.7) : .black.opacity(0.7))
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background(
-                            Capsule()
-                                .fill(isDarkMode ? Color.white.opacity(0.08) : Color.black.opacity(0.05))
-                        )
+                        
+                        // 下载按钮 - 只在播放时显示
+                        if isPlaying {
+                            Button(action: downloadAudio) {
+                                Image(systemName: "arrow.down.circle.fill")
+                                    .font(.system(size: 20))
+                                    .foregroundColor(isDarkMode ? .white.opacity(0.7) : .black.opacity(0.7))
+                            }
+                            .transition(.opacity.combined(with: .scale))
+                        }
                     }
                     
                     Spacer()
@@ -246,6 +258,94 @@ struct RecordingDetailView: View {
         // 实现删除功能
         dismiss()
     }
+
+    func downloadAudio() {
+        guard let audioData = recording.audioData else {
+            print("没有音频数据可供下载")
+            showErrorAlert(message: "没有可用的音频数据")
+            return
+        }
+        
+        // 验证是否为模拟数据
+        if let dataString = String(data: audioData, encoding: .utf8),
+           dataString.contains("mock audio data") {
+            print("检测到模拟音频数据，无法下载")
+            showErrorAlert(message: "当前为演示模式，无法下载音频")
+            return
+        }
+        
+        // 检查是否已经是WAV格式（WAV文件以"RIFF"开头）
+        let wavHeaderBytes = [UInt8](audioData.prefix(4))
+        let isWAV = wavHeaderBytes == [0x52, 0x49, 0x46, 0x46] // "RIFF"的ASCII值
+        
+        // 如果不是WAV格式，说明数据可能有问题
+        if !isWAV {
+            print("音频数据格式无效，不是有效的WAV文件")
+            showErrorAlert(message: "音频数据格式无效")
+            return
+        }
+        
+        // 验证音频数据大小（WAV文件头至少44字节）
+        if audioData.count < 44 {
+            print("音频数据太小，无效的WAV文件: \(audioData.count) bytes")
+            showErrorAlert(message: "音频数据无效")
+            return
+        }
+        
+        // 生成安全的文件名
+        let title = extractTitle(from: recording.summary)
+            .replacingOccurrences(of: "/", with: "_")
+            .replacingOccurrences(of: ":", with: "_")
+            .replacingOccurrences(of: "<", with: "_")
+            .replacingOccurrences(of: ">", with: "_")
+            .replacingOccurrences(of: "|", with: "_")
+            .replacingOccurrences(of: "?", with: "_")
+            .replacingOccurrences(of: "*", with: "_")
+            .replacingOccurrences(of: "\"", with: "_")
+        let fileName = "\(title)_\(formatFileDate(recording.timestamp)).wav"
+        
+        // 使用临时目录避免权限问题
+        let tempDirectory = FileManager.default.temporaryDirectory
+        let fileURL = tempDirectory.appendingPathComponent(fileName)
+        
+        do {
+            // 直接写入WAV数据（数据已经是WAV格式）
+            try audioData.write(to: fileURL)
+            print("音频文件已保存到: \(fileURL)")
+            print("文件大小: \(audioData.count) bytes")
+            
+            // 创建分享界面
+            let activityVC = UIActivityViewController(
+                activityItems: [fileURL],
+                applicationActivities: nil
+            )
+            
+            // 设置完成回调，清理临时文件
+            activityVC.completionWithItemsHandler = { _, _, _, _ in
+                do {
+                    try FileManager.default.removeItem(at: fileURL)
+                    print("临时文件已清理")
+                } catch {
+                    print("清理临时文件失败: \(error)")
+                }
+            }
+            
+            // 展示分享界面
+            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+               let rootVC = windowScene.windows.first?.rootViewController {
+                // iPad需要设置popover
+                if let popover = activityVC.popoverPresentationController {
+                    popover.sourceView = rootVC.view
+                    popover.sourceRect = CGRect(x: rootVC.view.bounds.midX, y: rootVC.view.bounds.midY, width: 0, height: 0)
+                    popover.permittedArrowDirections = []
+                }
+                rootVC.present(activityVC, animated: true)
+            }
+        } catch {
+            print("保存音频文件失败: \(error)")
+            showErrorAlert(message: "保存音频文件失败: \(error.localizedDescription)")
+        }
+    }
     
     func copySummary() {
         let fullContent = """
@@ -286,6 +386,27 @@ struct RecordingDetailView: View {
         let minutes = Int(time) / 60
         let seconds = Int(time) % 60
         return String(format: "%02d:%02d", minutes, seconds)
+    }
+    
+    func formatFileDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "yyyyMMdd_HHmm"
+        return formatter.string(from: date)
+    }
+    
+    private func showErrorAlert(message: String) {
+        let alert = UIAlertController(
+            title: "提示",
+            message: message,
+            preferredStyle: .alert
+        )
+        
+        alert.addAction(UIAlertAction(title: "确定", style: .default))
+        
+        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
+           let rootVC = windowScene.windows.first?.rootViewController {
+            rootVC.present(alert, animated: true)
+        }
     }
 }
 

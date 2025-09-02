@@ -13,7 +13,7 @@ struct ConnectionConfigView: View {
     @AppStorage("isDarkMode") private var isDarkMode = true
     
     @State private var isConnecting = false
-    @State private var manualIP = "192.168.5.43"
+    @State private var manualIP = "192.168.5.49"
     @State private var manualPort = "81"
     
     var body: some View {

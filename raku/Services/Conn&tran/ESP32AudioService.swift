@@ -42,6 +42,7 @@ class ESP32AudioService: NSObject, ObservableObject {
     // MARK: - Private Properties
     private var webSocketModule: WebSocketModule
     private let audioStreamModule: AudioStreamModule
+    private let speechService: VolcEngineSpeechService
     private var cancellables = Set<AnyCancellable>()
     private var currentDevice: DeviceDiscoveryService.DiscoveredDevice?
     
@@ -69,6 +70,14 @@ class ESP32AudioService: NSObject, ObservableObject {
         
         self.webSocketModule = WebSocketModule(configuration: wsConfig)
         self.audioStreamModule = AudioStreamModule(configuration: audioConfig)
+        // 配置SenseVoice语音识别服务
+            let senseVoiceConfig = SenseVoiceConfiguration(
+                serverURL: "http://192.168.5.38:8000",  // 替换为你的服务器地址
+                endpoint: "/transcribe/normal",
+                timeout: 30.0
+            )
+            self.speechService = VolcEngineSpeechService(configuration: senseVoiceConfig)
+            
         
         super.init()
         setupBindings()
@@ -211,6 +220,7 @@ class ESP32AudioService: NSObject, ObservableObject {
     private func setupDelegates() {
         webSocketModule.delegate = self
         audioStreamModule.delegate = self
+        speechService.delegate = self
     }
     
     private func updateAudioLevels(_ amplitude: Float) {
@@ -251,6 +261,63 @@ class ESP32AudioService: NSObject, ObservableObject {
         
         self.recordings = mockRecordings
     }
+    
+    /// 使用语音识别处理音频数据
+    private func processAudioWithSpeechRecognition(audioData: Data, duration: TimeInterval) {
+        // 将原始PCM数据转换为WAV格式
+        let wavData = createWAVFile(from: audioData)
+        
+        // 创建临时录音记录（使用WAV格式的音频数据）
+        let tempRecording = AudioRecording(
+            timestamp: Date(),
+            duration: duration,
+            transcription: "正在识别中...",
+            summary: "录音 \(recordings.count + 1) - 识别中",
+            tags: ["录音", "识别中"],
+            audioData: wavData  // 使用WAV格式数据而不是原始PCM数据
+        )
+        
+        // 立即添加到录音列表中
+        DispatchQueue.main.async {
+            self.recordings.insert(tempRecording, at: 0)
+            self.delegate?.esp32AudioService(self, didFinishRecording: tempRecording)
+        }
+        
+        // 使用VolcEngine HTTP API进行语音识别
+        print("开始使用VolcEngine API进行语音识别")
+        speechService.clearResults()
+        speechService.startRecognition()
+        
+        // 发送WAV数据进行识别
+        speechService.sendAudioData(wavData)
+        
+        // 10秒后超时处理
+        DispatchQueue.global().asyncAfter(deadline: .now() + 10.0) {
+            if !self.speechService.hasResults {
+                print("语音识别超时，使用fallback")
+                self.createFallbackRecording(audioData: wavData, duration: duration)  // 传递WAV数据
+            }
+            self.speechService.stopRecognition()
+        }
+    }
+    
+    /// 创建不依赖语音识别的录音记录
+    private func createFallbackRecording(audioData: Data, duration: TimeInterval) {
+        let fallbackRecording = AudioRecording(
+            timestamp: Date(),
+            duration: duration,
+            transcription: "录音已保存，语音识别服务暂时不可用",
+            summary: "录音 \(recordings.count) - \(formatDuration(duration))",
+            tags: ["录音"],
+            audioData: audioData  // 这里的audioData已经是WAV格式
+        )
+        
+        DispatchQueue.main.async {
+            if let index = self.recordings.firstIndex(where: { $0.tags.contains("识别中") }) {
+                self.recordings[index] = fallbackRecording
+            }
+        }
+    }
 }
 
 // MARK: - WebSocketModuleDelegate
@@ -281,20 +348,8 @@ extension ESP32AudioService: AudioStreamModuleDelegate {
     }
     
     func audioStreamDidStopRecording(_ module: AudioStreamModule, audioData: Data, duration: TimeInterval) {
-        // 创建新的录音记录
-        let newRecording = AudioRecording(
-            timestamp: Date(),
-            duration: duration,
-            transcription: "录音转录内容...", // 实际应用中可以集成语音识别 API
-            summary: "录音 \(recordings.count + 1)",
-            tags: ["录音"],
-            audioData: audioData
-        )
-        
-        DispatchQueue.main.async {
-            self.recordings.insert(newRecording, at: 0)
-            self.delegate?.esp32AudioService(self, didFinishRecording: newRecording)
-        }
+        // 使用VolcEngine进行语音识别
+        processAudioWithSpeechRecognition(audioData: audioData, duration: duration)
     }
     
     func audioStreamDidUpdateAmplitude(_ module: AudioStreamModule, amplitude: Float) {
@@ -311,6 +366,95 @@ extension ESP32AudioService: AudioStreamModuleDelegate {
     
     func audioStreamDidEncounterError(_ module: AudioStreamModule, error: Error) {
         delegate?.esp32AudioService(self, didEncounterError: error)
+    }
+}
+
+// MARK: - VolcEngineSpeechServiceDelegate
+extension ESP32AudioService: VolcEngineSpeechServiceDelegate {
+    func speechService(_ service: VolcEngineSpeechService, didReceiveResult result: SpeechRecognitionResult) {
+        // 更新最新录音的转录内容
+        if let latestRecording = recordings.first,
+           latestRecording.tags.contains("识别中") {
+            
+            let updatedRecording = AudioRecording(
+                timestamp: latestRecording.timestamp,
+                duration: latestRecording.duration,
+                transcription: result.text,
+                summary: result.isFinal ? generateSummary(from: result.text) : "识别中...",
+                tags: result.isFinal ? generateTags(from: result.text) : ["录音", "识别中"],
+                audioData: latestRecording.audioData  // 保持使用WAV格式的音频数据
+            )
+            
+            DispatchQueue.main.async {
+                self.recordings[0] = updatedRecording
+            }
+        }
+    }
+    
+    func speechService(_ service: VolcEngineSpeechService, didCompleteWithError error: Error?) {
+        if let error = error {
+            print("语音识别出错: \(error.localizedDescription)")
+            
+            // 更新录音状态为识别失败
+            if let latestRecording = recordings.first,
+               latestRecording.tags.contains("识别中") {
+                
+                let failedRecording = AudioRecording(
+                    timestamp: latestRecording.timestamp,
+                    duration: latestRecording.duration,
+                    transcription: "识别失败：\(error.localizedDescription)",
+                    summary: "录音 \(recordings.count) - 识别失败",
+                    tags: ["录音", "识别失败"],
+                    audioData: latestRecording.audioData  // 保持使用WAV格式的音频数据
+                )
+                
+                DispatchQueue.main.async {
+                    self.recordings[0] = failedRecording
+                }
+            }
+        } else {
+            print("语音识别完成")
+        }
+    }
+    
+    func speechServiceDidStartRecognition(_ service: VolcEngineSpeechService) {
+        print("语音识别开始")
+    }
+    
+    func speechServiceDidStopRecognition(_ service: VolcEngineSpeechService) {
+        print("语音识别停止")
+    }
+    
+    // MARK: - 辅助方法
+    
+    private func generateSummary(from text: String) -> String {
+        // 简单的摘要生成逻辑
+        let words = text.split(separator: " ")
+        if words.count <= 10 {
+            return String(text.prefix(50))
+        } else {
+            return String(words.prefix(10).joined(separator: " ")) + "..."
+        }
+    }
+    
+    private func generateTags(from text: String) -> [String] {
+        var tags = ["录音"]
+        
+        // 基于内容添加标签
+        if text.contains("会议") || text.contains("讨论") {
+            tags.append("会议")
+        }
+        if text.contains("电话") || text.contains("通话") {
+            tags.append("电话")
+        }
+        if text.contains("笔记") || text.contains("记录") {
+            tags.append("笔记")
+        }
+        if text.contains("重要") || text.contains("紧急") {
+            tags.append("重要")
+        }
+        
+        return tags
     }
 }
 
