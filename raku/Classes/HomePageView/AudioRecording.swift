@@ -20,6 +20,8 @@ struct AudioRecording: Identifiable, Equatable {
     let tags: [String]
     let audioData: Data?
     var isPlaying: Bool = false
+    let keyPoints: [String]
+    let sentiment: String?
     
     static func == (lhs: AudioRecording, rhs: AudioRecording) -> Bool {
         return lhs.id == rhs.id

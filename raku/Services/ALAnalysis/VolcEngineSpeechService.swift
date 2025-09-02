@@ -46,6 +46,7 @@ struct SpeechRecognitionResult {
 protocol VolcEngineSpeechServiceDelegate: AnyObject {
     func speechService(_ service: VolcEngineSpeechService, didReceiveResult result: SpeechRecognitionResult)
     func speechService(_ service: VolcEngineSpeechService, didCompleteWithError error: Error?)
+    func speechService(_ service: VolcEngineSpeechService, didReceiveLLMAnalysis result: LLMAnalysisResult)
     func speechServiceDidStartRecognition(_ service: VolcEngineSpeechService)
     func speechServiceDidStopRecognition(_ service: VolcEngineSpeechService)
 }
@@ -64,6 +65,9 @@ class VolcEngineSpeechService: NSObject, ObservableObject {
     private let queue = DispatchQueue(label: "com.raku.sensevoice.speech", qos: .userInitiated)
     private var currentTask: URLSessionDataTask?
     
+    // MARK: - LLM集成
+    private let llmService = DoubaoLLMService()
+    
     // MARK: - Delegate
     weak var delegate: VolcEngineSpeechServiceDelegate?
     
@@ -78,6 +82,9 @@ class VolcEngineSpeechService: NSObject, ObservableObject {
         self.urlSession = URLSession(configuration: sessionConfig)
         
         super.init()
+        
+        // 设置LLM服务代理
+        llmService.delegate = self
     }
     
     deinit {
@@ -249,6 +256,9 @@ class VolcEngineSpeechService: NSObject, ObservableObject {
                     self.allResults.append(result)
                     self.delegate?.speechService(self, didReceiveResult: result)
                     self.delegate?.speechService(self, didCompleteWithError: nil)
+                    
+                    // 自动调用LLM进行文本分析
+                    self.llmService.analyzeText(text)
                 }
             } else {
                 print("响应中没有找到识别文本")
@@ -301,6 +311,18 @@ class VolcEngineSpeechService: NSObject, ObservableObject {
     /// 检查是否有识别结果
     var hasResults: Bool {
         return !allResults.isEmpty
+    }
+}
+
+// MARK: - DoubaoLLMServiceDelegate
+extension VolcEngineSpeechService: DoubaoLLMServiceDelegate {
+    func llmService(_ service: DoubaoLLMService, didCompleteAnalysis result: LLMAnalysisResult) {
+        print("LLM分析完成: \(result.summary)")
+        delegate?.speechService(self, didReceiveLLMAnalysis: result)
+    }
+    
+    func llmService(_ service: DoubaoLLMService, didFailWithError error: Error) {
+        print("LLM分析失败: \(error.localizedDescription)")
     }
 }
 

@@ -21,13 +21,17 @@ class AudioManagerAdapter: ObservableObject {
     
     // MARK: - Private Properties
     private let esp32Service: ESP32AudioService
+    private let speechService = VolcEngineSpeechService()
     private var cancellables = Set<AnyCancellable>()
+    private var currentRecordingData = Data()
+    private var recordingStartTime: Date?
     
     // MARK: - Initialization
     init() {
         self.esp32Service = ESP32AudioService()
         setupBindings()
         esp32Service.delegate = self
+        speechService.delegate = self
     }
     
     // MARK: - Public Methods (兼容原 AudioManager 接口)
@@ -60,11 +64,21 @@ class AudioManagerAdapter: ObservableObject {
     
     /// 开始录音
     func startRecording() {
+        currentRecordingData = Data()
+        recordingStartTime = Date()
+        speechService.startRecognition()
         esp32Service.startRecording()
     }
     
     /// 停止录音
     func stopRecording() {
+        speechService.stopRecognition()
+        
+        // 发送音频数据进行语音识别
+        if !currentRecordingData.isEmpty {
+            speechService.sendAudioData(currentRecordingData)
+        }
+        
         esp32Service.stopRecording()
     }
     
@@ -140,13 +154,64 @@ extension AudioManagerAdapter: ESP32AudioServiceDelegate {
     }
     
     func esp32AudioService(_ service: ESP32AudioService, didFinishRecording audioRecording: AudioRecording) {
-        print("录音完成: \(audioRecording.summary)")
-        // 录音列表已通过绑定自动更新
+        print("ESP32录音完成: \(audioRecording.summary)")
+        // 收集音频数据用于语音识别
+        if let audioData = audioRecording.audioData {
+            currentRecordingData.append(audioData)
+        }
     }
     
     func esp32AudioService(_ service: ESP32AudioService, didEncounterError error: Error) {
         print("ESP32 音频服务错误: \(error.localizedDescription)")
         // 可以在这里添加错误处理逻辑
+    }
+}
+
+// MARK: - VolcEngineSpeechServiceDelegate
+extension AudioManagerAdapter: VolcEngineSpeechServiceDelegate {
+    func speechService(_ service: VolcEngineSpeechService, didReceiveResult result: SpeechRecognitionResult) {
+        print("语音识别结果: \(result.text)")
+    }
+    
+    func speechService(_ service: VolcEngineSpeechService, didReceiveLLMAnalysis result: LLMAnalysisResult) {
+        print("LLM分析结果: \(result.summary)")
+        
+        // 创建新的录音记录，包含LLM分析结果
+        guard let startTime = recordingStartTime else { return }
+        let duration = Date().timeIntervalSince(startTime)
+        
+        let enhancedRecording = AudioRecording(
+            timestamp: startTime,
+            duration: duration,
+            transcription: service.fullRecognitionText,
+            summary: result.summary,
+            tags: result.tags,
+            audioData: currentRecordingData.isEmpty ? generateMockAudioData() : currentRecordingData,
+            keyPoints: result.keyPoints,
+            sentiment: result.sentiment
+        )
+        
+        DispatchQueue.main.async {
+            self.recordings.insert(enhancedRecording, at: 0)
+        }
+    }
+    
+    func speechService(_ service: VolcEngineSpeechService, didCompleteWithError error: Error?) {
+        if let error = error {
+            print("语音识别错误: \(error.localizedDescription)")
+        }
+    }
+    
+    func speechServiceDidStartRecognition(_ service: VolcEngineSpeechService) {
+        print("语音识别已开始")
+    }
+    
+    func speechServiceDidStopRecognition(_ service: VolcEngineSpeechService) {
+        print("语音识别已停止")
+    }
+    
+    private func generateMockAudioData() -> Data {
+        return "mock audio data for \(UUID().uuidString)".data(using: .utf8) ?? Data()
     }
 }
 

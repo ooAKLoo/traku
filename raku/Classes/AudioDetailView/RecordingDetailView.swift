@@ -154,10 +154,10 @@ struct RecordingDetailView: View {
                                 .lineSpacing(14)
                                 .padding(.horizontal, 24)
                             
-                            // 要点提炼 - 如果有的话
-                            if !extractKeyPoints(from: recording.summary).isEmpty {
+                            // 要点提炼 - 显示AI分析的关键点
+                            if !recording.keyPoints.isEmpty {
                                 VStack(alignment: .leading, spacing: 14) {
-                                    ForEach(extractKeyPoints(from: recording.summary), id: \.self) { point in
+                                    ForEach(recording.keyPoints, id: \.self) { point in
                                         HStack(alignment: .top, spacing: 12) {
                                             Circle()
                                                 .fill(isDarkMode ? Color.white.opacity(0.3) : Color.black.opacity(0.3))
@@ -217,13 +217,8 @@ struct RecordingDetailView: View {
     }
     
     func extractKeyPoints(from summary: String) -> [String] {
-        // 这里可以集成AI来提取要点
-        // 现在暂时返回模拟数据
-        return [
-            "讨论了项目的整体进度安排",
-            "确定了下周的关键交付物",
-            "分配了各团队成员的具体任务"
-        ]
+        // 已废弃：现在使用recording.keyPoints直接从AI分析结果获取
+        return []
     }
     
     func shareRecording() {
@@ -420,7 +415,9 @@ struct RecordingDetailView_Previews: PreviewProvider {
                 transcription: "这是一段会议录音的转写内容，讨论了关于新产品开发的进度和计划。我们需要在下个季度完成主要功能的开发，并准备进行用户测试。",
                 summary: "产品开发会议总结：确定了Q2的开发目标，包括核心功能完成、用户界面优化和测试计划制定。团队将采用敏捷开发方法，每两周进行一次迭代评审。",
                 tags: ["会议", "产品", "开发"],
-                audioData: "mock audio data".data(using: .utf8)
+                audioData: "mock audio data".data(using: .utf8),
+                keyPoints: ["讨论了项目的整体进度安排", "确定了下周的关键交付物", "分配了各团队成员的具体任务"],
+                sentiment: "positive"
             )
         )
     }

@@ -239,7 +239,9 @@ class ESP32AudioService: NSObject, ObservableObject {
                 transcription: "这是第一段测试录音的转录内容，用于展示应用的基本功能。",
                 summary: "测试录音 1 - 功能演示",
                 tags: ["测试", "演示"],
-                audioData: Data("mock audio data 1".utf8)
+                audioData: Data("mock audio data 1".utf8),
+                keyPoints: ["展示应用基本功能", "测试录音转录效果"],
+                sentiment: "neutral"
             ),
             AudioRecording(
                 timestamp: Date().addingTimeInterval(-1800),
@@ -247,7 +249,9 @@ class ESP32AudioService: NSObject, ObservableObject {
                 transcription: "第二段录音内容，展示了更长的录音时间和更多的文本内容。",
                 summary: "测试录音 2 - 长时间录音",
                 tags: ["长录音", "测试"],
-                audioData: Data("mock audio data 2".utf8)
+                audioData: Data("mock audio data 2".utf8),
+                keyPoints: ["长时间录音功能测试", "文本内容丰富度验证"],
+                sentiment: "positive"
             ),
             AudioRecording(
                 timestamp: Date().addingTimeInterval(-300),
@@ -255,7 +259,9 @@ class ESP32AudioService: NSObject, ObservableObject {
                 transcription: "最新的一段录音，用于展示实时录音功能。",
                 summary: "测试录音 3 - 最新录音",
                 tags: ["最新", "实时"],
-                audioData: Data("mock audio data 3".utf8)
+                audioData: Data("mock audio data 3".utf8),
+                keyPoints: ["实时录音功能验证", "最新版本测试"],
+                sentiment: "positive"
             )
         ]
         
@@ -274,7 +280,9 @@ class ESP32AudioService: NSObject, ObservableObject {
             transcription: "正在识别中...",
             summary: "录音 \(recordings.count + 1) - 识别中",
             tags: ["录音", "识别中"],
-            audioData: wavData  // 使用WAV格式数据而不是原始PCM数据
+            audioData: wavData,  // 使用WAV格式数据而不是原始PCM数据
+            keyPoints: [],
+            sentiment: nil
         )
         
         // 立即添加到录音列表中
@@ -309,7 +317,9 @@ class ESP32AudioService: NSObject, ObservableObject {
             transcription: "录音已保存，语音识别服务暂时不可用",
             summary: "录音 \(recordings.count) - \(formatDuration(duration))",
             tags: ["录音"],
-            audioData: audioData  // 这里的audioData已经是WAV格式
+            audioData: audioData,  // 这里的audioData已经是WAV格式
+            keyPoints: [],
+            sentiment: nil
         )
         
         DispatchQueue.main.async {
@@ -382,11 +392,38 @@ extension ESP32AudioService: VolcEngineSpeechServiceDelegate {
                 transcription: result.text,
                 summary: result.isFinal ? generateSummary(from: result.text) : "识别中...",
                 tags: result.isFinal ? generateTags(from: result.text) : ["录音", "识别中"],
-                audioData: latestRecording.audioData  // 保持使用WAV格式的音频数据
+                audioData: latestRecording.audioData,  // 保持使用WAV格式的音频数据
+                keyPoints: result.isFinal ? generateKeyPoints(from: result.text) : [],
+                sentiment: result.isFinal ? "neutral" : nil
             )
             
             DispatchQueue.main.async {
                 self.recordings[0] = updatedRecording
+            }
+        }
+    }
+    
+    func speechService(_ service: VolcEngineSpeechService, didReceiveLLMAnalysis result: LLMAnalysisResult) {
+        print("ESP32AudioService 接收到LLM分析结果: \(result.summary)")
+        
+        // 更新最新录音记录，包含LLM分析结果
+        if let latestRecording = recordings.first,
+           latestRecording.tags.contains("识别中") || latestRecording.tags.contains("录音") {
+            
+            let enhancedRecording = AudioRecording(
+                timestamp: latestRecording.timestamp,
+                duration: latestRecording.duration,
+                transcription: service.fullRecognitionText,
+                summary: result.summary,
+                tags: result.tags,
+                audioData: latestRecording.audioData,
+                keyPoints: result.keyPoints,
+                sentiment: result.sentiment
+            )
+            
+            DispatchQueue.main.async {
+                self.recordings[0] = enhancedRecording
+                self.delegate?.esp32AudioService(self, didFinishRecording: enhancedRecording)
             }
         }
     }
@@ -405,7 +442,9 @@ extension ESP32AudioService: VolcEngineSpeechServiceDelegate {
                     transcription: "识别失败：\(error.localizedDescription)",
                     summary: "录音 \(recordings.count) - 识别失败",
                     tags: ["录音", "识别失败"],
-                    audioData: latestRecording.audioData  // 保持使用WAV格式的音频数据
+                    audioData: latestRecording.audioData,  // 保持使用WAV格式的音频数据
+                    keyPoints: [],
+                    sentiment: nil
                 )
                 
                 DispatchQueue.main.async {
@@ -455,6 +494,30 @@ extension ESP32AudioService: VolcEngineSpeechServiceDelegate {
         }
         
         return tags
+    }
+    
+    private func generateKeyPoints(from text: String) -> [String] {
+        // 简单的关键点提取逻辑
+        var keyPoints: [String] = []
+        
+        // 按句子分割文本
+        let sentences = text.components(separatedBy: CharacterSet(charactersIn: "。！？.!?"))
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        
+        // 提取前几个句子作为关键点
+        for sentence in sentences.prefix(3) {
+            if sentence.count > 5 { // 过滤太短的句子
+                keyPoints.append(sentence)
+            }
+        }
+        
+        // 如果没有找到足够的关键点，使用默认值
+        if keyPoints.isEmpty {
+            keyPoints = ["录音内容已保存"]
+        }
+        
+        return keyPoints
     }
 }
 
