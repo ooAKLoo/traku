@@ -24,6 +24,9 @@ protocol ESP32AudioServiceDelegate: AnyObject {
     /// 录音完成
     func esp32AudioService(_ service: ESP32AudioService, didFinishRecording audioRecording: AudioRecording)
     
+    /// 语音识别结果（新增）
+    func esp32AudioService(_ service: ESP32AudioService, didReceiveSpeechResult result: SpeechRecognitionResult)
+    
     /// 发生错误
     func esp32AudioService(_ service: ESP32AudioService, didEncounterError error: Error)
 }
@@ -382,6 +385,11 @@ extension ESP32AudioService: AudioStreamModuleDelegate {
 // MARK: - VolcEngineSpeechServiceDelegate
 extension ESP32AudioService: VolcEngineSpeechServiceDelegate {
     func speechService(_ service: VolcEngineSpeechService, didReceiveResult result: SpeechRecognitionResult) {
+        print("ESP32AudioService 收到语音识别结果: \(result.text)")
+        
+        // 将语音识别结果转发给delegate（AudioManagerAdapter）
+        delegate?.esp32AudioService(self, didReceiveSpeechResult: result)
+        
         // 更新最新录音的转录内容
         if let latestRecording = recordings.first,
            latestRecording.tags.contains("识别中") {
@@ -403,30 +411,7 @@ extension ESP32AudioService: VolcEngineSpeechServiceDelegate {
         }
     }
     
-    func speechService(_ service: VolcEngineSpeechService, didReceiveLLMAnalysis result: LLMAnalysisResult) {
-        print("ESP32AudioService 接收到LLM分析结果: \(result.summary)")
-        
-        // 更新最新录音记录，包含LLM分析结果
-        if let latestRecording = recordings.first,
-           latestRecording.tags.contains("识别中") || latestRecording.tags.contains("录音") {
-            
-            let enhancedRecording = AudioRecording(
-                timestamp: latestRecording.timestamp,
-                duration: latestRecording.duration,
-                transcription: service.fullRecognitionText,
-                summary: result.summary,
-                tags: result.tags,
-                audioData: latestRecording.audioData,
-                keyPoints: result.keyPoints,
-                sentiment: result.sentiment
-            )
-            
-            DispatchQueue.main.async {
-                self.recordings[0] = enhancedRecording
-                self.delegate?.esp32AudioService(self, didFinishRecording: enhancedRecording)
-            }
-        }
-    }
+    // 移除了 didReceiveLLMAnalysis 方法，因为LLM分析现在由外部处理
     
     func speechService(_ service: VolcEngineSpeechService, didCompleteWithError error: Error?) {
         if let error = error {

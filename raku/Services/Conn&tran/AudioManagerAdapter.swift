@@ -21,7 +21,8 @@ class AudioManagerAdapter: ObservableObject {
     
     // MARK: - Private Properties
     private let esp32Service: ESP32AudioService
-    private let speechService = VolcEngineSpeechService()
+    private let speechService = VolcEngineSpeechService()  // 保留语音识别服务
+    private let twoStepLLMService = TwoStepLLMService()   // 新增两步式LLM服务
     private var cancellables = Set<AnyCancellable>()
     private var currentRecordingData = Data()
     private var recordingStartTime: Date?
@@ -32,6 +33,7 @@ class AudioManagerAdapter: ObservableObject {
         setupBindings()
         esp32Service.delegate = self
         speechService.delegate = self
+        twoStepLLMService.delegate = self  // 设置两步式LLM服务代理
     }
     
     // MARK: - Public Methods (兼容原 AudioManager 接口)
@@ -161,6 +163,14 @@ extension AudioManagerAdapter: ESP32AudioServiceDelegate {
         }
     }
     
+    func esp32AudioService(_ service: ESP32AudioService, didReceiveSpeechResult result: SpeechRecognitionResult) {
+        print("AudioManagerAdapter 收到语音识别结果: \(result.text)")
+        
+        // 语音识别完成后，使用两步式LLM服务进行分析
+        print("开始调用两步式LLM分析...")
+        twoStepLLMService.analyzeText(result.text)
+    }
+    
     func esp32AudioService(_ service: ESP32AudioService, didEncounterError error: Error) {
         print("ESP32 音频服务错误: \(error.localizedDescription)")
         // 可以在这里添加错误处理逻辑
@@ -171,30 +181,15 @@ extension AudioManagerAdapter: ESP32AudioServiceDelegate {
 extension AudioManagerAdapter: VolcEngineSpeechServiceDelegate {
     func speechService(_ service: VolcEngineSpeechService, didReceiveResult result: SpeechRecognitionResult) {
         print("语音识别结果: \(result.text)")
+        
+        // 保存识别文本用于后续LLM分析
+        let recognitionText = result.text
+        
+        // 语音识别完成后，使用两步式LLM服务进行分析
+        twoStepLLMService.analyzeText(recognitionText)
     }
     
-    func speechService(_ service: VolcEngineSpeechService, didReceiveLLMAnalysis result: LLMAnalysisResult) {
-        print("LLM分析结果: \(result.summary)")
-        
-        // 创建新的录音记录，包含LLM分析结果
-        guard let startTime = recordingStartTime else { return }
-        let duration = Date().timeIntervalSince(startTime)
-        
-        let enhancedRecording = AudioRecording(
-            timestamp: startTime,
-            duration: duration,
-            transcription: service.fullRecognitionText,
-            summary: result.summary,
-            tags: result.tags,
-            audioData: currentRecordingData.isEmpty ? generateMockAudioData() : currentRecordingData,
-            keyPoints: result.keyPoints,
-            sentiment: result.sentiment
-        )
-        
-        DispatchQueue.main.async {
-            self.recordings.insert(enhancedRecording, at: 0)
-        }
-    }
+    // 移除了 didReceiveLLMAnalysis 方法，因为协议中已经没有这个方法了
     
     func speechService(_ service: VolcEngineSpeechService, didCompleteWithError error: Error?) {
         if let error = error {
@@ -212,6 +207,87 @@ extension AudioManagerAdapter: VolcEngineSpeechServiceDelegate {
     
     private func generateMockAudioData() -> Data {
         return "mock audio data for \(UUID().uuidString)".data(using: .utf8) ?? Data()
+    }
+}
+
+// MARK: - TwoStepLLMServiceDelegate
+extension AudioManagerAdapter: TwoStepLLMServiceDelegate {
+    func twoStepLLMService(_ service: TwoStepLLMService, didCompleteFirstStep result: FirstStepAnalysis) {
+        print("第一步完成 - 类型: \(result.thoughtType.rawValue), 标题: \(result.title)")
+        if let summary = result.oneSentenceSummary {
+            print("一句话总结: \(summary)")
+        }
+    }
+    
+    func twoStepLLMService(_ service: TwoStepLLMService, didCompleteFinalAnalysis result: TwoStepAnalysisResult) {
+        print("两步式LLM分析完成")
+        print("标题: \(result.title)")
+        print("类型: \(result.thoughtType.rawValue)")
+        print("标签: \(result.tags.joined(separator: ", "))")
+        print("辅助点: \(result.keyPoints.joined(separator: "; "))")
+        
+        guard let startTime = recordingStartTime else { return }
+        let duration = Date().timeIntervalSince(startTime)
+        
+        // 使用最终结果创建录音记录
+        let enhancedRecording = AudioRecording(
+            timestamp: result.timestamp,
+            duration: duration,
+            transcription: result.originalText,
+            summary: result.title,  // 使用标题作为summary
+            tags: result.tags,
+            audioData: currentRecordingData.isEmpty ? generateMockAudioData() : currentRecordingData,
+            keyPoints: result.keyPoints,
+            sentiment: result.sentiment
+        )
+        
+        // 如果文本超过150字，在keyPoints的第一项添加一句话总结
+        if result.originalText.count > 150, result.summary != result.originalText {
+            var enhancedKeyPoints = result.keyPoints
+            enhancedKeyPoints.insert("总结: \(result.summary)", at: 0)
+            
+            let enhancedRecordingWithSummary = AudioRecording(
+                timestamp: result.timestamp,
+                duration: duration,
+                transcription: result.originalText,
+                summary: result.title,
+                tags: result.tags,
+                audioData: currentRecordingData.isEmpty ? generateMockAudioData() : currentRecordingData,
+                keyPoints: enhancedKeyPoints,
+                sentiment: result.sentiment
+            )
+            
+            DispatchQueue.main.async {
+                self.recordings.insert(enhancedRecordingWithSummary, at: 0)
+            }
+        } else {
+            DispatchQueue.main.async {
+                self.recordings.insert(enhancedRecording, at: 0)
+            }
+        }
+    }
+    
+    func twoStepLLMService(_ service: TwoStepLLMService, didFailWithError error: Error) {
+        print("两步式LLM分析失败: \(error.localizedDescription)")
+        
+        // 失败时创建基础录音记录
+        guard let startTime = recordingStartTime else { return }
+        let duration = Date().timeIntervalSince(startTime)
+        
+        let fallbackRecording = AudioRecording(
+            timestamp: startTime,
+            duration: duration,
+            transcription: "录音已保存（分析失败）",
+            summary: "录音 \(recordings.count + 1)",
+            tags: ["录音"],
+            audioData: currentRecordingData.isEmpty ? generateMockAudioData() : currentRecordingData,
+            keyPoints: ["LLM分析服务暂时不可用"],
+            sentiment: nil
+        )
+        
+        DispatchQueue.main.async {
+            self.recordings.insert(fallbackRecording, at: 0)
+        }
     }
 }
 

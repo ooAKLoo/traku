@@ -4,6 +4,7 @@
 //
 //  SenseVoice语音识别服务
 //  用于将音频数据转换为文本
+//  注意：此服务只负责语音识别，不再调用LLM分析
 //
 
 import Foundation
@@ -17,7 +18,7 @@ struct SenseVoiceConfiguration {
     
     // 默认配置 - 指向你的SenseVoice服务器
     static let `default` = SenseVoiceConfiguration(
-        serverURL: "http://192.168.1.100:8000",  // 替换为你的服务器地址
+        serverURL: "http://192.168.5.38:8000",  // 替换为你的服务器地址
         endpoint: "/transcribe/normal",
         timeout: 30.0
     )
@@ -46,9 +47,9 @@ struct SpeechRecognitionResult {
 protocol VolcEngineSpeechServiceDelegate: AnyObject {
     func speechService(_ service: VolcEngineSpeechService, didReceiveResult result: SpeechRecognitionResult)
     func speechService(_ service: VolcEngineSpeechService, didCompleteWithError error: Error?)
-    func speechService(_ service: VolcEngineSpeechService, didReceiveLLMAnalysis result: LLMAnalysisResult)
     func speechServiceDidStartRecognition(_ service: VolcEngineSpeechService)
     func speechServiceDidStopRecognition(_ service: VolcEngineSpeechService)
+    // 移除了 didReceiveLLMAnalysis 方法，因为LLM分析现在由TwoStepLLMService处理
 }
 
 // MARK: - SenseVoice语音识别服务
@@ -65,8 +66,7 @@ class VolcEngineSpeechService: NSObject, ObservableObject {
     private let queue = DispatchQueue(label: "com.raku.sensevoice.speech", qos: .userInitiated)
     private var currentTask: URLSessionDataTask?
     
-    // MARK: - LLM集成
-    private let llmService = DoubaoLLMService()
+    // 移除了 llmService，因为LLM分析现在由外部处理
     
     // MARK: - Delegate
     weak var delegate: VolcEngineSpeechServiceDelegate?
@@ -82,9 +82,6 @@ class VolcEngineSpeechService: NSObject, ObservableObject {
         self.urlSession = URLSession(configuration: sessionConfig)
         
         super.init()
-        
-        // 设置LLM服务代理
-        llmService.delegate = self
     }
     
     deinit {
@@ -257,8 +254,7 @@ class VolcEngineSpeechService: NSObject, ObservableObject {
                     self.delegate?.speechService(self, didReceiveResult: result)
                     self.delegate?.speechService(self, didCompleteWithError: nil)
                     
-                    // 自动调用LLM进行文本分析
-                    self.llmService.analyzeText(text)
+                    // 不再自动调用LLM分析，让外部处理
                 }
             } else {
                 print("响应中没有找到识别文本")
@@ -311,18 +307,6 @@ class VolcEngineSpeechService: NSObject, ObservableObject {
     /// 检查是否有识别结果
     var hasResults: Bool {
         return !allResults.isEmpty
-    }
-}
-
-// MARK: - DoubaoLLMServiceDelegate
-extension VolcEngineSpeechService: DoubaoLLMServiceDelegate {
-    func llmService(_ service: DoubaoLLMService, didCompleteAnalysis result: LLMAnalysisResult) {
-        print("LLM分析完成: \(result.summary)")
-        delegate?.speechService(self, didReceiveLLMAnalysis: result)
-    }
-    
-    func llmService(_ service: DoubaoLLMService, didFailWithError error: Error) {
-        print("LLM分析失败: \(error.localizedDescription)")
     }
 }
 
