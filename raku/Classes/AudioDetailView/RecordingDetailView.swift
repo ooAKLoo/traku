@@ -416,8 +416,7 @@ struct RecordingDetailView_Previews: PreviewProvider {
                 summary: "产品开发会议总结：确定了Q2的开发目标，包括核心功能完成、用户界面优化和测试计划制定。团队将采用敏捷开发方法，每两周进行一次迭代评审。",
                 tags: ["会议", "产品", "开发"],
                 audioData: "mock audio data".data(using: .utf8),
-                keyPoints: ["讨论了项目的整体进度安排", "确定了下周的关键交付物", "分配了各团队成员的具体任务"],
-                sentiment: "positive"
+                keyPoints: ["讨论了项目的整体进度安排", "确定了下周的关键交付物", "分配了各团队成员的具体任务"]
             )
         )
     }

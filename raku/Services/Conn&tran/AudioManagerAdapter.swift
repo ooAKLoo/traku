@@ -1,8 +1,7 @@
 //
 //  AudioManagerAdapter.swift
 //  适配器模式，用于整合新的 ESP32AudioService 和现有的 AudioManager 接口
-//
-//  这个适配器让现有的代码可以无缝使用新的模块化服务
+//  已更新以适配新的 TwoStepAnalysisResult 结构
 //
 
 import Foundation
@@ -138,6 +137,37 @@ class AudioManagerAdapter: ObservableObject {
             .assign(to: \.audioLevels, on: self)
             .store(in: &cancellables)
     }
+    
+    // MARK: - 辅助方法：将结构化内容转换为关键点数组
+    private func extractKeyPoints(from structuredContent: StructuredContent) -> [String] {
+        switch structuredContent {
+        case .inspiration(let content):
+            var points: [String] = []
+            points.append("核心价值: \(content.coreValue)")
+            points.append(contentsOf: content.possibilities)
+            points.append(contentsOf: content.nextSteps)
+            return points
+            
+        case .idea(let content):
+            var points: [String] = []
+            points.append("目标: \(content.objective)")
+            points.append(contentsOf: content.actionItems)
+            if !content.timeline.isEmpty {
+                points.append("时间框架: \(content.timeline)")
+            }
+            return points
+            
+        case .reflection(let content):
+            var points: [String] = []
+            points.append("核心问题: \(content.coreQuestion)")
+            points.append(contentsOf: content.insights)
+            points.append("结论: \(content.conclusion)")
+            return points
+            
+        case .general(let content):
+            return content.keyPoints
+        }
+    }
 }
 
 // MARK: - ESP32AudioServiceDelegate
@@ -189,8 +219,6 @@ extension AudioManagerAdapter: VolcEngineSpeechServiceDelegate {
         twoStepLLMService.analyzeText(recognitionText)
     }
     
-    // 移除了 didReceiveLLMAnalysis 方法，因为协议中已经没有这个方法了
-    
     func speechService(_ service: VolcEngineSpeechService, didCompleteWithError error: Error?) {
         if let error = error {
             print("语音识别错误: \(error.localizedDescription)")
@@ -224,12 +252,21 @@ extension AudioManagerAdapter: TwoStepLLMServiceDelegate {
         print("标题: \(result.title)")
         print("类型: \(result.thoughtType.rawValue)")
         print("标签: \(result.tags.joined(separator: ", "))")
-        print("辅助点: \(result.keyPoints.joined(separator: "; "))")
         
         guard let startTime = recordingStartTime else { return }
         let duration = Date().timeIntervalSince(startTime)
         
-        // 使用最终结果创建录音记录
+        // 从结构化内容中提取关键点
+        let keyPoints = extractKeyPoints(from: result.structuredContent)
+        
+        // 创建增强的录音记录
+        var finalKeyPoints = keyPoints
+        
+        // 如果文本超过150字，在keyPoints的第一项添加一句话总结
+        if result.originalText.count > 150, result.summary != result.originalText {
+            finalKeyPoints.insert("总结: \(result.summary)", at: 0)
+        }
+        
         let enhancedRecording = AudioRecording(
             timestamp: result.timestamp,
             duration: duration,
@@ -237,33 +274,11 @@ extension AudioManagerAdapter: TwoStepLLMServiceDelegate {
             summary: result.title,  // 使用标题作为summary
             tags: result.tags,
             audioData: currentRecordingData.isEmpty ? generateMockAudioData() : currentRecordingData,
-            keyPoints: result.keyPoints,
-            sentiment: result.sentiment
+            keyPoints: finalKeyPoints  // 使用提取的关键点
         )
         
-        // 如果文本超过150字，在keyPoints的第一项添加一句话总结
-        if result.originalText.count > 150, result.summary != result.originalText {
-            var enhancedKeyPoints = result.keyPoints
-            enhancedKeyPoints.insert("总结: \(result.summary)", at: 0)
-            
-            let enhancedRecordingWithSummary = AudioRecording(
-                timestamp: result.timestamp,
-                duration: duration,
-                transcription: result.originalText,
-                summary: result.title,
-                tags: result.tags,
-                audioData: currentRecordingData.isEmpty ? generateMockAudioData() : currentRecordingData,
-                keyPoints: enhancedKeyPoints,
-                sentiment: result.sentiment
-            )
-            
-            DispatchQueue.main.async {
-                self.recordings.insert(enhancedRecordingWithSummary, at: 0)
-            }
-        } else {
-            DispatchQueue.main.async {
-                self.recordings.insert(enhancedRecording, at: 0)
-            }
+        DispatchQueue.main.async {
+            self.recordings.insert(enhancedRecording, at: 0)
         }
     }
     
@@ -281,8 +296,7 @@ extension AudioManagerAdapter: TwoStepLLMServiceDelegate {
             summary: "录音 \(recordings.count + 1)",
             tags: ["录音"],
             audioData: currentRecordingData.isEmpty ? generateMockAudioData() : currentRecordingData,
-            keyPoints: ["LLM分析服务暂时不可用"],
-            sentiment: nil
+            keyPoints: ["LLM分析服务暂时不可用"]
         )
         
         DispatchQueue.main.async {

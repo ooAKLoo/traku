@@ -3,14 +3,14 @@
 //  raku
 //
 //  Created by 杨东举 on 2025/8/26.
+//  已更新：移除sentiment属性
 //
-
 
 import SwiftUI
 import AVFoundation
 import Combine
 
-// MARK: - 数据模型
+// MARK: - 数据模型（已移除sentiment）
 struct AudioRecording: Identifiable, Equatable {
     let id = UUID()
     let timestamp: Date
@@ -21,7 +21,7 @@ struct AudioRecording: Identifiable, Equatable {
     let audioData: Data?
     var isPlaying: Bool = false
     let keyPoints: [String]
-    let sentiment: String?
+    // sentiment 属性已移除
     
     static func == (lhs: AudioRecording, rhs: AudioRecording) -> Bool {
         return lhs.id == rhs.id
@@ -53,7 +53,6 @@ struct ContentView: View {
         }
     }
 }
-
 
 // MARK: - 录音列表视图
 struct RecordingsListView: View {
@@ -173,59 +172,59 @@ struct RecordingsListView: View {
                 // 第二行：筛选栏
                 HStack(spacing: 30) {
                     ForEach(filters, id: \.self) { filter in
-                    Button(action: {
-                        withAnimation(.interactiveSpring(response: 0.3, dampingFraction: 0.8, blendDuration: 0)) {
-                            selectedFilter = filter
-                        }
-                    }) {
-                        VStack(spacing: 6) {
-                            Text(filter)
-                                .font(.system(size: 16, weight: selectedFilter == filter ? .semibold : .regular))
-                                .foregroundColor(selectedFilter == filter ? 
-                                    (isDarkMode ? .white : .black) : 
-                                    (hoveredFilter == filter ? 
-                                        (isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8)) :
-                                        (isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))))
-                                .animation(.easeInOut(duration: 0.2), value: selectedFilter)
-                                .animation(.easeInOut(duration: 0.15), value: hoveredFilter)
-                            
-                            // 底部指示线
-                            ZStack {
-                                // 背景透明线条（占位）
-                                Rectangle()
-                                    .fill(Color.clear)
-                                    .frame(width: 40, height: 2)
+                        Button(action: {
+                            withAnimation(.interactiveSpring(response: 0.3, dampingFraction: 0.8, blendDuration: 0)) {
+                                selectedFilter = filter
+                            }
+                        }) {
+                            VStack(spacing: 6) {
+                                Text(filter)
+                                    .font(.system(size: 16, weight: selectedFilter == filter ? .semibold : .regular))
+                                    .foregroundColor(selectedFilter == filter ?
+                                        (isDarkMode ? .white : .black) :
+                                        (hoveredFilter == filter ?
+                                            (isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8)) :
+                                            (isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))))
+                                    .animation(.easeInOut(duration: 0.2), value: selectedFilter)
+                                    .animation(.easeInOut(duration: 0.15), value: hoveredFilter)
                                 
-                                // 实际显示的线条
-                                Rectangle()
-                                    .fill(
-                                        LinearGradient(
-                                            colors: [
-                                                (isDarkMode ? Color.white : Color.black).opacity(0.8),
-                                                (isDarkMode ? Color.white : Color.black)
-                                            ],
-                                            startPoint: .leading,
-                                            endPoint: .trailing
+                                // 底部指示线
+                                ZStack {
+                                    // 背景透明线条（占位）
+                                    Rectangle()
+                                        .fill(Color.clear)
+                                        .frame(width: 40, height: 2)
+                                    
+                                    // 实际显示的线条
+                                    Rectangle()
+                                        .fill(
+                                            LinearGradient(
+                                                colors: [
+                                                    (isDarkMode ? Color.white : Color.black).opacity(0.8),
+                                                    (isDarkMode ? Color.white : Color.black)
+                                                ],
+                                                startPoint: .leading,
+                                                endPoint: .trailing
+                                            )
                                         )
-                                    )
-                                    .frame(width: 24, height: 2)
-                                    .cornerRadius(1)
-                                    .scaleEffect(x: selectedFilter == filter ? 1 : 0, y: 1)
-                                    .opacity(selectedFilter == filter ? 1 : 0)
-                                    .animation(.interactiveSpring(response: 0.25, dampingFraction: 0.8), value: selectedFilter)
+                                        .frame(width: 24, height: 2)
+                                        .cornerRadius(1)
+                                        .scaleEffect(x: selectedFilter == filter ? 1 : 0, y: 1)
+                                        .opacity(selectedFilter == filter ? 1 : 0)
+                                        .animation(.interactiveSpring(response: 0.25, dampingFraction: 0.8), value: selectedFilter)
+                                }
+                            }
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                        .onHover { isHovered in
+                            withAnimation(.easeInOut(duration: 0.15)) {
+                                hoveredFilter = isHovered ? filter : nil
                             }
                         }
                     }
-                    .buttonStyle(PlainButtonStyle())
-                    .onHover { isHovered in
-                        withAnimation(.easeInOut(duration: 0.15)) {
-                            hoveredFilter = isHovered ? filter : nil
-                        }
-                    }
+                    
+                    Spacer()
                 }
-                
-                Spacer()
-            }
             }
             .padding(.horizontal, 20)
             .padding(.top, 20)
@@ -344,7 +343,7 @@ struct RecordingsListView: View {
             ScrollView {
                 LazyVStack(spacing: 15) {
                     ForEach(Array(filteredRecordings.enumerated()), id: \.element.id) { index, recording in
-                        NavigationLink(destination: 
+                        NavigationLink(destination:
                             RecordingDetailView(recording: recording)
                                 .navigationBarHidden(true)
                         ) {
