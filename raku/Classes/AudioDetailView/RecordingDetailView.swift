@@ -8,6 +8,7 @@
 import SwiftUI
 import AVFoundation
 import Combine
+import MarkdownUI
 
 // MARK: - 录音详情视图
 struct RecordingDetailView: View {
@@ -15,7 +16,7 @@ struct RecordingDetailView: View {
     @State private var isPlaying = false
     @State private var playProgress: Double = 0
     @Environment(\.dismiss) private var dismiss
-    @AppStorage("isDarkMode") private var isDarkMode = false
+    @AppStorage("isDarkMode") private var isDarkMode = true
     @StateObject private var audioManager = AudioManagerAdapter()
     
     var body: some View {
@@ -147,32 +148,13 @@ struct RecordingDetailView: View {
                         
                         // AI总结部分 - 黑体强调，无标题
                         VStack(alignment: .leading, spacing: 24) {
-                            // 总结内容 - 黑体醒目
-                            Text(recording.summary)
-                                .font(.system(size: 18, weight: .medium))
-                                .foregroundColor(isDarkMode ? .white.opacity(0.9) : .black.opacity(0.9))
-                                .lineSpacing(14)
-                                .padding(.horizontal, 24)
                             
-                            // 要点提炼 - 显示AI分析的关键点
-                            if !recording.keyPoints.isEmpty {
-                                VStack(alignment: .leading, spacing: 14) {
-                                    ForEach(recording.keyPoints, id: \.self) { point in
-                                        HStack(alignment: .top, spacing: 12) {
-                                            Circle()
-                                                .fill(isDarkMode ? Color.white.opacity(0.3) : Color.black.opacity(0.3))
-                                                .frame(width: 4, height: 4)
-                                                .offset(y: 9)
-                                            
-                                            Text(point)
-                                                .font(.system(size: 16, weight: .regular))
-                                                .foregroundColor(isDarkMode ? .white.opacity(0.75) : .black.opacity(0.75))
-                                                .lineSpacing(10)
-                                        }
-                                    }
-                                }
-                                .padding(.horizontal, 24)
-                                .padding(.top, 12)
+                            // 增强内容 - 使用Markdown渲染
+                            if let enrichedContent = recording.enrichedContent, !enrichedContent.isEmpty {
+                                Markdown("\(enrichedContent)")  // 直接传入 Markdown 字符串
+                                    .markdownTheme(Theme.docC)  // 应用自定义主题（或内置主题）
+                                    .padding(.horizontal, 24)
+                                    .padding(.top, 12)
                             }
                         }
                         
@@ -216,11 +198,6 @@ struct RecordingDetailView: View {
         return "录音记录"
     }
     
-    func extractKeyPoints(from summary: String) -> [String] {
-        // 已废弃：现在使用recording.keyPoints直接从AI分析结果获取
-        return []
-    }
-    
     func shareRecording() {
         // 实现分享功能
         let text = """
@@ -253,7 +230,7 @@ struct RecordingDetailView: View {
         // 实现删除功能
         dismiss()
     }
-
+    
     func downloadAudio() {
         guard let audioData = recording.audioData else {
             print("没有音频数据可供下载")
@@ -416,7 +393,32 @@ struct RecordingDetailView_Previews: PreviewProvider {
                 summary: "产品开发会议总结：确定了Q2的开发目标，包括核心功能完成、用户界面优化和测试计划制定。团队将采用敏捷开发方法，每两周进行一次迭代评审。",
                 tags: ["会议", "产品", "开发"],
                 audioData: "mock audio data".data(using: .utf8),
-                keyPoints: ["讨论了项目的整体进度安排", "确定了下周的关键交付物", "分配了各团队成员的具体任务"]
+                enrichedContent: """
+                ## 🎯 明确目标
+                > 3个月内完成1个科技艺术项目原型，实现AI生成艺术作品并线下展览
+                
+                ## ✅ 行动清单
+                - [ ] **优先级高**：调研科技艺术趋势与用户需求
+                - [ ] **优先级高**：确定技术实现方案与艺术形式
+                - [ ] **优先级中**：收集艺术素材与训练数据
+                - [ ] **优先级低**：寻找技术与艺术合作资源
+                
+                ## 📦 所需资源
+                | 资源类型 | 具体内容 |
+                |---------|---------|
+                | 时间 | 调研1周，方案设计1周，素材收集2周，技术开发4周，展览筹备2周 |
+                | 工具 | AI工具（Midjourney/Stable Diffusion）、设计软件（PS/Blender）、项目管理工具（Trello） |
+                | 支持 | 技术伙伴、艺术指导、线下展览场地资源 |
+                
+                ## ⏰ 时间规划
+                **短期（1周内）**：每日2小时调研科技艺术案例，周末输出趋势报告与用户需求分析
+                **中期（1月内）**：前2周完成技术方案设计（含AI模型选型），后2周收集艺术素材与训练数据
+                **长期（3月内）**：第3-6周开发AI生成模型并测试优化，第7-8周筹备线下展览（布展/宣传）
+                
+                ## ⚠️ 潜在挑战
+                1. **挑战**：AI生成艺术效果未达预期 → **应对**：先小范围测试不同模型，参考艺术指导调整参数
+                2. **挑战**：缺乏技术/艺术合作资源 → **应对**：在艺术社群/高校发布招募信息，优先合作学生团队降低成本
+                """
             )
         )
     }

@@ -20,7 +20,7 @@ struct AudioRecording: Identifiable, Equatable {
     let tags: [String]
     let audioData: Data?
     var isPlaying: Bool = false
-    let keyPoints: [String]
+    let enrichedContent: String?
     // sentiment 属性已移除
     
     static func == (lhs: AudioRecording, rhs: AudioRecording) -> Bool {

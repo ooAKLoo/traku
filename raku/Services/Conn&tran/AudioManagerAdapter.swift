@@ -137,37 +137,6 @@ class AudioManagerAdapter: ObservableObject {
             .assign(to: \.audioLevels, on: self)
             .store(in: &cancellables)
     }
-    
-    // MARK: - 辅助方法：将结构化内容转换为关键点数组
-    private func extractKeyPoints(from structuredContent: StructuredContent) -> [String] {
-        switch structuredContent {
-        case .inspiration(let content):
-            var points: [String] = []
-            points.append("核心价值: \(content.coreValue)")
-            points.append(contentsOf: content.possibilities)
-            points.append(contentsOf: content.nextSteps)
-            return points
-            
-        case .idea(let content):
-            var points: [String] = []
-            points.append("目标: \(content.objective)")
-            points.append(contentsOf: content.actionItems)
-            if !content.timeline.isEmpty {
-                points.append("时间框架: \(content.timeline)")
-            }
-            return points
-            
-        case .reflection(let content):
-            var points: [String] = []
-            points.append("核心问题: \(content.coreQuestion)")
-            points.append(contentsOf: content.insights)
-            points.append("结论: \(content.conclusion)")
-            return points
-            
-        case .general(let content):
-            return content.keyPoints
-        }
-    }
 }
 
 // MARK: - ESP32AudioServiceDelegate
@@ -256,16 +225,13 @@ extension AudioManagerAdapter: TwoStepLLMServiceDelegate {
         guard let startTime = recordingStartTime else { return }
         let duration = Date().timeIntervalSince(startTime)
         
-        // 从结构化内容中提取关键点
-        let keyPoints = extractKeyPoints(from: result.structuredContent)
-        
-        // 创建增强的录音记录
-        var finalKeyPoints = keyPoints
-        
-        // 如果文本超过150字，在keyPoints的第一项添加一句话总结
-        if result.originalText.count > 150, result.summary != result.originalText {
-            finalKeyPoints.insert("总结: \(result.summary)", at: 0)
-        }
+//        // 创建增强的录音记录
+//        var finalKeyPoints = keyPoints
+//        
+//        // 如果文本超过150字，在keyPoints的第一项添加一句话总结
+//        if result.originalText.count > 150, result.summary != result.originalText {
+//            finalKeyPoints.insert("总结: \(result.summary)", at: 0)
+//        }
         
         let enhancedRecording = AudioRecording(
             timestamp: result.timestamp,
@@ -273,8 +239,8 @@ extension AudioManagerAdapter: TwoStepLLMServiceDelegate {
             transcription: result.originalText,
             summary: result.title,  // 使用标题作为summary
             tags: result.tags,
-            audioData: currentRecordingData.isEmpty ? generateMockAudioData() : currentRecordingData,
-            keyPoints: finalKeyPoints  // 使用提取的关键点
+            audioData: currentRecordingData.isEmpty ? generateMockAudioData() : currentRecordingData, enrichedContent: result.enrichedContent,
+            
         )
         
         DispatchQueue.main.async {
@@ -295,8 +261,8 @@ extension AudioManagerAdapter: TwoStepLLMServiceDelegate {
             transcription: "录音已保存（分析失败）",
             summary: "录音 \(recordings.count + 1)",
             tags: ["录音"],
-            audioData: currentRecordingData.isEmpty ? generateMockAudioData() : currentRecordingData,
-            keyPoints: ["LLM分析服务暂时不可用"]
+            audioData: currentRecordingData.isEmpty ? generateMockAudioData() : currentRecordingData, enrichedContent: "nil",
+            
         )
         
         DispatchQueue.main.async {

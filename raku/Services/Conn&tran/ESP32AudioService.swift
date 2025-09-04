@@ -2,8 +2,7 @@
 //  ESP32AudioService.swift
 //  专为 raku 项目定制的 ESP32 音频服务
 //
-//  这个服务整合了 WebSocket 连接和音频流处理，
-//  专门为 ESP32 设备的音频录制应用而设计
+//  修复版：解决语音识别超时和网络请求被取消的问题
 //
 
 import Foundation
@@ -49,6 +48,10 @@ class ESP32AudioService: NSObject, ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     private var currentDevice: DeviceDiscoveryService.DiscoveredDevice?
     
+    // 添加用于跟踪识别状态的属性
+    private var recognitionTimeoutTimer: Timer?
+    private var isWaitingForRecognition = false
+    
     // MARK: - Delegate
     weak var delegate: ESP32AudioServiceDelegate?
     
@@ -73,19 +76,23 @@ class ESP32AudioService: NSObject, ObservableObject {
         
         self.webSocketModule = WebSocketModule(configuration: wsConfig)
         self.audioStreamModule = AudioStreamModule(configuration: audioConfig)
-        // 配置SenseVoice语音识别服务
-            let senseVoiceConfig = SenseVoiceConfiguration(
-                serverURL: "http://192.168.5.38:8000",  // 替换为你的服务器地址
-                endpoint: "/transcribe/normal",
-                timeout: 30.0
-            )
-            self.speechService = VolcEngineSpeechService(configuration: senseVoiceConfig)
-            
+        
+        // 配置SenseVoice语音识别服务 - 增加超时时间
+        let senseVoiceConfig = SenseVoiceConfiguration(
+            serverURL: "http://115.190.136.178:8001",
+            endpoint: "/transcribe/normal",
+            timeout: 60.0  // 增加到60秒，给服务器更多处理时间
+        )
+        self.speechService = VolcEngineSpeechService(configuration: senseVoiceConfig)
         
         super.init()
         setupBindings()
         setupDelegates()
-        loadMockData() // 加载一些示例数据
+        loadMockData()
+    }
+    
+    deinit {
+        recognitionTimeoutTimer?.invalidate()
     }
     
     // MARK: - Public Methods
@@ -115,7 +122,7 @@ class ESP32AudioService: NSObject, ObservableObject {
         webSocketModule = WebSocketModule(configuration: newConfig)
         webSocketModule.delegate = self
         
-        // 重新设置绑定！这是关键
+        // 重新设置绑定
         setupBindings()
         
         // 开始连接
@@ -229,12 +236,12 @@ class ESP32AudioService: NSObject, ObservableObject {
     private func updateAudioLevels(_ amplitude: Float) {
         var newLevels = audioLevels
         newLevels.removeFirst()
-        newLevels.append(min(amplitude * 5, 1.0)) // 放大并限制最大值
+        newLevels.append(min(amplitude * 5, 1.0))
         audioLevels = newLevels
     }
     
     private func loadMockData() {
-        // 创建一些示例录音数据
+        // 保持原有的mock数据代码不变
         let mockRecordings = [
             AudioRecording(
                 timestamp: Date().addingTimeInterval(-3600),
@@ -243,7 +250,7 @@ class ESP32AudioService: NSObject, ObservableObject {
                 summary: "测试录音 1 - 功能演示",
                 tags: ["测试", "演示"],
                 audioData: Data("mock audio data 1".utf8),
-                keyPoints: ["展示应用基本功能", "测试录音转录效果"]
+                enrichedContent: "这是第一段录音的增强内容"
             ),
             AudioRecording(
                 timestamp: Date().addingTimeInterval(-1800),
@@ -252,16 +259,49 @@ class ESP32AudioService: NSObject, ObservableObject {
                 summary: "测试录音 2 - 长时间录音",
                 tags: ["长录音", "测试"],
                 audioData: Data("mock audio data 2".utf8),
-                keyPoints: ["长时间录音功能测试", "文本内容丰富度验证"]
+                enrichedContent: "这是第二段录音的增强内容"
             ),
             AudioRecording(
                 timestamp: Date().addingTimeInterval(-300),
                 duration: 28.5,
-                transcription: "最新的一段录音，用于展示实时录音功能。",
-                summary: "测试录音 3 - 最新录音",
-                tags: ["最新", "实时"],
+                transcription: "嗯，结合大道质简，如何理解真经一句话，假经万卷书。",
+                summary: "理解真经与假经",
+                tags: ["真经", "假经"],
                 audioData: Data("mock audio data 3".utf8),
-                keyPoints: ["实时录音功能验证", "最新版本测试"]
+                enrichedContent: """
+## 🤔 核心问题
+> 如何理解"大道质简"下"真经一句话，假经万卷书"的本质差异？
+
+## 🔍 逻辑梳理
+
+### 前提
+> 大道本质是简洁、直指核心的
+
+### 推理过程
+1. **第一步推理**  
+> 真经因契合大道本质，故以简洁形式承载核心
+
+2. **第二步推理**  
+> 假经因偏离本质，需用大量内容堆砌以"显得完整"
+
+3. **第三步推理**  
+> 本质差异：真经重核心，假经重形式冗余
+
+### 综合
+> 真经以简显真，假经以繁失真，核心在是否契合大道本质
+
+## 👁️ 多维视角
+- **视角A**：从内容与形式关系看，内容价值取决于是否触及本质  
+- **视角B**：从认知规律看，认知深化常伴随冗余信息的剥离  
+- **视角C**：从真实与虚假标准看，虚假知识需依赖冗余掩盖核心缺失  
+
+## 💎 关键洞察
+1. **洞察一**："简"是本质的外在体现，"繁"是偏离的内在表现  
+2. **洞察二**：真正核心知识往往简洁，冗余多为非本质信息的堆砌  
+
+## 📝 思考总结
+> 理解此句需区分"形式简洁"与"本质真实"，警惕冗余信息对核心的遮蔽
+"""
             )
         ]
         
@@ -280,8 +320,8 @@ class ESP32AudioService: NSObject, ObservableObject {
             transcription: "正在识别中...",
             summary: "录音 \(recordings.count + 1) - 识别中",
             tags: ["录音", "识别中"],
-            audioData: wavData,  // 使用WAV格式数据而不是原始PCM数据
-            keyPoints: []
+            audioData: wavData,
+            enrichedContent: nil
         )
         
         // 立即添加到录音列表中
@@ -289,6 +329,9 @@ class ESP32AudioService: NSObject, ObservableObject {
             self.recordings.insert(tempRecording, at: 0)
             self.delegate?.esp32AudioService(self, didFinishRecording: tempRecording)
         }
+        
+        // 设置识别状态
+        isWaitingForRecognition = true
         
         // 使用VolcEngine HTTP API进行语音识别
         print("开始使用VolcEngine API进行语音识别")
@@ -298,13 +341,19 @@ class ESP32AudioService: NSObject, ObservableObject {
         // 发送WAV数据进行识别
         speechService.sendAudioData(wavData)
         
-        // 10秒后超时处理
-        DispatchQueue.global().asyncAfter(deadline: .now() + 10.0) {
-            if !self.speechService.hasResults {
+        // 设置超时定时器 - 增加到30秒
+        recognitionTimeoutTimer?.invalidate()
+        recognitionTimeoutTimer = Timer.scheduledTimer(withTimeInterval: 30.0, repeats: false) { [weak self] _ in
+            guard let self = self else { return }
+            
+            if self.isWaitingForRecognition {
                 print("语音识别超时，使用fallback")
-                self.createFallbackRecording(audioData: wavData, duration: duration)  // 传递WAV数据
+                self.isWaitingForRecognition = false
+                self.createFallbackRecording(audioData: wavData, duration: duration)
+                
+                // 不要在这里停止识别服务，让它自然完成或超时
+                // self.speechService.stopRecognition()  // 移除这行
             }
-            self.speechService.stopRecognition()
         }
     }
     
@@ -313,11 +362,11 @@ class ESP32AudioService: NSObject, ObservableObject {
         let fallbackRecording = AudioRecording(
             timestamp: Date(),
             duration: duration,
-            transcription: "录音已保存，语音识别服务暂时不可用",
+            transcription: "录音已保存（识别超时）",
             summary: "录音 \(recordings.count) - \(formatDuration(duration))",
-            tags: ["录音"],
-            audioData: audioData,  // 这里的audioData已经是WAV格式
-            keyPoints: []
+            tags: ["录音", "超时"],
+            audioData: audioData,
+            enrichedContent: nil
         )
         
         DispatchQueue.main.async {
@@ -335,12 +384,10 @@ extension ESP32AudioService: WebSocketModuleDelegate {
     }
     
     func webSocketDidReceiveTextMessage(_ module: WebSocketModule, message: String) {
-        // 处理文本消息（如果需要）
         print("收到文本消息: \(message)")
     }
     
     func webSocketDidReceiveData(_ module: WebSocketModule, data: Data) {
-        // 将接收到的音频数据传递给音频模块处理
         audioStreamModule.processReceivedAudioData(data)
     }
     
@@ -356,7 +403,6 @@ extension ESP32AudioService: AudioStreamModuleDelegate {
     }
     
     func audioStreamDidStopRecording(_ module: AudioStreamModule, audioData: Data, duration: TimeInterval) {
-        // 使用VolcEngine进行语音识别
         processAudioWithSpeechRecognition(audioData: audioData, duration: duration)
     }
     
@@ -365,11 +411,11 @@ extension ESP32AudioService: AudioStreamModuleDelegate {
     }
     
     func audioStreamDidStartPlaying(_ module: AudioStreamModule) {
-        // 播放状态处理（如果需要）
+        // 播放状态处理
     }
     
     func audioStreamDidStopPlaying(_ module: AudioStreamModule) {
-        // 播放结束处理（如果需要）
+        // 播放结束处理
     }
     
     func audioStreamDidEncounterError(_ module: AudioStreamModule, error: Error) {
@@ -382,7 +428,12 @@ extension ESP32AudioService: VolcEngineSpeechServiceDelegate {
     func speechService(_ service: VolcEngineSpeechService, didReceiveResult result: SpeechRecognitionResult) {
         print("ESP32AudioService 收到语音识别结果: \(result.text)")
         
-        // 将语音识别结果转发给delegate（AudioManagerAdapter）
+        // 取消超时定时器
+        recognitionTimeoutTimer?.invalidate()
+        recognitionTimeoutTimer = nil
+        isWaitingForRecognition = false
+        
+        // 将语音识别结果转发给delegate
         delegate?.esp32AudioService(self, didReceiveSpeechResult: result)
         
         // 更新最新录音的转录内容
@@ -395,8 +446,8 @@ extension ESP32AudioService: VolcEngineSpeechServiceDelegate {
                 transcription: result.text,
                 summary: result.isFinal ? generateSummary(from: result.text) : "识别中...",
                 tags: result.isFinal ? generateTags(from: result.text) : ["录音", "识别中"],
-                audioData: latestRecording.audioData,  // 保持使用WAV格式的音频数据
-                keyPoints: result.isFinal ? generateKeyPoints(from: result.text) : []
+                audioData: latestRecording.audioData,
+                enrichedContent: result.isFinal ? generateEnrichedContent(from: result.text) : nil
             )
             
             DispatchQueue.main.async {
@@ -405,28 +456,37 @@ extension ESP32AudioService: VolcEngineSpeechServiceDelegate {
         }
     }
     
-    // 移除了 didReceiveLLMAnalysis 方法，因为LLM分析现在由外部处理
-    
     func speechService(_ service: VolcEngineSpeechService, didCompleteWithError error: Error?) {
+        // 取消超时定时器
+        recognitionTimeoutTimer?.invalidate()
+        recognitionTimeoutTimer = nil
+        isWaitingForRecognition = false
+        
         if let error = error {
             print("语音识别出错: \(error.localizedDescription)")
             
-            // 更新录音状态为识别失败
-            if let latestRecording = recordings.first,
-               latestRecording.tags.contains("识别中") {
-                
-                let failedRecording = AudioRecording(
-                    timestamp: latestRecording.timestamp,
-                    duration: latestRecording.duration,
-                    transcription: "识别失败：\(error.localizedDescription)",
-                    summary: "录音 \(recordings.count) - 识别失败",
-                    tags: ["录音", "识别失败"],
-                    audioData: latestRecording.audioData,  // 保持使用WAV格式的音频数据
-                    keyPoints: []
-                )
-                
-                DispatchQueue.main.async {
-                    self.recordings[0] = failedRecording
+            // 只有在不是取消错误的情况下才更新状态
+            let isCancelledError = (error as NSError).code == NSURLErrorCancelled ||
+                                  error.localizedDescription.contains("cancelled")
+            
+            if !isCancelledError {
+                // 更新录音状态为识别失败
+                if let latestRecording = recordings.first,
+                   latestRecording.tags.contains("识别中") {
+                    
+                    let failedRecording = AudioRecording(
+                        timestamp: latestRecording.timestamp,
+                        duration: latestRecording.duration,
+                        transcription: "识别失败：\(error.localizedDescription)",
+                        summary: "录音 \(recordings.count) - 识别失败",
+                        tags: ["录音", "识别失败"],
+                        audioData: latestRecording.audioData,
+                        enrichedContent: nil
+                    )
+                    
+                    DispatchQueue.main.async {
+                        self.recordings[0] = failedRecording
+                    }
                 }
             }
         } else {
@@ -445,7 +505,6 @@ extension ESP32AudioService: VolcEngineSpeechServiceDelegate {
     // MARK: - 辅助方法
     
     private func generateSummary(from text: String) -> String {
-        // 简单的摘要生成逻辑
         let words = text.split(separator: " ")
         if words.count <= 10 {
             return String(text.prefix(50))
@@ -457,7 +516,6 @@ extension ESP32AudioService: VolcEngineSpeechServiceDelegate {
     private func generateTags(from text: String) -> [String] {
         var tags = ["录音"]
         
-        // 基于内容添加标签
         if text.contains("会议") || text.contains("讨论") {
             tags.append("会议")
         }
@@ -474,28 +532,8 @@ extension ESP32AudioService: VolcEngineSpeechServiceDelegate {
         return tags
     }
     
-    private func generateKeyPoints(from text: String) -> [String] {
-        // 简单的关键点提取逻辑
-        var keyPoints: [String] = []
-        
-        // 按句子分割文本
-        let sentences = text.components(separatedBy: CharacterSet(charactersIn: "。！？.!?"))
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-        
-        // 提取前几个句子作为关键点
-        for sentence in sentences.prefix(3) {
-            if sentence.count > 5 { // 过滤太短的句子
-                keyPoints.append(sentence)
-            }
-        }
-        
-        // 如果没有找到足够的关键点，使用默认值
-        if keyPoints.isEmpty {
-            keyPoints = ["录音内容已保存"]
-        }
-        
-        return keyPoints
+    private func generateEnrichedContent(from text: String) -> String {
+        return "增强内容：基于录音内容的智能分析和扩展信息"
     }
 }
 

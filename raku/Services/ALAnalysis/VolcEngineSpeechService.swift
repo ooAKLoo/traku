@@ -18,9 +18,9 @@ struct SenseVoiceConfiguration {
     
     // 默认配置 - 指向你的SenseVoice服务器
     static let `default` = SenseVoiceConfiguration(
-        serverURL: "http://192.168.5.38:8000",  // 替换为你的服务器地址
+        serverURL: "http://115.190.136.178:8001",  // 替换为你的服务器地址
         endpoint: "/transcribe/normal",
-        timeout: 30.0
+        timeout: 130.0
     )
 }
 

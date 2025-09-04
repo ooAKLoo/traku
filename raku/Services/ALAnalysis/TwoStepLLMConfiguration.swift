@@ -3,7 +3,7 @@
 //  raku
 //
 //  Created by 杨东举 on 2025/9/2.
-//  优化版本：增强第二步处理的深度和实用性
+//  优化版本：第二步使用Markdown输出格式
 //
 
 import Foundation
@@ -57,62 +57,15 @@ struct FirstStepAnalysis {
     let timestamp: Date
 }
 
-// MARK: - 最终分析结果（优化后的结构）
+// MARK: - 最终分析结果（简化版）
 struct TwoStepAnalysisResult {
     let title: String
     let summary: String  // 一句话总结（如果有）或原文
     let thoughtType: FlashThoughtType
     let tags: [String]
-    let structuredContent: StructuredContent  // 根据类型不同的结构化内容
+    let enrichedContent: String  // 第二步生成的Markdown内容
     let originalText: String
     let timestamp: Date
-}
-
-// MARK: - 结构化内容（根据不同类型有不同的内容）
-enum StructuredContent {
-    case inspiration(InspirationContent)
-    case idea(IdeaContent)
-    case reflection(ReflectionContent)
-    case general(GeneralContent)
-}
-
-// 灵感类型的结构化内容
-struct InspirationContent {
-    let coreValue: String           // 核心价值
-    let possibilities: [String]     // 可能性探索（2-3个）
-    let nextSteps: [String]         // 下一步建议（2-3个）
-    let relatedDomains: [String]    // 相关领域
-}
-
-// 想法类型的结构化内容
-struct IdeaContent {
-    let objective: String           // 明确目标
-    let actionItems: [String]       // 行动清单（3-5个）
-    let resources: [String]         // 所需资源
-    let timeline: String           // 时间框架
-    let potentialChallenges: [String]  // 潜在挑战
-}
-
-// 思考类型的结构化内容
-struct ReflectionContent {
-    let coreQuestion: String        // 核心问题
-    let logicalStructure: LogicalStructure  // 逻辑结构
-    let perspectives: [String]      // 多元视角（2-3个）
-    let insights: [String]         // 关键洞察（2-3个）
-    let conclusion: String         // 思考结论
-}
-
-// 逻辑结构
-struct LogicalStructure {
-    let premise: String            // 前提
-    let reasoning: [String]        // 推理过程（2-3步）
-    let synthesis: String          // 综合
-}
-
-// 通用类型的结构化内容
-struct GeneralContent {
-    let keyPoints: [String]        // 要点
-    let sentiment: String          // 情感倾向
 }
 
 // MARK: - 服务代理协议
@@ -205,7 +158,7 @@ class TwoStepLLMService: NSObject, ObservableObject {
         你是一个精准的闪念分类助手。请严格按照以下要求处理用户输入：
 
         1. **类型判定**（必须选择其一）：
-           - 灵感(inspiration)：创意想法、突发奇想、新点子
+           - 经验感悟(insight)：个人经验总结、感悟体会、从经历中提炼的见解
            - 想法(idea)：明确计划、具体决定、行动意向
            - 思考(reflection)：深度思考、疑问探索、矛盾分析
 
@@ -221,7 +174,7 @@ class TwoStepLLMService: NSObject, ObservableObject {
         输出格式要求（严格JSON）：
         {
           "title": "简洁标题",
-          "type": "inspiration/idea/reflection",
+          "type": "insight/idea/reflection",
           "tags": ["标签1", "标签2"],
           \(needsSummary ? "\"summary\": \"一句话总结\"," : "")
           "confidence": 0.9
@@ -299,7 +252,7 @@ class TwoStepLLMService: NSObject, ObservableObject {
             let summary = result["summary"] as? String
             
             let thoughtType = FlashThoughtType(rawValue:
-                typeString == "inspiration" ? "灵感" :
+                typeString == "insight" ? "经验感悟" :
                 typeString == "idea" ? "想法" :
                 typeString == "reflection" ? "思考" : "未分类"
             ) ?? .unknown
@@ -329,7 +282,7 @@ class TwoStepLLMService: NSObject, ObservableObject {
         }
     }
     
-    // MARK: - Step 2: 生成深度辅助内容（优化版）
+    // MARK: - Step 2: 生成Markdown格式的深度内容
     
     private func performSecondStepAnalysis(_ firstStepResult: FirstStepAnalysis) {
         guard let url = URL(string: configuration.apiURL) else {
@@ -343,16 +296,16 @@ class TwoStepLLMService: NSObject, ObservableObject {
         request.httpMethod = "POST"
         
         // 获取特定类型的深度分析prompt
-        let (systemPrompt, expectedFormat) = getAdvancedPromptForType(firstStepResult.thoughtType)
+        let systemPrompt = getMarkdownPromptForType(firstStepResult.thoughtType)
         
         let requestBody: [String: Any] = [
             "model": configuration.flashModel,
             "messages": [
                 ["role": "system", "content": systemPrompt],
-                ["role": "user", "content": firstStepResult.originalText]  // 只传递原文
+                ["role": "user", "content": firstStepResult.originalText]
             ],
-            "temperature": 0.6,  // 稍微提高温度以获得更有创意的回应
-            "max_tokens": 800    // 增加token数以容纳更丰富的内容
+            "temperature": 0.6,
+            "max_tokens": 1000
         ]
         
         do {
@@ -407,19 +360,13 @@ class TwoStepLLMService: NSObject, ObservableObject {
             
             print("第二步响应内容: \(content)")
             
-            // 解析结构化内容
-            let structuredContent = parseStructuredContent(
-                content: content,
-                thoughtType: firstStepResult.thoughtType
-            )
-            
             // 构建最终结果
             let finalResult = TwoStepAnalysisResult(
                 title: firstStepResult.title,
                 summary: firstStepResult.oneSentenceSummary ?? firstStepResult.originalText,
                 thoughtType: firstStepResult.thoughtType,
                 tags: firstStepResult.tags,
-                structuredContent: structuredContent,
+                enrichedContent: content, // 直接使用Markdown内容
                 originalText: firstStepResult.originalText,
                 timestamp: firstStepResult.timestamp
             )
@@ -432,19 +379,14 @@ class TwoStepLLMService: NSObject, ObservableObject {
         } catch {
             print("第二步解析失败: \(error)")
             // 提供降级方案
-            let fallbackContent = StructuredContent.general(
-                GeneralContent(
-                    keyPoints: ["已记录\(firstStepResult.thoughtType.rawValue)"],
-                    sentiment: "neutral"
-                )
-            )
+            let fallbackContent = "## 内容记录\n\n> 已成功保存您的\(firstStepResult.thoughtType.rawValue)\n\nLLM分析服务暂时不可用，但您的内容已安全记录。"
             
             let fallbackResult = TwoStepAnalysisResult(
                 title: firstStepResult.title,
                 summary: firstStepResult.oneSentenceSummary ?? firstStepResult.originalText,
                 thoughtType: firstStepResult.thoughtType,
                 tags: firstStepResult.tags,
-                structuredContent: fallbackContent,
+                enrichedContent: fallbackContent,
                 originalText: firstStepResult.originalText,
                 timestamp: firstStepResult.timestamp
             )
@@ -456,239 +398,59 @@ class TwoStepLLMService: NSObject, ObservableObject {
         }
     }
     
-    // MARK: - 高级Prompt生成器
+    // MARK: - Markdown Prompt生成器
     
-    private func getAdvancedPromptForType(_ type: FlashThoughtType) -> (prompt: String, format: String) {
+    private func getMarkdownPromptForType(_ type: FlashThoughtType) -> String {
         switch type {
         case .inspiration:
-            return getInspirationPrompt()
+            return getInspirationMarkdownPrompt()
         case .idea:
-            return getIdeaPrompt()
+            return getIdeaMarkdownPrompt()
         case .reflection:
-            return getReflectionPrompt()
+            return getReflectionMarkdownPrompt()
         case .unknown:
-            return getGeneralPrompt()
+            return getGeneralMarkdownPrompt()
         }
     }
     
-    private func getInspirationPrompt() -> (String, String) {
-        let prompt = """
-        你是一位创新思维教练，擅长帮助人们将灵感转化为可能性。请对用户的灵感进行深度分析。
+    private func getInspirationMarkdownPrompt() -> String {
+            return """
+            你是一个专业的思维整理专家，擅长使用金字塔原理（Pyramid Principle）来结构化杂乱的想法，帮助人们深化和闭环他们的思考。通过分析用户的初步想法，提炼核心要素，串联逻辑，并以人性化、自然流畅的方式呈现，帮助用户获得更清晰的洞见和行动启发。
 
-        分析框架：
-        1. **价值挖掘**：找出这个灵感的核心价值和独特之处
-        2. **可能性探索**：基于SCAMPER创新方法论，探索2-3个发展方向
-        3. **行动转化**：提供2-3个将灵感落地的具体下一步
-        4. **跨界连接**：识别可能相关的领域，促进创意融合
-
-        分析原则：
-        - 保护灵感的原创性和新鲜感
-        - 激发而非限制创造力
-        - 提供具体可行的探索路径
-        - 鼓励大胆尝试和实验
-
-        请输出严格的JSON格式：
-        {
-          "coreValue": "这个灵感的核心价值（20-30字）",
-          "possibilities": [
-            "可能性1：具体描述（20-30字）",
-            "可能性2：具体描述（20-30字）"
-          ],
-          "nextSteps": [
-            "步骤1：具体行动（15-20字）",
-            "步骤2：具体行动（15-20字）"
-          ],
-          "relatedDomains": ["领域1", "领域2"]
+            输出要求：
+            - 以Markdown格式输出，确保整体简洁、易读，避免学术化。
+            - 不使用emoji符号。
+            """
         }
+    
+    private func getIdeaMarkdownPrompt() -> String {
+            return """
+            你是一个专业的思维整理专家，擅长使用金字塔原理（Pyramid Principle）来结构化杂乱的想法，帮助人们深化和闭环他们的思考。通过分析用户的初步想法，提炼核心要素，串联逻辑，并以人性化、自然流畅的方式呈现，帮助用户获得更清晰的洞见和行动启发。
+
+            输出要求：
+            - 以Markdown格式输出，确保整体简洁、易读，避免学术化。
+            - 不使用emoji符号。
+            """
+        }
+    
+    private func getReflectionMarkdownPrompt() -> String {
+            return """
+            你是一个专业的思维整理专家，擅长使用金字塔原理（Pyramid Principle）来结构化杂乱的想法，帮助人们深化和闭环他们的思考。通过分析用户的初步想法，提炼核心要素，串联逻辑，并以人性化、自然流畅的方式呈现，帮助用户获得更清晰的洞见和行动启发。
+
+            输出要求：
+            - 以Markdown格式输出，确保整体简洁、易读，避免学术化。
+            - 不使用emoji符号。
+            """
+        }
+    
+    private func getGeneralMarkdownPrompt() -> String {
+        return """
+        你是一个专业的思维整理专家，擅长使用金字塔原理（Pyramid Principle）来结构化杂乱的想法，帮助人们深化和闭环他们的思考。通过分析用户的初步想法，提炼核心要素，串联逻辑，并以人性化、自然流畅的方式呈现，帮助用户获得更清晰的洞见和行动启发。
+
+        输出要求：
+        - 以Markdown格式输出，确保整体简洁、易读，避免学术化。
+        - 不使用emoji符号。
         """
-        
-        let format = "inspiration"
-        return (prompt, format)
-    }
-    
-    private func getIdeaPrompt() -> (String, String) {
-        let prompt = """
-        你是一位执行力专家，擅长将想法转化为可执行的行动计划。请对用户的想法进行实施分析。
-
-        分析框架（基于SMART原则和GTD方法论）：
-        1. **目标明确化**：将想法转化为清晰、可衡量的目标
-        2. **行动分解**：运用WBS（工作分解结构）创建3-5个具体行动项
-        3. **资源评估**：识别实现想法所需的关键资源
-        4. **时间规划**：制定现实可行的时间框架
-        5. **风险预判**：识别2-3个可能的挑战及应对思路
-
-        分析原则：
-        - 将抽象想法具体化
-        - 确保每个行动项都可执行
-        - 平衡理想与现实
-        - 提供明确的优先级
-
-        请输出严格的JSON格式：
-        {
-          "objective": "SMART目标描述（30-40字）",
-          "actionItems": [
-            "行动1：具体任务（15-20字）",
-            "行动2：具体任务（15-20字）",
-            "行动3：具体任务（15-20字）"
-          ],
-          "resources": [
-            "资源1：具体说明（10-15字）",
-            "资源2：具体说明（10-15字）"
-          ],
-          "timeline": "时间框架描述（15-20字）",
-          "potentialChallenges": [
-            "挑战1及应对（15-20字）",
-            "挑战2及应对（15-20字）"
-          ]
-        }
-        """
-        
-        let format = "idea"
-        return (prompt, format)
-    }
-    
-    private func getReflectionPrompt() -> (String, String) {
-        let prompt = """
-        你是一位认知心理学专家，精通金字塔原理、批判性思维和系统思考。请帮助用户将思考内容结构化。
-
-        分析框架（融合金字塔原理和批判性思维）：
-        
-        1. **问题聚焦**：提炼用户思考的核心问题或矛盾点
-        
-        2. **逻辑梳理**（MECE原则）：
-           - 识别核心前提
-           - 展现推理链条（2-3步）
-           - 形成逻辑综合
-
-        3. **多维视角**（六顶思考帽）：
-           - 提供2-3个不同的观察角度
-           - 每个视角都能带来新的理解
-
-        4. **洞察提炼**：
-           - 从思考中提取2-3个关键洞察
-           - 这些洞察应该是可以指导行动的
-
-        5. **思考闭环**：
-           - 形成一个明确的结论或下一步思考方向
-           - 确保思考有所收获
-
-        分析原则：
-        - 尊重原始思考的复杂性
-        - 使用结构化方法提升清晰度
-        - 识别思维盲点和认知偏见
-        - 促进深度理解而非表面分析
-
-        请输出严格的JSON格式：
-        {
-          "coreQuestion": "核心问题或矛盾（20-30字）",
-          "logicalStructure": {
-            "premise": "基础前提（15-20字）",
-            "reasoning": [
-              "推理步骤1（15-20字）",
-              "推理步骤2（15-20字）"
-            ],
-            "synthesis": "逻辑综合（20-25字）"
-          },
-          "perspectives": [
-            "视角1：描述（20-25字）",
-            "视角2：描述（20-25字）"
-          ],
-          "insights": [
-            "洞察1：具体内容（20-25字）",
-            "洞察2：具体内容（20-25字）"
-          ],
-          "conclusion": "思考结论或下一步方向（25-30字）"
-        }
-        """
-        
-        let format = "reflection"
-        return (prompt, format)
-    }
-    
-    private func getGeneralPrompt() -> (String, String) {
-        let prompt = """
-        请提炼用户输入的关键信息，并分析其情感倾向。
-
-        输出JSON格式：
-        {
-          "keyPoints": [
-            "要点1（15-20字）",
-            "要点2（15-20字）"
-          ],
-          "sentiment": "positive/neutral/negative"
-        }
-        """
-        
-        let format = "general"
-        return (prompt, format)
-    }
-    
-    // MARK: - 解析结构化内容
-    
-    private func parseStructuredContent(content: String, thoughtType: FlashThoughtType) -> StructuredContent {
-        guard let jsonData = content.data(using: .utf8),
-              let result = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] else {
-            // 返回降级内容
-            return .general(GeneralContent(keyPoints: ["已记录内容"], sentiment: "neutral"))
-        }
-        
-        switch thoughtType {
-        case .inspiration:
-            return parseInspirationContent(from: result)
-        case .idea:
-            return parseIdeaContent(from: result)
-        case .reflection:
-            return parseReflectionContent(from: result)
-        case .unknown:
-            return parseGeneralContent(from: result)
-        }
-    }
-    
-    private func parseInspirationContent(from json: [String: Any]) -> StructuredContent {
-        let content = InspirationContent(
-            coreValue: json["coreValue"] as? String ?? "",
-            possibilities: json["possibilities"] as? [String] ?? [],
-            nextSteps: json["nextSteps"] as? [String] ?? [],
-            relatedDomains: json["relatedDomains"] as? [String] ?? []
-        )
-        return .inspiration(content)
-    }
-    
-    private func parseIdeaContent(from json: [String: Any]) -> StructuredContent {
-        let content = IdeaContent(
-            objective: json["objective"] as? String ?? "",
-            actionItems: json["actionItems"] as? [String] ?? [],
-            resources: json["resources"] as? [String] ?? [],
-            timeline: json["timeline"] as? String ?? "",
-            potentialChallenges: json["potentialChallenges"] as? [String] ?? []
-        )
-        return .idea(content)
-    }
-    
-    private func parseReflectionContent(from json: [String: Any]) -> StructuredContent {
-        let logicalDict = json["logicalStructure"] as? [String: Any] ?? [:]
-        let logicalStructure = LogicalStructure(
-            premise: logicalDict["premise"] as? String ?? "",
-            reasoning: logicalDict["reasoning"] as? [String] ?? [],
-            synthesis: logicalDict["synthesis"] as? String ?? ""
-        )
-        
-        let content = ReflectionContent(
-            coreQuestion: json["coreQuestion"] as? String ?? "",
-            logicalStructure: logicalStructure,
-            perspectives: json["perspectives"] as? [String] ?? [],
-            insights: json["insights"] as? [String] ?? [],
-            conclusion: json["conclusion"] as? String ?? ""
-        )
-        return .reflection(content)
-    }
-    
-    private func parseGeneralContent(from json: [String: Any]) -> StructuredContent {
-        let content = GeneralContent(
-            keyPoints: json["keyPoints"] as? [String] ?? [],
-            sentiment: json["sentiment"] as? String ?? "neutral"
-        )
-        return .general(content)
     }
 }
 
