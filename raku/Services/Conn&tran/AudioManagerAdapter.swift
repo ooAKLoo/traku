@@ -186,7 +186,7 @@ extension AudioManagerAdapter: AudioProcessingPipelineDelegate {
     }
     
     private func generateMockAudioData() -> Data {
-        return "mock audio data for \(UUID().uuidString)".data(using: .utf8) ?? Data()
+        return MockDataService.shared.generateMockAudioData()
     }
 }
 

@@ -223,10 +223,9 @@ struct RecordingDetailView: View {
         }
         
         // 验证是否为模拟数据
-        if let dataString = String(data: audioData, encoding: .utf8),
-           dataString.contains("mock audio data") {
+        if MockDataService.shared.isMockAudioData(audioData) {
             print("检测到模拟音频数据，无法下载")
-            showErrorAlert(message: "当前为演示模式，无法下载音频")
+            showErrorAlert(message: MockDataService.shared.demoModeMessage + "，无法下载音频")
             return
         }
         
@@ -320,8 +319,7 @@ struct RecordingDetailView: View {
             isPlaying = false
         } else {
             if let audioData = recording.audioData {
-                let dataString = String(data: audioData, encoding: .utf8)
-                if dataString?.contains("mock audio data") == true {
+                if MockDataService.shared.isMockAudioData(audioData) {
                     showMockDataAlert()
                 } else {
                     audioManager.playRecording(recording)

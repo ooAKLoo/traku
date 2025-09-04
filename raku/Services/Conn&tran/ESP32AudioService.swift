@@ -222,70 +222,7 @@ class ESP32AudioService: NSObject, ObservableObject {
     }
     
     private func loadMockData() {
-        let mockRecordings = [
-            AudioRecording(
-                timestamp: Date().addingTimeInterval(-3600),
-                duration: 45.2,
-                transcription: "这是第一段测试录音的转录内容，用于展示应用的基本功能。",
-                summary: "测试录音 1 - 功能演示",
-                tags: ["测试", "演示"],
-                audioData: Data("mock audio data 1".utf8),
-                enrichedContent: "这是第一段录音的增强内容"
-            ),
-            AudioRecording(
-                timestamp: Date().addingTimeInterval(-1800),
-                duration: 62.8,
-                transcription: "第二段录音内容，展示了更长的录音时间和更多的文本内容。",
-                summary: "测试录音 2 - 长时间录音",
-                tags: ["长录音", "测试"],
-                audioData: Data("mock audio data 2".utf8),
-                enrichedContent: "这是第二段录音的增强内容"
-            ),
-            AudioRecording(
-                timestamp: Date().addingTimeInterval(-300),
-                duration: 28.5,
-                transcription: "嗯，结合大道质简，如何理解真经一句话，假经万卷书。",
-                summary: "理解真经与假经",
-                tags: ["真经", "假经"],
-                audioData: Data("mock audio data 3".utf8),
-                enrichedContent: """
-## 🤔 核心问题
-> 如何理解"大道质简"下"真经一句话，假经万卷书"的本质差异？
-
-## 🔍 逻辑梳理
-
-### 前提
-> 大道本质是简洁、直指核心的
-
-### 推理过程
-1. **第一步推理**  
-> 真经因契合大道本质，故以简洁形式承载核心
-
-2. **第二步推理**  
-> 假经因偏离本质，需用大量内容堆砌以"显得完整"
-
-3. **第三步推理**  
-> 本质差异：真经重核心，假经重形式冗余
-
-### 综合
-> 真经以简显真，假经以繁失真，核心在是否契合大道本质
-
-## 👁️ 多维视角
-- **视角A**：从内容与形式关系看，内容价值取决于是否触及本质  
-- **视角B**：从认知规律看，认知深化常伴随冗余信息的剥离  
-- **视角C**：从真实与虚假标准看，虚假知识需依赖冗余掩盖核心缺失  
-
-## 💎 关键洞察
-1. **洞察一**："简"是本质的外在体现，"繁"是偏离的内在表现  
-2. **洞察二**：真正核心知识往往简洁，冗余多为非本质信息的堆砌  
-
-## 📝 思考总结
-> 理解此句需区分"形式简洁"与"本质真实"，警惕冗余信息对核心的遮蔽
-"""
-            )
-        ]
-        
-        self.recordings = mockRecordings
+        self.recordings = MockDataService.shared.getMockRecordings()
     }
     
     /// 处理录音数据

@@ -51,32 +51,8 @@ class DeviceDiscoveryService: ObservableObject {
     
     // 添加模拟设备数据
     private func addMockDevices() {
-        let mockDevices = [
-            DiscoveredDevice(
-                name: "ESP32-音频设备-1",
-                ipAddress: "192.168.1.100",
-                port: 8888,
-                statusPort: 8889,
-                isStreaming: false
-            ),
-            DiscoveredDevice(
-                name: "ESP32-会议室",
-                ipAddress: "192.168.1.101", 
-                port: 8888,
-                statusPort: 8889,
-                isStreaming: true
-            ),
-            DiscoveredDevice(
-                name: "ESP32-办公室",
-                ipAddress: "192.168.1.102",
-                port: 8888,
-                statusPort: 8889,
-                isStreaming: false
-            )
-        ]
-        
         DispatchQueue.main.async {
-            self.discoveredDevices = mockDevices
+            self.discoveredDevices = MockDataService.shared.getMockDevices()
         }
     }
     
