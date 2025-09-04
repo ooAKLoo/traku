@@ -75,7 +75,8 @@ struct RecordingsListView: View {
     }
     
     var body: some View {
-        VStack(spacing: 0) {
+        ZStack {
+            VStack(spacing: 0) {
             // 顶部栏
             VStack(spacing: 16) {
                 // 第一行：设备连接状态、搜索框、设置按钮
@@ -229,111 +230,7 @@ struct RecordingsListView: View {
                 (isDarkMode ? Color.black : Color.white)
             )
             
-            // 录音控制按钮区域
-            HStack(spacing: 20) {
-                // 开始录音按钮
-                Button(action: {
-                    print("开始录音按钮被点击，连接状态: \(audioManager.isConnected), 录音状态: \(audioManager.isRecording)")
-                    if audioManager.isConnected {
-                        audioManager.startRecording()
-                        print("发送START命令")
-                    } else {
-                        print("设备未连接，无法开始录音")
-                    }
-                }) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "record.circle")
-                            .font(.system(size: 20, weight: .medium))
-                        Text("开始录音")
-                            .font(.system(size: 16, weight: .medium))
-                    }
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 12)
-                    .background(
-                        LinearGradient(
-                            colors: [Color.red, Color.red.opacity(0.8)],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .clipShape(Capsule())
-                    .shadow(color: Color.red.opacity(0.3), radius: 8, x: 0, y: 4)
-                }
-                .disabled(!audioManager.isConnected || audioManager.isRecording)
-                .opacity((!audioManager.isConnected || audioManager.isRecording) ? 0.6 : 1.0)
-                
-                // 停止录音按钮
-                Button(action: {
-                    print("停止录音按钮被点击，连接状态: \(audioManager.isConnected), 录音状态: \(audioManager.isRecording)")
-                    if audioManager.isConnected {
-                        audioManager.stopRecording()
-                        print("发送STOP命令")
-                    } else {
-                        print("设备未连接，无法停止录音")
-                    }
-                }) {
-                    HStack(spacing: 8) {
-                        Image(systemName: "stop.circle")
-                            .font(.system(size: 20, weight: .medium))
-                        Text("停止录音")
-                            .font(.system(size: 16, weight: .medium))
-                    }
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 24)
-                    .padding(.vertical, 12)
-                    .background(
-                        LinearGradient(
-                            colors: [Color.gray, Color.gray.opacity(0.8)],
-                            startPoint: .leading,
-                            endPoint: .trailing
-                        )
-                    )
-                    .clipShape(Capsule())
-                    .shadow(color: Color.gray.opacity(0.3), radius: 8, x: 0, y: 4)
-                }
-                .disabled(!audioManager.isConnected || !audioManager.isRecording)
-                .opacity((!audioManager.isConnected || !audioManager.isRecording) ? 0.6 : 1.0)
-            }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
-            .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(isDarkMode ? Color.white.opacity(0.05) : Color.white)
-                    .shadow(
-                        color: Color.black.opacity(isDarkMode ? 0.3 : 0.08),
-                        radius: 8,
-                        x: 0,
-                        y: 4
-                    )
-            )
-            .padding(.horizontal, 20)
-            .padding(.bottom, 16)
             
-            // 连接状态提示
-            HStack {
-                Text("连接状态: \(audioManager.isConnected ? "已连接" : "未连接")")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(audioManager.isConnected ? Color.green : Color.red)
-                Text("| 状态: \(audioManager.connectionStatus)")
-                    .font(.system(size: 12))
-                    .foregroundColor(isDarkMode ? .white.opacity(0.7) : .black.opacity(0.7))
-                if let device = audioManager.connectedDevice {
-                    Text("| 设备: \(device.name)")
-                        .font(.system(size: 12))
-                        .foregroundColor(isDarkMode ? .white.opacity(0.7) : .black.opacity(0.7))
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.bottom, 8)
-            
-            if !audioManager.isConnected {
-                Text("请先连接ESP32设备后再录音")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(isDarkMode ? Color.yellow.opacity(0.8) : Color.orange)
-                    .padding(.horizontal, 20)
-                    .padding(.bottom, 8)
-            }
             
             // 录音列表
             ScrollView {
@@ -355,7 +252,15 @@ struct RecordingsListView: View {
                 }
                 .padding(.horizontal, 20)
                 .padding(.top, 10)
+                .padding(.bottom, 120)
                 .background(.white)
+            }
+            }
+            
+            // 悬浮录音控制卡片
+            VStack {
+                Spacer()
+                FloatingRecordingControlCard(audioManager: audioManager)
             }
         }
         .sheet(isPresented: $showingSettings) {
@@ -529,46 +434,6 @@ struct RecordingControlView: View {
     
 }
 
-// MARK: - 音频波形视图
-struct AudioWaveformView: View {
-    let levels: [Float]
-    let isDarkMode: Bool
-    
-    var body: some View {
-        HStack(spacing: 2) {
-            ForEach(0..<50, id: \.self) { index in
-                RoundedRectangle(cornerRadius: 2)
-                    .fill(
-                        LinearGradient(
-                            colors: [
-                                colorForLevel(getLevel(at: index)),
-                                colorForLevel(getLevel(at: index)).opacity(0.5)
-                            ],
-                            startPoint: .top,
-                            endPoint: .bottom
-                        )
-                    )
-                    .frame(width: 4, height: CGFloat(20 + getLevel(at: index) * 80))
-                    .animation(.easeInOut(duration: 0.1), value: levels)
-            }
-        }
-    }
-    
-    func getLevel(at index: Int) -> Float {
-        guard index < levels.count else { return 0.1 }
-        return levels[index]
-    }
-    
-    func colorForLevel(_ level: Float) -> Color {
-        if level > 0.7 {
-            return Color.red
-        } else if level > 0.4 {
-            return Color.orange
-        } else {
-            return Color.green
-        }
-    }
-}
 
 // MARK: - Preview
 // 预览专用的 ContentView 包装器，可以覆盖 isDarkMode 设置
