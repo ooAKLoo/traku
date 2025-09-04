@@ -67,19 +67,11 @@ class AudioManagerAdapter: ObservableObject {
     func startRecording() {
         currentRecordingData = Data()
         recordingStartTime = Date()
-        speechService.startRecognition()
         esp32Service.startRecording()
     }
     
     /// 停止录音
     func stopRecording() {
-        speechService.stopRecognition()
-        
-        // 发送音频数据进行语音识别
-        if !currentRecordingData.isEmpty {
-            speechService.sendAudioData(currentRecordingData)
-        }
-        
         esp32Service.stopRecording()
     }
     
@@ -156,9 +148,10 @@ extension AudioManagerAdapter: ESP32AudioServiceDelegate {
     
     func esp32AudioService(_ service: ESP32AudioService, didFinishRecording audioRecording: AudioRecording) {
         print("ESP32录音完成: \(audioRecording.summary)")
-        // 收集音频数据用于语音识别
+        
+        // 使用统一的语音识别服务处理音频
         if let audioData = audioRecording.audioData {
-            currentRecordingData.append(audioData)
+            speechService.processRecordingAudio(audioData, duration: audioRecording.duration)
         }
     }
     

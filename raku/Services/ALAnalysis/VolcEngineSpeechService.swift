@@ -121,6 +121,51 @@ class VolcEngineSpeechService: NSObject, ObservableObject {
         }
     }
     
+    /// 处理录音完成后的语音识别（统一入口）
+    func processRecordingAudio(_ audioData: Data, duration: TimeInterval) {
+        // 将原始PCM数据转换为WAV格式
+        let wavData = createWAVFile(from: audioData)
+        
+        // 开始语音识别
+        startRecognition()
+        sendAudioData(wavData)
+    }
+    
+    /// 创建WAV文件头
+    private func createWAVFile(from audioData: Data) -> Data {
+        let sampleRate: UInt32 = 16000
+        let channels: UInt16 = 1
+        let bitsPerSample: UInt16 = 16
+        
+        let byteRate = sampleRate * UInt32(channels) * UInt32(bitsPerSample) / 8
+        let blockAlign = channels * bitsPerSample / 8
+        let dataSize = UInt32(audioData.count)
+        let fileSize = dataSize + 36
+        
+        var header = Data()
+        
+        // RIFF chunk
+        header.append("RIFF".data(using: .ascii)!)
+        header.append(withUnsafeBytes(of: fileSize.littleEndian) { Data($0) })
+        header.append("WAVE".data(using: .ascii)!)
+        
+        // Format chunk
+        header.append("fmt ".data(using: .ascii)!)
+        header.append(withUnsafeBytes(of: UInt32(16).littleEndian) { Data($0) }) // chunk size
+        header.append(withUnsafeBytes(of: UInt16(1).littleEndian) { Data($0) }) // audio format (PCM)
+        header.append(withUnsafeBytes(of: channels.littleEndian) { Data($0) })
+        header.append(withUnsafeBytes(of: sampleRate.littleEndian) { Data($0) })
+        header.append(withUnsafeBytes(of: byteRate.littleEndian) { Data($0) })
+        header.append(withUnsafeBytes(of: blockAlign.littleEndian) { Data($0) })
+        header.append(withUnsafeBytes(of: bitsPerSample.littleEndian) { Data($0) })
+        
+        // Data chunk
+        header.append("data".data(using: .ascii)!)
+        header.append(withUnsafeBytes(of: dataSize.littleEndian) { Data($0) })
+        
+        return header + audioData
+    }
+    
     /// 使用SenseVoice API识别音频文件
     private func recognizeAudioWithSenseVoice(_ audioData: Data) {
         // 构建URL

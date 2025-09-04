@@ -10,7 +10,7 @@ import SwiftUI
 import AVFoundation
 import Combine
 
-// MARK: - 数据模型（已移除sentiment）
+// MARK: - 数据模型
 struct AudioRecording: Identifiable, Equatable {
     let id = UUID()
     let timestamp: Date
