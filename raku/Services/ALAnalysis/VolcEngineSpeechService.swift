@@ -1,10 +1,6 @@
 //
 //  VolcEngineSpeechService.swift
-//  raku
-//
-//  SenseVoice语音识别服务
-//  用于将音频数据转换为文本
-//  注意：此服务只负责语音识别，不再调用LLM分析
+//  语音识别服务 - 使用 SenseVoice API
 //
 
 import Foundation
@@ -16,9 +12,9 @@ struct SenseVoiceConfiguration {
     let endpoint: String
     let timeout: TimeInterval
     
-    // 默认配置 - 指向你的SenseVoice服务器
+    // 默认配置
     static let `default` = SenseVoiceConfiguration(
-        serverURL: "http://115.190.136.178:8001",  // 替换为你的服务器地址
+        serverURL: "http://115.190.136.178:8001",
         endpoint: "/transcribe/normal",
         timeout: 130.0
     )
@@ -49,7 +45,6 @@ protocol VolcEngineSpeechServiceDelegate: AnyObject {
     func speechService(_ service: VolcEngineSpeechService, didCompleteWithError error: Error?)
     func speechServiceDidStartRecognition(_ service: VolcEngineSpeechService)
     func speechServiceDidStopRecognition(_ service: VolcEngineSpeechService)
-    // 移除了 didReceiveLLMAnalysis 方法，因为LLM分析现在由TwoStepLLMService处理
 }
 
 // MARK: - SenseVoice语音识别服务
@@ -66,7 +61,6 @@ class VolcEngineSpeechService: NSObject, ObservableObject {
     private let queue = DispatchQueue(label: "com.raku.sensevoice.speech", qos: .userInitiated)
     private var currentTask: URLSessionDataTask?
     
-    // 移除了 llmService，因为LLM分析现在由外部处理
     
     // MARK: - Delegate
     weak var delegate: VolcEngineSpeechServiceDelegate?
@@ -90,7 +84,7 @@ class VolcEngineSpeechService: NSObject, ObservableObject {
     
     // MARK: - Public Methods
     
-    /// 开始语音识别（准备接收音频）
+    /// 开始语音识别
     func startRecognition() {
         DispatchQueue.main.async {
             self.isRecognizing = true
@@ -109,7 +103,7 @@ class VolcEngineSpeechService: NSObject, ObservableObject {
         }
     }
     
-    /// 发送音频数据进行识别（使用SenseVoice HTTP API）
+    /// 发送音频数据进行识别
     func sendAudioData(_ audioData: Data) {
         guard !audioData.isEmpty else {
             print("音频数据为空")
@@ -121,7 +115,7 @@ class VolcEngineSpeechService: NSObject, ObservableObject {
         }
     }
     
-    /// 处理录音完成后的语音识别（统一入口）
+    /// 处理录音音频数据
     func processRecordingAudio(_ audioData: Data, duration: TimeInterval) {
         // 将原始PCM数据转换为WAV格式
         let wavData = createWAVFile(from: audioData)
@@ -197,9 +191,9 @@ class VolcEngineSpeechService: NSObject, ObservableObject {
         // 添加语言参数
         body.append("--\(boundary)\r\n".data(using: .utf8)!)
         body.append("Content-Disposition: form-data; name=\"language\"\r\n\r\n".data(using: .utf8)!)
-        body.append("auto\r\n".data(using: .utf8)!)  // 自动检测语言
+        body.append("auto\r\n".data(using: .utf8)!)
         
-        // 添加ITN参数（逆文本正规化）
+        // 添加ITN参数
         body.append("--\(boundary)\r\n".data(using: .utf8)!)
         body.append("Content-Disposition: form-data; name=\"use_itn\"\r\n\r\n".data(using: .utf8)!)
         body.append("true\r\n".data(using: .utf8)!)
@@ -209,8 +203,6 @@ class VolcEngineSpeechService: NSObject, ObservableObject {
         
         request.httpBody = body
         
-        print("正在发送音频到SenseVoice服务器: \(url.absoluteString)")
-        print("音频大小: \(audioData.count) bytes")
         
         // 发送请求
         currentTask = urlSession.dataTask(with: request) { [weak self] data, response, error in
@@ -227,17 +219,8 @@ class VolcEngineSpeechService: NSObject, ObservableObject {
             
             // 检查HTTP响应状态
             if let httpResponse = response as? HTTPURLResponse {
-                print("HTTP状态码: \(httpResponse.statusCode)")
-                
                 if httpResponse.statusCode != 200 {
                     let errorMessage = "HTTP错误: \(httpResponse.statusCode)"
-                    print(errorMessage)
-                    
-                    // 尝试读取错误详情
-                    if let data = data,
-                       let errorBody = String(data: data, encoding: .utf8) {
-                        print("错误详情: \(errorBody)")
-                    }
                     
                     DispatchQueue.main.async {
                         let error = SenseVoiceError.apiError(
@@ -278,7 +261,6 @@ class VolcEngineSpeechService: NSObject, ObservableObject {
                 return
             }
             
-            print("SenseVoice响应: \(response)")
             
             // 提取识别文本
             if let text = response["text"] as? String {
@@ -291,7 +273,6 @@ class VolcEngineSpeechService: NSObject, ObservableObject {
                     emotion: response["emotion"] as? String
                 )
                 
-                print("识别成功: \(text)")
                 
                 DispatchQueue.main.async {
                     self.lastResult = result
@@ -299,14 +280,10 @@ class VolcEngineSpeechService: NSObject, ObservableObject {
                     self.delegate?.speechService(self, didReceiveResult: result)
                     self.delegate?.speechService(self, didCompleteWithError: nil)
                     
-                    // 不再自动调用LLM分析，让外部处理
                 }
             } else {
-                print("响应中没有找到识别文本")
-                
                 // 检查是否有错误信息
                 if let detail = response["detail"] as? String {
-                    print("错误详情: \(detail)")
                     DispatchQueue.main.async {
                         let error = SenseVoiceError.apiError(code: -1, message: detail)
                         self.delegate?.speechService(self, didCompleteWithError: error)
@@ -320,11 +297,6 @@ class VolcEngineSpeechService: NSObject, ObservableObject {
             }
             
         } catch {
-            print("解析响应JSON失败: \(error.localizedDescription)")
-            if let responseString = String(data: data, encoding: .utf8) {
-                print("原始响应: \(responseString)")
-            }
-            
             DispatchQueue.main.async {
                 self.delegate?.speechService(self, didCompleteWithError: SenseVoiceError.audioProcessingError)
             }

@@ -75,9 +75,7 @@ public struct RecordingData {
     
     /// 格式化的时长
     public var formattedDuration: String {
-        let minutes = Int(duration) / 60
-        let seconds = Int(duration) % 60
-        return String(format: "%02d:%02d", minutes, seconds)
+        return FormatHelper.formatDuration(duration)
     }
     
     /// 数据大小（KB）

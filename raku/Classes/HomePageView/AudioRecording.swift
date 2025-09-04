@@ -47,10 +47,6 @@ struct ContentView: View {
             }
         }
         .preferredColorScheme(isDarkMode ? .dark : .light)
-        .onAppear {
-            // 加载模拟数据
-            audioManager.loadMockData()
-        }
     }
 }
 
@@ -379,21 +375,10 @@ struct RecordingCardView: View {
     
     var body: some View {
         HStack(alignment: .top, spacing: 15) {
-            // 时间线指示器
-            VStack {
-                Circle()
-                    .fill(isDarkMode ? Color.white.opacity(0.3) : Color.black.opacity(0.15))
-                    .frame(width: 10, height: 10)
-                
-                Rectangle()
-                    .fill(isDarkMode ? Color.white.opacity(0.1) : Color.black.opacity(0.05))
-                    .frame(width: 1)
-            }
-            
             // 卡片内容
             VStack(alignment: .leading, spacing: 8) {
                 // 时间戳
-                Text(formatDate(recording.timestamp))
+                Text(recording.timestamp.timeFormatted)
                     .font(.system(size: 12))
                     .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
                 
@@ -439,11 +424,6 @@ struct RecordingCardView: View {
         }
     }
     
-    func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
-        return formatter.string(from: date)
-    }
 }
 
 // MARK: - 标签视图
@@ -484,7 +464,7 @@ struct RecordingControlView: View {
             
             // 录音时间
             if isRecording {
-                Text(formatTime(recordingTime))
+                Text(FormatHelper.formatDurationWithDecimal(recordingTime))
                     .font(.system(size: 48, weight: .thin, design: .monospaced))
                     .foregroundColor(isDarkMode ? .white : .black)
             }
@@ -547,12 +527,6 @@ struct RecordingControlView: View {
         }
     }
     
-    func formatTime(_ time: TimeInterval) -> String {
-        let minutes = Int(time) / 60
-        let seconds = Int(time) % 60
-        let milliseconds = Int((time.truncatingRemainder(dividingBy: 1)) * 10)
-        return String(format: "%02d:%02d.%d", minutes, seconds, milliseconds)
-    }
 }
 
 // MARK: - 音频波形视图
@@ -616,10 +590,6 @@ struct PreviewContentView: View {
             }
         }
         .preferredColorScheme(forcedDarkMode ? .dark : .light)
-        .onAppear {
-            // 加载模拟数据
-            audioManager.loadMockData()
-        }
     }
 }
 

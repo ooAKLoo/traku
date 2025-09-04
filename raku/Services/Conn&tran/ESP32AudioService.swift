@@ -1,8 +1,6 @@
 //
 //  ESP32AudioService.swift
-//  专为 raku 项目定制的 ESP32 音频服务
-//
-//  修复版：解决语音识别超时和网络请求被取消的问题
+//  ESP32 音频服务 - 专注音频录制和播放
 //
 
 import Foundation
@@ -22,9 +20,6 @@ protocol ESP32AudioServiceDelegate: AnyObject {
     
     /// 录音完成
     func esp32AudioService(_ service: ESP32AudioService, didFinishRecording audioRecording: AudioRecording)
-    
-    /// 语音识别结果（新增）
-    func esp32AudioService(_ service: ESP32AudioService, didReceiveSpeechResult result: SpeechRecognitionResult)
     
     /// 发生错误
     func esp32AudioService(_ service: ESP32AudioService, didEncounterError error: Error)
@@ -212,7 +207,6 @@ class ESP32AudioService: NSObject, ObservableObject {
             }
             .store(in: &cancellables)
             
-        print("ESP32AudioService: 状态绑定已重新设置")
     }
     
     private func setupDelegates() {
@@ -228,7 +222,6 @@ class ESP32AudioService: NSObject, ObservableObject {
     }
     
     private func loadMockData() {
-        // 保持原有的mock数据代码不变
         let mockRecordings = [
             AudioRecording(
                 timestamp: Date().addingTimeInterval(-3600),
@@ -295,12 +288,10 @@ class ESP32AudioService: NSObject, ObservableObject {
         self.recordings = mockRecordings
     }
     
-    /// 处理录音数据（移除直接语音识别）
+    /// 处理录音数据
     private func processRecordedAudioData(audioData: Data, duration: TimeInterval) {
-        // 将原始PCM数据转换为WAV格式
         let wavData = createWAVFile(from: audioData)
         
-        // 直接创建录音记录，不进行语音识别
         let recording = AudioRecording(
             timestamp: Date(),
             duration: duration,
@@ -396,8 +387,6 @@ extension ESP32AudioService {
     
     /// 格式化录音时长
     public func formatDuration(_ duration: TimeInterval) -> String {
-        let minutes = Int(duration) / 60
-        let seconds = Int(duration) % 60
-        return String(format: "%02d:%02d", minutes, seconds)
+        return FormatHelper.formatDuration(duration)
     }
 }

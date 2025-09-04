@@ -43,7 +43,7 @@ struct RecordingDetailView: View {
                             HStack(spacing: 8) {
                                 Image(systemName: isPlaying ? "pause.fill" : "play.fill")
                                     .font(.system(size: 14))
-                                Text(formatTime(recording.duration))
+                                Text(FormatHelper.formatDuration(recording.duration))
                                     .font(.system(size: 13, weight: .medium, design: .monospaced))
                             }
                             .foregroundColor(isDarkMode ? .white.opacity(0.7) : .black.opacity(0.7))
@@ -98,7 +98,7 @@ struct RecordingDetailView: View {
                             
                             // 时间和标签在同一行
                             HStack(spacing: 22) {
-                                Text(formatDate(recording.timestamp))
+                                Text(recording.timestamp.smartFormatted)
                                     .font(.system(size: 14, weight: .regular))
                                     .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4))
                                 
@@ -168,22 +168,6 @@ struct RecordingDetailView: View {
     }
     
     // 辅助函数
-    func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        
-        // 判断是否为今天
-        if Calendar.current.isDateInToday(date) {
-            formatter.dateFormat = "今天 HH:mm"
-        } else if Calendar.current.isDateInYesterday(date) {
-            formatter.dateFormat = "昨天 HH:mm"
-        } else if let days = Calendar.current.dateComponents([.day], from: date, to: Date()).day, days < 7 {
-            formatter.dateFormat = "EEEE HH:mm"
-        } else {
-            formatter.dateFormat = "MM月dd日 HH:mm"
-        }
-        
-        return formatter.string(from: date)
-    }
     
     func extractTitle(from summary: String) -> String {
         // 从总结中提取第一句作为标题
@@ -274,7 +258,7 @@ struct RecordingDetailView: View {
             .replacingOccurrences(of: "?", with: "_")
             .replacingOccurrences(of: "*", with: "_")
             .replacingOccurrences(of: "\"", with: "_")
-        let fileName = "\(title)_\(formatFileDate(recording.timestamp)).wav"
+        let fileName = "\(title)_\(recording.timestamp.fileFormatted).wav"
         
         // 使用临时目录避免权限问题
         let tempDirectory = FileManager.default.temporaryDirectory
@@ -354,17 +338,7 @@ struct RecordingDetailView: View {
         }
     }
     
-    func formatTime(_ time: TimeInterval) -> String {
-        let minutes = Int(time) / 60
-        let seconds = Int(time) % 60
-        return String(format: "%02d:%02d", minutes, seconds)
-    }
     
-    func formatFileDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        formatter.dateFormat = "yyyyMMdd_HHmm"
-        return formatter.string(from: date)
-    }
     
     private func showErrorAlert(message: String) {
         let alert = UIAlertController(

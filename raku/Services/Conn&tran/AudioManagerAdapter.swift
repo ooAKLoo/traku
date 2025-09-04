@@ -1,7 +1,6 @@
 //
 //  AudioManagerAdapter.swift
-//  适配器模式，用于整合新的 ESP32AudioService 和现有的 AudioManager 接口
-//  已更新以适配新的 TwoStepAnalysisResult 结构
+//  音频管理适配器 - 使用流水线架构
 //
 
 import Foundation
@@ -10,7 +9,7 @@ import Combine
 
 // MARK: - 音频管理器适配器
 class AudioManagerAdapter: ObservableObject {
-    // MARK: - Published Properties (保持与原 AudioManager 兼容)
+    // MARK: - Published Properties
     @Published var isConnected = false
     @Published var isRecording = false
     @Published var recordings: [AudioRecording] = []
@@ -20,22 +19,20 @@ class AudioManagerAdapter: ObservableObject {
     
     // MARK: - Private Properties
     private let esp32Service: ESP32AudioService
-    private let speechService = VolcEngineSpeechService()  // 保留语音识别服务
-    private let twoStepLLMService = TwoStepLLMService()   // 新增两步式LLM服务
+    private let processingPipeline: AudioProcessingPipeline  // 使用新的流水线架构
     private var cancellables = Set<AnyCancellable>()
-    private var currentRecordingData = Data()
-    private var recordingStartTime: Date?
     
     // MARK: - Initialization
     init() {
         self.esp32Service = ESP32AudioService()
+        self.processingPipeline = AudioProcessingPipeline()
+        
         setupBindings()
         esp32Service.delegate = self
-        speechService.delegate = self
-        twoStepLLMService.delegate = self  // 设置两步式LLM服务代理
+        processingPipeline.delegate = self
     }
     
-    // MARK: - Public Methods (兼容原 AudioManager 接口)
+    // MARK: - Public Methods
     
     /// 连接到设备
     func connectToDevice(_ device: DeviceDiscoveryService.DiscoveredDevice) {
@@ -65,8 +62,7 @@ class AudioManagerAdapter: ObservableObject {
     
     /// 开始录音
     func startRecording() {
-        currentRecordingData = Data()
-        recordingStartTime = Date()
+        processingPipeline.startRecording()
         esp32Service.startRecording()
     }
     
@@ -90,12 +86,6 @@ class AudioManagerAdapter: ObservableObject {
         esp32Service.deleteRecording(recording)
     }
     
-    /// 加载模拟数据
-    func loadMockData() {
-        // ESP32AudioService 已经在初始化时加载了模拟数据
-        // 这里我们直接同步数据
-        recordings = esp32Service.recordings
-    }
     
     // MARK: - Private Methods
     
@@ -135,132 +125,68 @@ class AudioManagerAdapter: ObservableObject {
 extension AudioManagerAdapter: ESP32AudioServiceDelegate {
     func esp32AudioService(_ service: ESP32AudioService, didChangeConnectionStatus isConnected: Bool, status: String) {
         // 状态已通过 @Published 属性自动同步
-        print("连接状态改变: \(isConnected ? "已连接" : "未连接") - \(status)")
     }
     
     func esp32AudioService(_ service: ESP32AudioService, didChangeRecordingStatus isRecording: Bool, duration: TimeInterval) {
-        print("录音状态改变: \(isRecording ? "录音中" : "已停止") - 时长: \(duration)秒")
     }
     
     func esp32AudioService(_ service: ESP32AudioService, didUpdateAmplitude amplitude: Float) {
-        // 音频振幅更新已通过绑定处理
     }
     
     func esp32AudioService(_ service: ESP32AudioService, didFinishRecording audioRecording: AudioRecording) {
-        print("ESP32录音完成: \(audioRecording.summary)")
         
-        // 使用统一的语音识别服务处理音频
         if let audioData = audioRecording.audioData {
-            speechService.processRecordingAudio(audioData, duration: audioRecording.duration)
+            processingPipeline.processRecording(audioData: audioData, duration: audioRecording.duration)
         }
     }
     
-    func esp32AudioService(_ service: ESP32AudioService, didReceiveSpeechResult result: SpeechRecognitionResult) {
-        print("AudioManagerAdapter 收到语音识别结果: \(result.text)")
-        
-        // 语音识别完成后，使用两步式LLM服务进行分析
-        print("开始调用两步式LLM分析...")
-        twoStepLLMService.analyzeText(result.text)
-    }
     
     func esp32AudioService(_ service: ESP32AudioService, didEncounterError error: Error) {
         print("ESP32 音频服务错误: \(error.localizedDescription)")
-        // 可以在这里添加错误处理逻辑
     }
 }
 
-// MARK: - VolcEngineSpeechServiceDelegate
-extension AudioManagerAdapter: VolcEngineSpeechServiceDelegate {
-    func speechService(_ service: VolcEngineSpeechService, didReceiveResult result: SpeechRecognitionResult) {
-        print("语音识别结果: \(result.text)")
-        
-        // 保存识别文本用于后续LLM分析
-        let recognitionText = result.text
-        
-        // 语音识别完成后，使用两步式LLM服务进行分析
-        twoStepLLMService.analyzeText(recognitionText)
+// MARK: - AudioProcessingPipelineDelegate
+extension AudioManagerAdapter: AudioProcessingPipelineDelegate {
+    func pipelineDidStartRecording(_ pipeline: AudioProcessingPipeline) {
     }
     
-    func speechService(_ service: VolcEngineSpeechService, didCompleteWithError error: Error?) {
-        if let error = error {
-            print("语音识别错误: \(error.localizedDescription)")
-        }
+    func pipeline(_ pipeline: AudioProcessingPipeline, didFinishRecording audioData: Data, duration: TimeInterval) {
     }
     
-    func speechServiceDidStartRecognition(_ service: VolcEngineSpeechService) {
-        print("语音识别已开始")
+    func pipeline(_ pipeline: AudioProcessingPipeline, didReceiveSpeechResult result: SpeechRecognitionResult) {
     }
     
-    func speechServiceDidStopRecognition(_ service: VolcEngineSpeechService) {
-        print("语音识别已停止")
+    func pipeline(_ pipeline: AudioProcessingPipeline, didCompleteFirstStep result: FirstStepAnalysis) {
     }
     
-    private func generateMockAudioData() -> Data {
-        return "mock audio data for \(UUID().uuidString)".data(using: .utf8) ?? Data()
-    }
-}
-
-// MARK: - TwoStepLLMServiceDelegate
-extension AudioManagerAdapter: TwoStepLLMServiceDelegate {
-    func twoStepLLMService(_ service: TwoStepLLMService, didCompleteFirstStep result: FirstStepAnalysis) {
-        print("第一步完成 - 类型: \(result.thoughtType.rawValue), 标题: \(result.title)")
-        if let summary = result.oneSentenceSummary {
-            print("一句话总结: \(summary)")
-        }
-    }
-    
-    func twoStepLLMService(_ service: TwoStepLLMService, didCompleteFinalAnalysis result: TwoStepAnalysisResult) {
-        print("两步式LLM分析完成")
-        print("标题: \(result.title)")
-        print("类型: \(result.thoughtType.rawValue)")
-        print("标签: \(result.tags.joined(separator: ", "))")
-        
-        guard let startTime = recordingStartTime else { return }
-        let duration = Date().timeIntervalSince(startTime)
-        
-//        // 创建增强的录音记录
-//        var finalKeyPoints = keyPoints
-//        
-//        // 如果文本超过150字，在keyPoints的第一项添加一句话总结
-//        if result.originalText.count > 150, result.summary != result.originalText {
-//            finalKeyPoints.insert("总结: \(result.summary)", at: 0)
-//        }
-        
-        let enhancedRecording = AudioRecording(
-            timestamp: result.timestamp,
-            duration: duration,
-            transcription: result.originalText,
-            summary: result.title,  // 使用标题作为summary
-            tags: result.tags,
-            audioData: currentRecordingData.isEmpty ? generateMockAudioData() : currentRecordingData, enrichedContent: result.enrichedContent,
-            
-        )
+    func pipeline(_ pipeline: AudioProcessingPipeline, didCompleteFinalAnalysis recording: AudioRecording) {
         
         DispatchQueue.main.async {
-            self.recordings.insert(enhancedRecording, at: 0)
+            self.recordings.insert(recording, at: 0)
         }
     }
     
-    func twoStepLLMService(_ service: TwoStepLLMService, didFailWithError error: Error) {
-        print("两步式LLM分析失败: \(error.localizedDescription)")
+    func pipeline(_ pipeline: AudioProcessingPipeline, didFailWithError error: AudioProcessingError) {
         
-        // 失败时创建基础录音记录
-        guard let startTime = recordingStartTime else { return }
-        let duration = Date().timeIntervalSince(startTime)
-        
+        // 创建失败录音记录
         let fallbackRecording = AudioRecording(
-            timestamp: startTime,
-            duration: duration,
-            transcription: "录音已保存（分析失败）",
-            summary: "录音 \(recordings.count + 1)",
-            tags: ["录音"],
-            audioData: currentRecordingData.isEmpty ? generateMockAudioData() : currentRecordingData, enrichedContent: "nil",
-            
+            timestamp: Date(),
+            duration: 0,
+            transcription: "录音处理失败: \(error.localizedDescription)",
+            summary: "录音 \(recordings.count + 1) - 处理失败",
+            tags: ["录音", "错误"],
+            audioData: generateMockAudioData(),
+            enrichedContent: nil
         )
         
         DispatchQueue.main.async {
             self.recordings.insert(fallbackRecording, at: 0)
         }
+    }
+    
+    private func generateMockAudioData() -> Data {
+        return "mock audio data for \(UUID().uuidString)".data(using: .utf8) ?? Data()
     }
 }
 
