@@ -70,7 +70,6 @@ struct RecordingsListView: View {
     @State private var searchText = ""
     @State private var showingConnectionConfig = false
     
-    let filters = ["全部", "标签", "时间"]
     
     var filteredRecordings: [AudioRecording] {
         if searchText.isEmpty {
@@ -87,184 +86,22 @@ struct RecordingsListView: View {
     var body: some View {
         ZStack {
             VStack(spacing: 0) {
-            // 顶部栏
-            VStack(spacing: 16) {
-                // 第一行：设备连接状态、搜索框、设置按钮
-                HStack(spacing: 16) {
-                    // 设备连接圆环（左侧）
-                    Button(action: {
-                        showingConnectionConfig = true
-                    }) {
-                        ZStack {
-                            Circle()
-                                .fill(isDarkMode ? Color.white.opacity(0.08) : Color.white)
-                                .frame(width: 44, height: 44)
-                                .shadow(
-                                    color: Color.black.opacity(isDarkMode ? 0.5 : 0.12),
-                                    radius: 6,
-                                    x: 0,
-                                    y: 3
-                                )
-                            
-                            Image(systemName: "mic")
-                                .font(.system(size: 20))
-                                .foregroundColor(isDarkMode ? .white : .black)
-                            
-                            // 连接状态指示器
-                            if audioManager.isConnected {
-                                Circle()
-                                    .fill(isDarkMode ? Color.white : Color.black)
-                                    .frame(width: 6, height: 6)
-                                    .offset(x: 12, y: -12)
-                            }
-                        }
-                    }
-                    
-                    // 搜索框（中间）
-                    HStack {
-                        Image(systemName: "magnifyingglass")
-                            .font(.system(size: 14))
-                            .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4))
-                        
-                        TextField("搜索录音...", text: $searchText)
-                            .textFieldStyle(PlainTextFieldStyle())
-                            .font(.system(size: 14))
-                            .foregroundColor(isDarkMode ? .white : .black)
-                        
-                        if !searchText.isEmpty {
-                            Button(action: {
-                                searchText = ""
-                            }) {
-                                Image(systemName: "xmark.circle.fill")
-                                    .font(.system(size: 14))
-                                    .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4))
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 10)
-                    .background(
-                        RoundedRectangle(cornerRadius: 12)
-                            .fill(isDarkMode ? Color.white.opacity(0.08) : Color.white)
-                            .shadow(
-                                color: isDarkMode ? Color.black.opacity(0.3) : Color.black.opacity(0.08),
-                                radius: isDarkMode ? 10 : 8,
-                                x: 0,
-                                y: isDarkMode ? 2 : 4
-                            )
-                    )
-                    
-                    // 设置按钮（右侧）
-                    Button(action: {
-                        showingSettings = true
-                    }) {
-                        ZStack {
-                            Circle()
-                                .fill(isDarkMode ? Color.white.opacity(0.08) : Color.white)
-                                .frame(width: 44, height: 44)
-                                .shadow(
-                                    color: Color.black.opacity(isDarkMode ? 0.5 : 0.12),
-                                    radius: 6,
-                                    x: 0,
-                                    y: 3
-                                )
-                            
-                            Image(systemName: "gearshape")
-                                .font(.system(size: 18))
-                                .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.7))
-                        }
-                    }
-                }
+                // 顶部导航栏
+                HomepageHeaderView(
+                    audioManager: audioManager,
+                    isDarkMode: isDarkMode,
+                    selectedFilter: $selectedFilter,
+                    showingSettings: $showingSettings,
+                    hoveredFilter: $hoveredFilter,
+                    searchText: $searchText,
+                    showingConnectionConfig: $showingConnectionConfig
+                )
                 
-                // 第二行：筛选栏
-                HStack(spacing: 30) {
-                    ForEach(filters, id: \.self) { filter in
-                        Button(action: {
-                            withAnimation(.interactiveSpring(response: 0.3, dampingFraction: 0.8, blendDuration: 0)) {
-                                selectedFilter = filter
-                            }
-                        }) {
-                            VStack(spacing: 6) {
-                                Text(filter)
-                                    .font(.system(size: 16, weight: selectedFilter == filter ? .semibold : .regular))
-                                    .foregroundColor(selectedFilter == filter ?
-                                        (isDarkMode ? .white : .black) :
-                                        (hoveredFilter == filter ?
-                                            (isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8)) :
-                                            (isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))))
-                                    .animation(.easeInOut(duration: 0.2), value: selectedFilter)
-                                    .animation(.easeInOut(duration: 0.15), value: hoveredFilter)
-                                
-                                // 底部指示线
-                                ZStack {
-                                    // 背景透明线条（占位）
-                                    Rectangle()
-                                        .fill(Color.clear)
-                                        .frame(width: 40, height: 2)
-                                    
-                                    // 实际显示的线条
-                                    Rectangle()
-                                        .fill(
-                                            LinearGradient(
-                                                colors: [
-                                                    (isDarkMode ? Color.white : Color.black).opacity(0.8),
-                                                    (isDarkMode ? Color.white : Color.black)
-                                                ],
-                                                startPoint: .leading,
-                                                endPoint: .trailing
-                                            )
-                                        )
-                                        .frame(width: 24, height: 2)
-                                        .cornerRadius(1)
-                                        .scaleEffect(x: selectedFilter == filter ? 1 : 0, y: 1)
-                                        .opacity(selectedFilter == filter ? 1 : 0)
-                                        .animation(.interactiveSpring(response: 0.25, dampingFraction: 0.8), value: selectedFilter)
-                                }
-                            }
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                        .onHover { isHovered in
-                            withAnimation(.easeInOut(duration: 0.15)) {
-                                hoveredFilter = isHovered ? filter : nil
-                            }
-                        }
-                    }
-                    
-                    Spacer()
-                }
-            }
-            .padding(.horizontal, 20)
-            .padding(.top, 20)
-            .padding(.bottom, 16)
-            .background(
-                (isDarkMode ? Color.black : Color.white)
-            )
-            
-            
-            
-            // 录音列表
-            ScrollView {
-                LazyVStack(spacing: 15) {
-                    ForEach(Array(filteredRecordings.enumerated()), id: \.element.id) { index, recording in
-                        NavigationLink(destination:
-                            RecordingDetailView(recording: recording)
-                                .navigationBarHidden(true)
-                        ) {
-                            RecordingCardView(recording: recording, isDarkMode: isDarkMode)
-                        }
-                        .buttonStyle(PlainButtonStyle())
-                        .transition(.asymmetric(
-                            insertion: .opacity.combined(with: .move(edge: .trailing)),
-                            removal: .opacity.combined(with: .scale)
-                        ))
-                        .animation(.easeInOut(duration: 0.3).delay(Double(index) * 0.05))
-                    }
-                }
-                .padding(.horizontal, 20)
-                .padding(.top, 10)
-                .padding(.bottom, 120)
-                .background(.white)
-            }
+                // 录音列表
+                HomepageListView(
+                    filteredRecordings: filteredRecordings,
+                    isDarkMode: isDarkMode
+                )
             }
             
             // 悬浮录音控制卡片
