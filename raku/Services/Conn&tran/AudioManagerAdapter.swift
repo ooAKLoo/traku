@@ -21,16 +21,19 @@ class AudioManagerAdapter: ObservableObject {
     // MARK: - Private Properties
     private let esp32Service: ESP32AudioService
     private let processingPipeline: AudioProcessingPipeline  // 使用新的流水线架构
+    private let phoneRecordingManager: PhoneRecordingManager  // 手机录音管理器
     private var cancellables = Set<AnyCancellable>()
     
     // MARK: - Initialization
     init() {
         self.esp32Service = ESP32AudioService()
         self.processingPipeline = AudioProcessingPipeline()
+        self.phoneRecordingManager = PhoneRecordingManager()
         
         setupBindings()
         esp32Service.delegate = self
         processingPipeline.delegate = self
+        phoneRecordingManager.delegate = self
         
         // 从数据库加载录音数据
         loadRecordingsFromDatabase()
@@ -79,13 +82,17 @@ class AudioManagerAdapter: ObservableObject {
     
     /// 开始手机录音
     func startPhoneRecording() {
+        print("📱🎬 AudioManagerAdapter: 开始手机录音流程")
         processingPipeline.startPhoneRecording()
+        phoneRecordingManager.startRecording()
+        print("📱🎬 AudioManagerAdapter: 手机录音流程启动完成")
     }
     
     /// 停止录音
     func stopRecording() {
         processingPipeline.stopRecording()
         esp32Service.stopRecording()
+        phoneRecordingManager.stopRecording()
     }
     
     /// 暂停录音
@@ -95,6 +102,7 @@ class AudioManagerAdapter: ObservableObject {
         if isConnected {
             esp32Service.pauseRecording()
         }
+        phoneRecordingManager.pauseRecording()
     }
     
     /// 恢复录音
@@ -104,6 +112,7 @@ class AudioManagerAdapter: ObservableObject {
         if isConnected {
             esp32Service.resumeRecording()
         }
+        phoneRecordingManager.resumeRecording()
     }
     
     /// 播放录音
@@ -203,10 +212,15 @@ extension AudioManagerAdapter: AudioProcessingPipelineDelegate {
     }
     
     func pipeline(_ pipeline: AudioProcessingPipeline, didCreateInitialRecording recording: AudioRecording) {
+        print("💾 AudioManagerAdapter: 尝试保存初始录音记录，ID: \(recording.id)")
         if DatabaseManager.shared.saveRecording(recording) {
+            print("✅ 数据库保存成功，更新UI")
             DispatchQueue.main.async {
                 self.recordings.insert(recording, at: 0)
+                print("📱 UI已更新，当前录音总数: \(self.recordings.count)")
             }
+        } else {
+            print("❌ 数据库保存失败")
         }
     }
     
@@ -217,14 +231,20 @@ extension AudioManagerAdapter: AudioProcessingPipelineDelegate {
     }
     
     func pipeline(_ pipeline: AudioProcessingPipeline, didCompleteFinalAnalysis recording: AudioRecording) {
+        print("🎯 AudioManagerAdapter: 接收到最终分析结果，ID: \(recording.id)")
         if DatabaseManager.shared.updateRecording(recording) {
+            print("✅ 最终录音更新到数据库成功")
             DispatchQueue.main.async {
                 if let index = self.recordings.firstIndex(where: { $0.id == recording.id }) {
                     self.recordings[index] = recording
+                    print("📱 UI已更新现有记录，位置: \(index)")
                 } else {
                     self.recordings.insert(recording, at: 0)
+                    print("📱 UI添加新记录，当前总数: \(self.recordings.count)")
                 }
             }
+        } else {
+            print("❌ 最终录音数据库更新失败")
         }
     }
     
@@ -269,6 +289,24 @@ extension AudioManagerAdapter: AudioProcessingPipelineDelegate {
             self.recordings = MockDataService.shared.getMockRecordings()
         }
         #endif
+    }
+}
+
+// MARK: - PhoneRecordingManagerDelegate
+extension AudioManagerAdapter: PhoneRecordingManagerDelegate {
+    func phoneRecordingDidStart(_ manager: PhoneRecordingManager) {
+        // 手机录音已开始，无需额外处理
+    }
+    
+    func phoneRecording(_ manager: PhoneRecordingManager, didFinishWithAudioData audioData: Data, duration: TimeInterval) {
+        // 手机录音完成，传递给流水线处理
+        print("📱➡️ AudioManagerAdapter: 接收到手机录音数据，大小: \(audioData.count / 1024) KB，时长: \(duration)秒")
+        print("📱➡️ AudioManagerAdapter: 当前pipeline状态 - isProcessing: \(processingPipeline.isProcessing), stage: \(processingPipeline.currentStage)")
+        processingPipeline.processRecording(audioData: audioData, duration: duration)
+    }
+    
+    func phoneRecording(_ manager: PhoneRecordingManager, didFailWithError error: Error) {
+        print("❌ 手机录音失败: \(error.localizedDescription)")
     }
 }
 
