@@ -32,8 +32,15 @@ class AudioManagerAdapter: ObservableObject {
         esp32Service.delegate = self
         processingPipeline.delegate = self
         
-        // 加载mock数据（由AudioManagerAdapter管理）
-        loadMockData()
+        // 从数据库加载录音数据
+        loadRecordingsFromDatabase()
+        
+        // 加载mock数据（仅在DEBUG模式下）
+        #if DEBUG
+        if recordings.isEmpty {
+            loadMockData()
+        }
+        #endif
     }
     
     // MARK: - Public Methods
@@ -111,9 +118,11 @@ class AudioManagerAdapter: ObservableObject {
     
     /// 删除录音
     func deleteRecording(_ recording: AudioRecording) {
-        DispatchQueue.main.async {
-            if let index = self.recordings.firstIndex(where: { $0.id == recording.id }) {
-                self.recordings.remove(at: index)
+        if DatabaseManager.shared.deleteRecording(id: recording.id) {
+            DispatchQueue.main.async {
+                if let index = self.recordings.firstIndex(where: { $0.id == recording.id }) {
+                    self.recordings.remove(at: index)
+                }
             }
         }
         // 通知ESP32Service做清理工作（如果需要）
@@ -194,8 +203,10 @@ extension AudioManagerAdapter: AudioProcessingPipelineDelegate {
     }
     
     func pipeline(_ pipeline: AudioProcessingPipeline, didCreateInitialRecording recording: AudioRecording) {
-        DispatchQueue.main.async {
-            self.recordings.insert(recording, at: 0)
+        if DatabaseManager.shared.saveRecording(recording) {
+            DispatchQueue.main.async {
+                self.recordings.insert(recording, at: 0)
+            }
         }
     }
     
@@ -206,11 +217,13 @@ extension AudioManagerAdapter: AudioProcessingPipelineDelegate {
     }
     
     func pipeline(_ pipeline: AudioProcessingPipeline, didCompleteFinalAnalysis recording: AudioRecording) {
-        DispatchQueue.main.async {
-            if let index = self.recordings.firstIndex(where: { $0.id == recording.id }) {
-                self.recordings[index] = recording
-            } else {
-                self.recordings.insert(recording, at: 0)
+        if DatabaseManager.shared.updateRecording(recording) {
+            DispatchQueue.main.async {
+                if let index = self.recordings.firstIndex(where: { $0.id == recording.id }) {
+                    self.recordings[index] = recording
+                } else {
+                    self.recordings.insert(recording, at: 0)
+                }
             }
         }
     }
@@ -228,13 +241,25 @@ extension AudioManagerAdapter: AudioProcessingPipelineDelegate {
             enrichedContent: nil
         )
         
-        DispatchQueue.main.async {
-            self.recordings.insert(fallbackRecording, at: 0)
+        if DatabaseManager.shared.saveRecording(fallbackRecording) {
+            DispatchQueue.main.async {
+                self.recordings.insert(fallbackRecording, at: 0)
+            }
         }
     }
     
     private func generateMockAudioData() -> Data {
         return MockDataService.shared.generateMockAudioData()
+    }
+    
+    /// 从数据库加载录音数据
+    private func loadRecordingsFromDatabase() {
+        DispatchQueue.global(qos: .background).async {
+            let loadedRecordings = DatabaseManager.shared.loadRecordings()
+            DispatchQueue.main.async {
+                self.recordings = loadedRecordings
+            }
+        }
     }
     
     /// 加载mock数据

@@ -122,6 +122,7 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
         recordingStartTime = Date()
         progress = 0.1
         
+        print("🎙️ 开始新录音")
         delegate?.pipelineDidStartRecording(self)
     }
     
@@ -133,6 +134,7 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
         recordingStartTime = Date()
         progress = 0.1
         
+        print("📱 开始手机录音")
         delegate?.pipelineDidStartRecording(self)
         
         // 开始手机录音
@@ -237,7 +239,8 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
         currentRecordingData = nil
         currentDuration = 0
         recordingStartTime = nil
-        currentRecordingId = nil
+        // 不重置 currentRecordingId，让每次录音保持唯一ID
+        // currentRecordingId = nil
         progress = 0.0
         isPaused = false
         
@@ -269,12 +272,15 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
     }
     
     private func createInitialRecording(audioData: Data, duration: TimeInterval) -> AudioRecording {
-        let recordingId = UUID()
-        currentRecordingId = recordingId
+        // 为初始录音记录生成独立的UUID，不影响最终记录
+        let initialRecordingId = UUID()
+        print("📝 为初始录音记录生成独立ID: \(initialRecordingId.uuidString)")
+        
+        // 移除currentRecordingId的管理，每次都使用独立的UUID
         
         guard let startTime = recordingStartTime else {
             return AudioRecording(
-                id: recordingId,
+                id: initialRecordingId,
                 timestamp: Date(),
                 duration: duration,
                 transcription: "处理中...",
@@ -286,7 +292,7 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
         }
         
         return AudioRecording(
-            id: recordingId,
+            id: initialRecordingId,
             timestamp: startTime,
             duration: duration,
             transcription: "处理中...",
@@ -300,9 +306,9 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
     private func createFinalRecording(analysisResult: TwoStepAnalysisResult) -> AudioRecording {
         guard let audioData = currentRecordingData,
               let startTime = recordingStartTime else {
-            // 创建fallback录音
+            // 创建fallback录音，使用新的UUID
             return AudioRecording(
-                id: currentRecordingId,
+                id: UUID(),
                 timestamp: Date(),
                 duration: currentDuration,
                 transcription: "录音处理失败",
@@ -313,8 +319,12 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
             )
         }
         
+        // 为最终录音记录生成新的UUID
+        let finalRecordingId = UUID()
+        print("📝 为LLM处理后的最终录音记录生成新ID: \(finalRecordingId.uuidString)")
+        
         return AudioRecording(
-            id: currentRecordingId,
+            id: finalRecordingId,
             timestamp: startTime,
             duration: currentDuration,
             transcription: analysisResult.originalText,
@@ -339,6 +349,45 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
         isProcessing = false
         
         delegate?.pipeline(self, didFailWithError: error)
+    }
+    
+    /// 直接使用语音识别结果创建最终录音记录（不使用LLM）
+    private func createAndCompleteFinalRecordingWithSpeechResult(_ result: SpeechRecognitionResult) {
+        guard let audioData = currentRecordingData,
+              let startTime = recordingStartTime else {
+            // 创建fallback录音，使用新的UUID
+            let fallbackRecording = AudioRecording(
+                id: UUID(),
+                timestamp: Date(),
+                duration: currentDuration,
+                transcription: result.text,
+                summary: "录音转录完成",
+                tags: ["录音"],
+                audioData: Data(),
+                enrichedContent: nil
+            )
+            completePipeline(with: fallbackRecording)
+            return
+        }
+        
+        // 为最终录音记录生成新的UUID，确保不与初始记录冲突
+        let finalRecordingId = UUID()
+        print("📝 为最终录音记录生成新ID: \(finalRecordingId.uuidString)")
+        
+        // 创建基于语音识别结果的最终录音记录
+        let finalRecording = AudioRecording(
+            id: finalRecordingId,
+            timestamp: startTime,
+            duration: currentDuration,
+            transcription: result.text,
+            summary: "录音转录 - \(result.text.prefix(20))...",
+            tags: ["录音", "转录"],
+            audioData: audioData,
+            enrichedContent: nil
+        )
+        
+        print("📝 不使用LLM，直接完成录音处理，转录文本：\(result.text)")
+        completePipeline(with: finalRecording)
     }
     
     /// 生成模拟的LLM分析结果
@@ -388,8 +437,14 @@ extension AudioProcessingPipeline: VolcEngineSpeechServiceDelegate {
         
         delegate?.pipeline(self, didReceiveSpeechResult: result)
         
-        // 语音识别完成，开始LLM分析
-        startLLMAnalysis(recognitionText: result.text)
+        // 语音识别完成，检查是否需要LLM分析
+        if isLLMEnabled {
+            // 开始LLM分析
+            startLLMAnalysis(recognitionText: result.text)
+        } else {
+            // 不使用LLM，直接创建最终录音记录
+            createAndCompleteFinalRecordingWithSpeechResult(result)
+        }
     }
     
     func speechService(_ service: VolcEngineSpeechService, didCompleteWithError error: Error?) {

@@ -251,19 +251,27 @@ class VolcEngineSpeechService: NSObject, ObservableObject {
     /// 处理SenseVoice响应
     private func handleSenseVoiceResponse(_ data: Data) {
         do {
+            // 先打印原始响应数据用于调试
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("📥 SenseVoice原始响应: \(responseString)")
+            }
+            
             // 解析JSON响应
             let json = try JSONSerialization.jsonObject(with: data, options: [])
             guard let response = json as? [String: Any] else {
-                print("响应格式不正确")
+                print("❌ 响应格式不正确")
                 DispatchQueue.main.async {
                     self.delegate?.speechService(self, didCompleteWithError: SenseVoiceError.audioProcessingError)
                 }
                 return
             }
             
+            print("📋 解析后的JSON响应: \(response)")
             
             // 提取识别文本
             if let text = response["text"] as? String {
+                print("✅ SenseVoice识别成功，文本: \(text)")
+                
                 // 创建识别结果
                 let result = SpeechRecognitionResult(
                     text: text,
@@ -273,13 +281,17 @@ class VolcEngineSpeechService: NSObject, ObservableObject {
                     emotion: response["emotion"] as? String
                 )
                 
-                
                 DispatchQueue.main.async {
+                    print("🔄 在主线程更新UI和通知代理")
                     self.lastResult = result
                     self.allResults.append(result)
-                    self.delegate?.speechService(self, didReceiveResult: result)
-                    self.delegate?.speechService(self, didCompleteWithError: nil)
                     
+                    // 先通知结果，再通知完成
+                    print("📢 通知代理：识别结果已获得")
+                    self.delegate?.speechService(self, didReceiveResult: result)
+                    
+                    print("📢 通知代理：识别完成")
+                    self.delegate?.speechService(self, didCompleteWithError: nil)
                 }
             } else {
                 // 检查是否有错误信息
@@ -297,6 +309,7 @@ class VolcEngineSpeechService: NSObject, ObservableObject {
             }
             
         } catch {
+            print("❌ JSON解析错误: \(error.localizedDescription)")
             DispatchQueue.main.async {
                 self.delegate?.speechService(self, didCompleteWithError: SenseVoiceError.audioProcessingError)
             }

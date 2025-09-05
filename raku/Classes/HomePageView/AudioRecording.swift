@@ -31,7 +31,6 @@ struct AudioRecording: Identifiable, Equatable {
         self.audioData = audioData
         self.enrichedContent = enrichedContent
     }
-    // sentiment 属性已移除
     
     static func == (lhs: AudioRecording, rhs: AudioRecording) -> Bool {
         return lhs.id == rhs.id
@@ -47,7 +46,7 @@ struct ContentView: View {
         NavigationView {
             ZStack {
                 // 极简背景
-                (isDarkMode ? Color.black : Color(white: 0.98))
+                (isDarkMode ? Color.black : Color.white)
                     .ignoresSafeArea()
                 
                 RecordingsListView(
