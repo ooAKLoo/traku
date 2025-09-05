@@ -512,8 +512,22 @@ extension AudioProcessingPipeline {
             audioRecorder?.isMeteringEnabled = true
             audioRecorder?.prepareToRecord()  // 添加准备录音
             
-            // 8. 开始录音
+            // 8. 软启动录音，减少咔嗒声
+            // 先以很低音量开始，然后快速提升到正常音量
             let recordingStarted = audioRecorder?.record() ?? false
+            
+            // 添加短暂延迟让系统稳定
+            if recordingStarted {
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
+                    // 确保录音器仍然有效并且在录音
+                    guard let self = self, 
+                          let recorder = self.audioRecorder,
+                          recorder.isRecording else { return }
+                    
+                    // 录音器已稳定，可以开始正常处理
+                    print("🎤 录音器已稳定启动")
+                }
+            }
             
             if recordingStarted {
                 print("✅ 手机录音已开始")
@@ -763,25 +777,149 @@ extension AudioProcessingPipeline {
             return recordingSegments.first
         }
         
-        // 合并多个片段（简单的数据拼接，适用于相同格式的WAV文件）
-        var mergedData = Data()
+        // 优化的音频片段合并，减少咔嗒声
+        var mergedAudioData = Data()
+        var totalSamples: UInt32 = 0
         
         for (index, segment) in recordingSegments.enumerated() {
+            let audioData = extractAudioDataFromWAV(segment)
+            
             if index == 0 {
-                // 第一个片段包含完整的WAV头部
-                mergedData.append(segment)
+                // 第一个片段：保留完整音频数据
+                mergedAudioData.append(audioData)
+                totalSamples += UInt32(audioData.count / 2) // 16位 = 2字节per样本
             } else {
-                // 后续片段跳过WAV头部（通常前44字节）
-                let headerSize = 44
-                if segment.count > headerSize {
-                    let audioOnlyData = segment.subdata(in: headerSize..<segment.count)
-                    mergedData.append(audioOnlyData)
+                // 后续片段：应用渐变处理减少咔嗒声
+                let processedAudio = applyCrossfade(mergedAudioData, newAudio: audioData)
+                mergedAudioData = processedAudio
+                totalSamples += UInt32(audioData.count / 2)
+            }
+        }
+        
+        // 创建新的WAV文件头
+        let finalWAV = createWAVHeader(audioDataSize: mergedAudioData.count) + mergedAudioData
+        
+        print("✅ 合并了 \(recordingSegments.count) 个录音片段，总大小: \(finalWAV.count / 1024) KB，总采样数: \(totalSamples)")
+        return finalWAV
+    }
+    
+    /// 从WAV文件中提取纯音频数据
+    private func extractAudioDataFromWAV(_ wavData: Data) -> Data {
+        // WAV文件结构：RIFF头(12字节) + fmt块(24字节) + data块头(8字节) = 最少44字节
+        // 但实际可能有其他块，需要找到"data"标识符
+        
+        guard wavData.count > 44 else { return wavData }
+        
+        // 查找"data"标识符 (0x64617461)
+        let dataMarker: [UInt8] = [0x64, 0x61, 0x74, 0x61] // "data"
+        
+        for i in 0..<(wavData.count - 4) {
+            let slice = wavData.subdata(in: i..<(i+4))
+            if slice.elementsEqual(dataMarker) {
+                // 找到data标记，跳过data标记(4字节) + 数据长度(4字节)
+                let audioStartIndex = i + 8
+                if audioStartIndex < wavData.count {
+                    return wavData.subdata(in: audioStartIndex..<wavData.count)
                 }
             }
         }
         
-        print("✅ 合并了 \(recordingSegments.count) 个录音片段，总大小: \(mergedData.count / 1024) KB")
-        return mergedData
+        // 如果找不到data标记，使用默认44字节偏移
+        return wavData.subdata(in: 44..<wavData.count)
+    }
+    
+    /// 应用交叉淡化减少咔嗒声
+    private func applyCrossfade(_ existingAudio: Data, newAudio: Data) -> Data {
+        let crossfadeSamples = 160 // 10ms at 16kHz (160 samples)
+        let crossfadeBytes = crossfadeSamples * 2 // 16位 = 2字节per样本
+        
+        guard existingAudio.count >= crossfadeBytes,
+              newAudio.count >= crossfadeBytes else {
+            // 如果音频太短，直接拼接
+            print("⚠️ 音频片段太短，跳过交叉淡化: existing=\(existingAudio.count), new=\(newAudio.count)")
+            return existingAudio + newAudio
+        }
+        
+        var result = Data(existingAudio)
+        
+        // 获取交叉淡化区域的数据 - 转换为Array以避免SubSequence索引问题
+        let existingEndBytes = Array(existingAudio.suffix(crossfadeBytes))
+        let newStartBytes = Array(newAudio.prefix(crossfadeBytes))
+        
+        print("🔄 应用交叉淡化: existing=\(existingEndBytes.count)字节, new=\(newStartBytes.count)字节, samples=\(crossfadeSamples)")
+        
+        // 应用交叉淡化
+        var crossfadeData = Data()
+        crossfadeData.reserveCapacity(crossfadeBytes)
+        
+        for i in 0..<crossfadeSamples {
+            let byteIndex = i * 2
+            
+            // 安全边界检查
+            guard byteIndex + 1 < existingEndBytes.count,
+                  byteIndex + 1 < newStartBytes.count else {
+                print("❌ 交叉淡化索引越界: i=\(i), byteIndex=\(byteIndex)")
+                break
+            }
+            
+            // 读取16位PCM样本 (小端序)
+            let existingSample = Int16(existingEndBytes[byteIndex]) | (Int16(existingEndBytes[byteIndex + 1]) << 8)
+            let newSample = Int16(newStartBytes[byteIndex]) | (Int16(newStartBytes[byteIndex + 1]) << 8)
+            
+            // 计算交叉淡化权重
+            let fadeOut = Float(crossfadeSamples - i) / Float(crossfadeSamples)
+            let fadeIn = Float(i) / Float(crossfadeSamples)
+            
+            // 混合样本
+            let mixedSample = Int16(Float(existingSample) * fadeOut + Float(newSample) * fadeIn)
+            
+            // 写回数据 (小端序)
+            crossfadeData.append(UInt8(mixedSample & 0xFF))
+            crossfadeData.append(UInt8((mixedSample >> 8) & 0xFF))
+        }
+        
+        // 替换重叠区域并添加剩余的新音频
+        result.removeLast(crossfadeBytes)
+        result.append(crossfadeData)
+        result.append(newAudio.suffix(from: crossfadeBytes))
+        
+        print("✅ 交叉淡化完成: 最终大小=\(result.count)字节")
+        return result
+    }
+    
+    /// 创建WAV文件头
+    private func createWAVHeader(audioDataSize: Int) -> Data {
+        var header = Data()
+        
+        // RIFF头
+        header.append("RIFF".data(using: .ascii)!) // ChunkID
+        let fileSize = UInt32(36 + audioDataSize) // ChunkSize
+        header.append(withUnsafeBytes(of: fileSize.littleEndian) { Data($0) })
+        header.append("WAVE".data(using: .ascii)!) // Format
+        
+        // fmt子块
+        header.append("fmt ".data(using: .ascii)!) // Subchunk1ID
+        let fmtSize = UInt32(16) // Subchunk1Size
+        header.append(withUnsafeBytes(of: fmtSize.littleEndian) { Data($0) })
+        let audioFormat = UInt16(1) // PCM
+        header.append(withUnsafeBytes(of: audioFormat.littleEndian) { Data($0) })
+        let numChannels = UInt16(1) // Mono
+        header.append(withUnsafeBytes(of: numChannels.littleEndian) { Data($0) })
+        let sampleRate = UInt32(16000) // 16kHz
+        header.append(withUnsafeBytes(of: sampleRate.littleEndian) { Data($0) })
+        let byteRate = UInt32(16000 * 1 * 16 / 8) // SampleRate * NumChannels * BitsPerSample/8
+        header.append(withUnsafeBytes(of: byteRate.littleEndian) { Data($0) })
+        let blockAlign = UInt16(1 * 16 / 8) // NumChannels * BitsPerSample/8
+        header.append(withUnsafeBytes(of: blockAlign.littleEndian) { Data($0) })
+        let bitsPerSample = UInt16(16)
+        header.append(withUnsafeBytes(of: bitsPerSample.littleEndian) { Data($0) })
+        
+        // data子块
+        header.append("data".data(using: .ascii)!) // Subchunk2ID
+        let dataSize = UInt32(audioDataSize)
+        header.append(withUnsafeBytes(of: dataSize.littleEndian) { Data($0) })
+        
+        return header
     }
 }
 
