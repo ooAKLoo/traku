@@ -58,6 +58,7 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
     
     // MARK: - Published Properties
     @Published var isProcessing = false
+    @Published var isPaused = false
     @Published var currentStage = ProcessingStage.idle
     @Published var progress: Float = 0.0
     @Published var isLLMEnabled = false  // LLM开关，默认开启
@@ -73,6 +74,8 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
     // 手机录音相关
     private var audioRecorder: AVAudioRecorder?
     private var phoneRecordingTimer: Timer?
+    private var pausedRecordingURL: URL?
+    private var recordingSegments: [Data] = []
     
     // MARK: - Delegate
     weak var delegate: AudioProcessingPipelineDelegate?
@@ -158,8 +161,51 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
         if let recorder = audioRecorder, recorder.isRecording {
             // 停止手机录音
             stopPhoneAudioRecording()
+        } else if isPaused && currentStage == .recording {
+            // 如果是暂停状态，直接处理录音片段
+            processRecordingSegments()
+            // 注意：不在这里重置状态，让processRecordingSegments()完成后再重置
+            return
+        } else {
+            // 重置状态（只在非暂停状态下直接重置）
+            isProcessing = false
+            isPaused = false
+            currentStage = .idle
+            progress = 0.0
         }
+        
         // ESP32录音由AudioManagerAdapter中的esp32Service处理
+    }
+    
+    /// 暂停录音
+    func pauseRecording() {
+        guard isProcessing, currentStage == .recording, !isPaused else { return }
+        
+        isPaused = true
+        
+        if let recorder = audioRecorder, recorder.isRecording {
+            // 暂停手机录音
+            pausePhoneRecording()
+        }
+        
+        // 暂停计时器
+        phoneRecordingTimer?.invalidate()
+        phoneRecordingTimer = nil
+    }
+    
+    /// 恢复录音
+    func resumeRecording() {
+        guard isProcessing, currentStage == .recording, isPaused else { return }
+        
+        isPaused = false
+        
+        if audioRecorder != nil {
+            // 恢复手机录音
+            resumePhoneRecording()
+        }
+        
+        // 恢复计时器
+        startPhoneRecordingTimer()
     }
     
     /// 取消当前处理
@@ -173,6 +219,7 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
         }
         
         isProcessing = false
+        isPaused = false
         currentStage = .failed
         progress = 0.0
         
@@ -192,10 +239,13 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
         recordingStartTime = nil
         currentRecordingId = nil
         progress = 0.0
+        isPaused = false
         
         // 清理手机录音相关状态
         phoneRecordingTimer?.invalidate()
         phoneRecordingTimer = nil
+        pausedRecordingURL = nil
+        recordingSegments.removeAll()
     }
     
     private func startSpeechRecognition(audioData: Data) {
@@ -491,12 +541,16 @@ extension AudioProcessingPipeline {
         
         guard let recorder = audioRecorder else {
             print("⚠️ 录音器不存在")
+            // 如果有录音片段，尝试合并
+            if !recordingSegments.isEmpty {
+                processRecordingSegments()
+            }
             return
         }
         
         // 记录当前时间和录音状态
         let isRecording = recorder.isRecording
-        let recordingTime = recorder.currentTime
+        let recordingTime = currentDuration // 使用累计时长而不是recorder.currentTime
         
         print("📊 录音状态: \(isRecording ? "录音中" : "未录音")")
         print("⏱ 录音时长: \(recordingTime)秒")
@@ -513,48 +567,29 @@ extension AudioProcessingPipeline {
             
             if FileManager.default.fileExists(atPath: fileURL.path) {
                 do {
-                    let audioData = try Data(contentsOf: fileURL)
-                    let fileSize = audioData.count
+                    let finalSegmentData = try Data(contentsOf: fileURL)
                     
-                    print("✅ 录音文件读取成功")
-                    print("📏 文件大小: \(fileSize / 1024) KB")
-                    
-                    if fileSize > 0 {
-                        self.currentRecordingData = audioData
-                        self.currentDuration = recordingTime
-                        
-                        self.delegate?.pipeline(self,
-                                               didFinishRecording: audioData,
-                                               duration: recordingTime)
-                        
-                        // 立即创建初始录音记录
-                        let initialRecording = self.createInitialRecording(audioData: audioData, duration: recordingTime)
-                        self.delegate?.pipeline(self, didCreateInitialRecording: initialRecording)
-                        
-                        self.startSpeechRecognition(audioData: audioData)
-                    } else {
-                        print("❌ 录音文件为空")
-                        self.failPipeline(with: .recordingFailed(
-                            NSError(domain: "AudioRecording",
-                                  code: -5,
-                                  userInfo: [NSLocalizedDescriptionKey: "录音文件为空"])
-                        ))
+                    // 添加最后一个录音片段
+                    if finalSegmentData.count > 0 {
+                        self.recordingSegments.append(finalSegmentData)
+                        print("✅ 保存最终录音片段，大小: \(finalSegmentData.count / 1024) KB")
                     }
                     
                     // 清理临时文件
                     try? FileManager.default.removeItem(at: fileURL)
                     
+                    // 处理录音片段
+                    self.processRecordingSegments()
+                    
                 } catch {
-                    print("❌ 读取录音文件失败: \(error.localizedDescription)")
-                    self.failPipeline(with: .recordingFailed(error))
+                    print("❌ 读取最终录音文件失败: \(error.localizedDescription)")
+                    // 仍然尝试处理已有的片段
+                    self.processRecordingSegments()
                 }
             } else {
-                print("❌ 录音文件不存在")
-                self.failPipeline(with: .recordingFailed(
-                    NSError(domain: "AudioRecording",
-                          code: -6,
-                          userInfo: [NSLocalizedDescriptionKey: "录音文件不存在"])
-                ))
+                print("❌ 最终录音文件不存在")
+                // 仍然尝试处理已有的片段
+                self.processRecordingSegments()
             }
             
             self.audioRecorder = nil
@@ -565,6 +600,58 @@ extension AudioProcessingPipeline {
             try AVAudioSession.sharedInstance().setActive(false)
         } catch {
             print("⚠️ 重置音频会话失败: \(error.localizedDescription)")
+        }
+    }
+    
+    /// 处理录音片段
+    private func processRecordingSegments() {
+        let finalAudioData: Data
+        let finalDuration = currentDuration
+        
+        if recordingSegments.isEmpty {
+            print("❌ 没有录音片段可处理")
+            failPipeline(with: .recordingFailed(
+                NSError(domain: "AudioRecording",
+                      code: -8,
+                      userInfo: [NSLocalizedDescriptionKey: "没有录音数据"])
+            ))
+            return
+        }
+        
+        // 合并录音片段
+        if let mergedData = mergeRecordingSegments() {
+            finalAudioData = mergedData
+        } else {
+            print("❌ 合并录音片段失败")
+            failPipeline(with: .recordingFailed(
+                NSError(domain: "AudioRecording",
+                      code: -9,
+                      userInfo: [NSLocalizedDescriptionKey: "合并录音片段失败"])
+            ))
+            return
+        }
+        
+        print("✅ 最终录音数据大小: \(finalAudioData.count / 1024) KB，时长: \(finalDuration)秒")
+        
+        if finalAudioData.count > 0 {
+            currentRecordingData = finalAudioData
+            
+            delegate?.pipeline(self,
+                               didFinishRecording: finalAudioData,
+                               duration: finalDuration)
+            
+            // 立即创建初始录音记录
+            let initialRecording = createInitialRecording(audioData: finalAudioData, duration: finalDuration)
+            delegate?.pipeline(self, didCreateInitialRecording: initialRecording)
+            
+            startSpeechRecognition(audioData: finalAudioData)
+        } else {
+            print("❌ 最终录音文件为空")
+            failPipeline(with: .recordingFailed(
+                NSError(domain: "AudioRecording",
+                      code: -5,
+                      userInfo: [NSLocalizedDescriptionKey: "录音文件为空"])
+            ))
         }
     }
     
@@ -591,6 +678,110 @@ extension AudioProcessingPipeline {
                 print("⚠️ 检测到静音，请检查麦克风权限和输入源")
             }
         }
+    }
+    
+    /// 暂停手机录音
+    private func pausePhoneRecording() {
+        guard let recorder = audioRecorder, recorder.isRecording else { return }
+        
+        // 保存当前录音片段
+        let currentURL = recorder.url
+        recorder.stop()
+        
+        // 读取并保存当前录音数据
+        if FileManager.default.fileExists(atPath: currentURL.path) {
+            do {
+                let segmentData = try Data(contentsOf: currentURL)
+                recordingSegments.append(segmentData)
+                print("✅ 保存录音片段，大小: \(segmentData.count / 1024) KB")
+                
+                // 删除临时文件
+                try? FileManager.default.removeItem(at: currentURL)
+            } catch {
+                print("❌ 保存录音片段失败: \(error.localizedDescription)")
+            }
+        }
+        
+        pausedRecordingURL = currentURL
+        print("⏸ 录音已暂停")
+    }
+    
+    /// 恢复手机录音
+    private func resumePhoneRecording() {
+        guard pausedRecordingURL != nil else { return }
+        
+        do {
+            // 创建新的录音文件
+            let documentsPath = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            let newAudioFilename = documentsPath.appendingPathComponent("recording_resume_\(Date().timeIntervalSince1970).wav")
+            
+            // 使用相同的录音设置
+            let settings: [String: Any] = [
+                AVFormatIDKey: Int(kAudioFormatLinearPCM),
+                AVSampleRateKey: 16000,
+                AVNumberOfChannelsKey: 1,
+                AVLinearPCMBitDepthKey: 16,
+                AVLinearPCMIsFloatKey: false,
+                AVLinearPCMIsBigEndianKey: false,
+                AVEncoderAudioQualityKey: AVAudioQuality.high.rawValue
+            ]
+            
+            // 删除旧文件（如果存在）
+            if FileManager.default.fileExists(atPath: newAudioFilename.path) {
+                try FileManager.default.removeItem(at: newAudioFilename)
+            }
+            
+            // 创建新的录音器
+            audioRecorder = try AVAudioRecorder(url: newAudioFilename, settings: settings)
+            audioRecorder?.delegate = self
+            audioRecorder?.isMeteringEnabled = true
+            audioRecorder?.prepareToRecord()
+            
+            // 开始新的录音
+            let recordingStarted = audioRecorder?.record() ?? false
+            
+            if recordingStarted {
+                print("▶️ 录音已恢复")
+                pausedRecordingURL = nil
+            } else {
+                print("❌ 恢复录音失败")
+                throw NSError(domain: "AudioRecording", code: -7, userInfo: [NSLocalizedDescriptionKey: "无法恢复录音"])
+            }
+            
+        } catch {
+            print("❌ 恢复录音设置失败: \(error.localizedDescription)")
+            failPipeline(with: .recordingFailed(error))
+        }
+    }
+    
+    /// 合并所有录音片段
+    private func mergeRecordingSegments() -> Data? {
+        guard !recordingSegments.isEmpty else { return nil }
+        
+        // 如果只有一个片段，直接返回
+        if recordingSegments.count == 1 {
+            return recordingSegments.first
+        }
+        
+        // 合并多个片段（简单的数据拼接，适用于相同格式的WAV文件）
+        var mergedData = Data()
+        
+        for (index, segment) in recordingSegments.enumerated() {
+            if index == 0 {
+                // 第一个片段包含完整的WAV头部
+                mergedData.append(segment)
+            } else {
+                // 后续片段跳过WAV头部（通常前44字节）
+                let headerSize = 44
+                if segment.count > headerSize {
+                    let audioOnlyData = segment.subdata(in: headerSize..<segment.count)
+                    mergedData.append(audioOnlyData)
+                }
+            }
+        }
+        
+        print("✅ 合并了 \(recordingSegments.count) 个录音片段，总大小: \(mergedData.count / 1024) KB")
+        return mergedData
     }
 }
 

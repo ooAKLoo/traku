@@ -144,6 +144,30 @@ class ESP32AudioService: NSObject, ObservableObject {
         audioStreamModule.stopRecording()
     }
     
+    /// 暂停录音
+    func pauseRecording() {
+        guard isConnected else {
+            delegate?.esp32AudioService(self, didEncounterError: ESP32AudioServiceError.notConnected)
+            return
+        }
+        
+        // ESP32可能不支持暂停，发送PAUSE命令，如果不支持则继续录音
+        webSocketModule.sendTextMessage("PAUSE")
+        print("⏸ 发送暂停命令到ESP32设备")
+    }
+    
+    /// 恢复录音
+    func resumeRecording() {
+        guard isConnected else {
+            delegate?.esp32AudioService(self, didEncounterError: ESP32AudioServiceError.notConnected)
+            return
+        }
+        
+        // ESP32恢复录音，发送RESUME命令，如果不支持则重新开始录音
+        webSocketModule.sendTextMessage("RESUME")
+        print("▶️ 发送恢复命令到ESP32设备")
+    }
+    
     /// 播放录音
     func playRecording(_ recording: AudioRecording) {
         guard let audioData = recording.audioData else { return }

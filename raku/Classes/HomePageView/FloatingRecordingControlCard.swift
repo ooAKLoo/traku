@@ -6,10 +6,14 @@ struct FloatingRecordingControlCard: View {
     @ObservedObject var audioManager: AudioManagerAdapter
     @AppStorage("isDarkMode") private var isDarkMode = false
     @State private var isRecording = false
-    @State private var isPaused = false
     @State private var recordingTime: TimeInterval = 0
     @State private var timer: Timer?
     @Namespace private var heroNamespace
+    
+    // 计算属性：从AudioManager获取暂停状态
+    private var isPaused: Bool {
+        audioManager.isPaused
+    }
     
     var body: some View {
         VStack(spacing: 0) {
@@ -34,10 +38,7 @@ struct FloatingRecordingControlCard: View {
                 .fill(
                     LinearGradient(
                         colors: isRecording ?
-                            (isPaused ?
-                                [Color.orange.opacity(0.8), Color.orange] :
-                                [Color.red.opacity(0.2), Color.red.opacity(0.4)]
-                            ) :
+                            ([Color.red.opacity(0.2), Color.red.opacity(0.4)]) :
                             [Color.blue, Color.purple],
                         startPoint: .topLeading,
                         endPoint: .bottomTrailing
@@ -46,13 +47,6 @@ struct FloatingRecordingControlCard: View {
                 .frame(
                     width: isRecording ? 220 : 70,
                     height: 70
-                )
-                .shadow(
-                    color: (isRecording ?
-                        (isPaused ? Color.orange : Color.red) :
-                        Color.blue
-                    ).opacity(0.3),
-                    radius: isRecording ? 12 : 8
                 )
             
             // 前景内容
@@ -102,7 +96,6 @@ struct FloatingRecordingControlCard: View {
                         .foregroundColor(isPaused ? .green : .orange)
                 }
             }
-            .disabled(isPaused && !audioManager.isConnected)
             .scaleEffect(isPaused ? 1.1 : 1.0)
             .animation(.spring(response: 0.3), value: isPaused)
             
@@ -111,7 +104,6 @@ struct FloatingRecordingControlCard: View {
                 Text(FormatHelper.formatDurationWithDecimal(recordingTime))
                     .font(.system(size: 18, weight: .semibold, design: .monospaced))
                     .foregroundColor(.white)
-                    .shadow(color: .black.opacity(0.3), radius: 1)
                 
                 HStack(spacing: 6) {
                     // 录音状态指示点
@@ -130,7 +122,6 @@ struct FloatingRecordingControlCard: View {
                     Text(isPaused ? "已暂停" : "录音中")
                         .font(.system(size: 12, weight: .medium))
                         .foregroundColor(.white.opacity(0.9))
-                        .shadow(color: .black.opacity(0.3), radius: 1)
                 }
             }
             .layoutPriority(1)
@@ -196,22 +187,15 @@ struct FloatingRecordingControlCard: View {
             stiffness: 200.0,
             damping: 12.0
         )) {
-            isPaused.toggle()
-        }
-        
-        if isPaused {
-            // 暂停录音 - 暂停计时器但不停止录音服务
-            timer?.invalidate()
-        } else {
-            // 恢复录音 - 重新开始计时器
-            startTimer()
-        }
-        
-        // 通知音频管理器暂停/恢复状态
-        if audioManager.isConnected {
-            // ESP32设备可能不支持暂停，这里可以根据实际情况处理
-        } else {
-            // 手机录音的暂停/恢复需要在AudioProcessingPipeline中实现
+            if isPaused {
+                // 当前是暂停状态，恢复录音
+                audioManager.resumeRecording()
+                startTimer()
+            } else {
+                // 当前是录音状态，暂停录音
+                audioManager.pauseRecording()
+                timer?.invalidate()
+            }
         }
     }
     
@@ -237,7 +221,8 @@ struct FloatingRecordingControlCard: View {
             recordingTime = 0
         }
         timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
-            if !self.isPaused {
+            // 只有在未暂停状态下才增加时间
+            if !self.audioManager.isPaused {
                 self.recordingTime += 0.1
             }
         }
@@ -248,7 +233,6 @@ struct FloatingRecordingControlCard: View {
         timer?.invalidate()
         timer = nil
         recordingTime = 0
-        isPaused = false
     }
 }
 

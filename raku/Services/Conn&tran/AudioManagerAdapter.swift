@@ -12,6 +12,7 @@ class AudioManagerAdapter: ObservableObject {
     // MARK: - Published Properties
     @Published var isConnected = false
     @Published var isRecording = false
+    @Published var isPaused = false
     @Published var recordings: [AudioRecording] = []
     @Published var audioLevels: [Float] = []
     @Published var connectionStatus = "未连接"
@@ -80,6 +81,24 @@ class AudioManagerAdapter: ObservableObject {
         esp32Service.stopRecording()
     }
     
+    /// 暂停录音
+    func pauseRecording() {
+        isPaused = true
+        processingPipeline.pauseRecording()
+        if isConnected {
+            esp32Service.pauseRecording()
+        }
+    }
+    
+    /// 恢复录音
+    func resumeRecording() {
+        isPaused = false
+        processingPipeline.resumeRecording()
+        if isConnected {
+            esp32Service.resumeRecording()
+        }
+    }
+    
     /// 播放录音
     func playRecording(_ recording: AudioRecording) {
         esp32Service.playRecording(recording)
@@ -123,6 +142,12 @@ class AudioManagerAdapter: ObservableObject {
             }
             .receive(on: DispatchQueue.main)
             .assign(to: \.isRecording, on: self)
+            .store(in: &cancellables)
+        
+        // 绑定暂停状态
+        processingPipeline.$isPaused
+            .receive(on: DispatchQueue.main)
+            .assign(to: \.isPaused, on: self)
             .store(in: &cancellables)
         
         // 不再绑定ESP32Service的录音列表，录音管理完全由AudioManagerAdapter处理

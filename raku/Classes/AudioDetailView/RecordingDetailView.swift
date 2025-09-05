@@ -151,8 +151,8 @@ struct RecordingDetailView: View {
                             
                             // 增强内容 - 使用Markdown渲染
                             if let enrichedContent = recording.enrichedContent, !enrichedContent.isEmpty {
-                                Markdown("\(enrichedContent)")  // 直接传入 Markdown 字符串
-                                    .markdownTheme(Theme.docC)  // 应用自定义主题（或内置主题）
+                                Markdown("\(enrichedContent)")
+                                    .markdownTheme(.customCompact)
                                     .padding(.horizontal, 24)
                                     .padding(.top, 12)
                             }
@@ -394,4 +394,41 @@ struct RecordingDetailView_Previews: PreviewProvider {
             )
         )
     }
+}
+
+
+extension Theme {
+    static let customCompact = Theme.docC
+        .text {
+            FontSize(.em(0.85))
+        }
+        .paragraph { configuration in
+            configuration.label
+                .markdownTextStyle {
+                    FontSize(.em(0.85))
+                }
+        }
+        .heading1 { configuration in
+            configuration.label
+                .markdownTextStyle {
+                    FontSize(.em(1.4))
+                    FontWeight(.bold)
+                }
+                .markdownMargin(top: 16, bottom: 8)
+        }
+        .heading2 { configuration in
+            configuration.label
+                .markdownTextStyle {
+                    FontSize(.em(1.2))
+                    FontWeight(.semibold)
+                }
+                .markdownMargin(top: 12, bottom: 6)
+        }
+        .heading3 { configuration in
+            configuration.label
+                .markdownTextStyle {
+                    FontSize(.em(1.1))
+                    FontWeight(.medium)
+                }
+        }
 }
