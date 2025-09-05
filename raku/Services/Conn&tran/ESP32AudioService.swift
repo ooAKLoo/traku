@@ -71,7 +71,7 @@ class ESP32AudioService: NSObject, ObservableObject {
         super.init()
         setupBindings()
         setupDelegates()
-        loadMockData()
+        // mock数据加载由AudioManagerAdapter处理
     }
     
     deinit {
@@ -155,11 +155,10 @@ class ESP32AudioService: NSObject, ObservableObject {
         audioStreamModule.stopPlaying()
     }
     
-    /// 删除录音
+    /// 删除录音（ESP32Service不再管理录音列表）
     func deleteRecording(_ recording: AudioRecording) {
-        if let index = recordings.firstIndex(where: { $0.id == recording.id }) {
-            recordings.remove(at: index)
-        }
+        // 录音列表管理由AudioManagerAdapter负责
+        // 这里只做清理工作（如果需要）
     }
     
     /// 获取连接状态文本
@@ -222,7 +221,7 @@ class ESP32AudioService: NSObject, ObservableObject {
     }
     
     private func loadMockData() {
-        self.recordings = MockDataService.shared.getMockRecordings()
+        // 不再加载mock数据，由AudioManagerAdapter统一管理
     }
     
     /// 处理录音数据
@@ -240,7 +239,7 @@ class ESP32AudioService: NSObject, ObservableObject {
         )
         
         DispatchQueue.main.async {
-            self.recordings.insert(recording, at: 0)
+            // 不再向ESP32Service的recordings数组添加录音，录音管理由AudioManagerAdapter处理
             self.delegate?.esp32AudioService(self, didFinishRecording: recording)
         }
     }

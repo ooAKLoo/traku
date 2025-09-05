@@ -3,7 +3,6 @@
 //  raku
 //
 //  Created by 杨东举 on 2025/8/26.
-//  已更新：移除sentiment属性
 //
 
 import SwiftUI
@@ -12,7 +11,7 @@ import Combine
 
 // MARK: - 数据模型
 struct AudioRecording: Identifiable, Equatable {
-    let id = UUID()
+    let id: UUID
     let timestamp: Date
     let duration: TimeInterval
     let transcription: String
@@ -21,6 +20,17 @@ struct AudioRecording: Identifiable, Equatable {
     let audioData: Data?
     var isPlaying: Bool = false
     let enrichedContent: String?
+    
+    init(id: UUID? = nil, timestamp: Date, duration: TimeInterval, transcription: String, summary: String, tags: [String], audioData: Data?, enrichedContent: String?) {
+        self.id = id ?? UUID()
+        self.timestamp = timestamp
+        self.duration = duration
+        self.transcription = transcription
+        self.summary = summary
+        self.tags = tags
+        self.audioData = audioData
+        self.enrichedContent = enrichedContent
+    }
     // sentiment 属性已移除
     
     static func == (lhs: AudioRecording, rhs: AudioRecording) -> Bool {

@@ -30,6 +30,9 @@ class AudioManagerAdapter: ObservableObject {
         setupBindings()
         esp32Service.delegate = self
         processingPipeline.delegate = self
+        
+        // 加载mock数据（由AudioManagerAdapter管理）
+        loadMockData()
     }
     
     // MARK: - Public Methods
@@ -60,14 +63,20 @@ class AudioManagerAdapter: ObservableObject {
         esp32Service.disconnect()
     }
     
-    /// 开始录音
+    /// 开始录音（ESP32设备）
     func startRecording() {
         processingPipeline.startRecording()
         esp32Service.startRecording()
     }
     
+    /// 开始手机录音
+    func startPhoneRecording() {
+        processingPipeline.startPhoneRecording()
+    }
+    
     /// 停止录音
     func stopRecording() {
+        processingPipeline.stopRecording()
         esp32Service.stopRecording()
     }
     
@@ -83,6 +92,12 @@ class AudioManagerAdapter: ObservableObject {
     
     /// 删除录音
     func deleteRecording(_ recording: AudioRecording) {
+        DispatchQueue.main.async {
+            if let index = self.recordings.firstIndex(where: { $0.id == recording.id }) {
+                self.recordings.remove(at: index)
+            }
+        }
+        // 通知ESP32Service做清理工作（如果需要）
         esp32Service.deleteRecording(recording)
     }
     
@@ -101,17 +116,16 @@ class AudioManagerAdapter: ObservableObject {
             .assign(to: \.connectionStatus, on: self)
             .store(in: &cancellables)
         
-        // 绑定录音状态
-        esp32Service.$isRecording
+        // 绑定录音状态 - 合并ESP32和Pipeline的录音状态
+        Publishers.CombineLatest(esp32Service.$isRecording, processingPipeline.$isProcessing)
+            .map { esp32Recording, pipelineProcessing in
+                return esp32Recording || (pipelineProcessing && self.processingPipeline.isInStage(.recording))
+            }
             .receive(on: DispatchQueue.main)
             .assign(to: \.isRecording, on: self)
             .store(in: &cancellables)
         
-        // 绑定录音列表
-        esp32Service.$recordings
-            .receive(on: DispatchQueue.main)
-            .assign(to: \.recordings, on: self)
-            .store(in: &cancellables)
+        // 不再绑定ESP32Service的录音列表，录音管理完全由AudioManagerAdapter处理
         
         // 绑定音频级别
         esp32Service.$audioLevels
@@ -154,6 +168,12 @@ extension AudioManagerAdapter: AudioProcessingPipelineDelegate {
     func pipeline(_ pipeline: AudioProcessingPipeline, didFinishRecording audioData: Data, duration: TimeInterval) {
     }
     
+    func pipeline(_ pipeline: AudioProcessingPipeline, didCreateInitialRecording recording: AudioRecording) {
+        DispatchQueue.main.async {
+            self.recordings.insert(recording, at: 0)
+        }
+    }
+    
     func pipeline(_ pipeline: AudioProcessingPipeline, didReceiveSpeechResult result: SpeechRecognitionResult) {
     }
     
@@ -161,9 +181,12 @@ extension AudioManagerAdapter: AudioProcessingPipelineDelegate {
     }
     
     func pipeline(_ pipeline: AudioProcessingPipeline, didCompleteFinalAnalysis recording: AudioRecording) {
-        
         DispatchQueue.main.async {
-            self.recordings.insert(recording, at: 0)
+            if let index = self.recordings.firstIndex(where: { $0.id == recording.id }) {
+                self.recordings[index] = recording
+            } else {
+                self.recordings.insert(recording, at: 0)
+            }
         }
     }
     
@@ -187,6 +210,15 @@ extension AudioManagerAdapter: AudioProcessingPipelineDelegate {
     
     private func generateMockAudioData() -> Data {
         return MockDataService.shared.generateMockAudioData()
+    }
+    
+    /// 加载mock数据
+    private func loadMockData() {
+        #if DEBUG
+        DispatchQueue.main.async {
+            self.recordings = MockDataService.shared.getMockRecordings()
+        }
+        #endif
     }
 }
 
