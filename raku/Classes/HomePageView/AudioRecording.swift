@@ -44,7 +44,7 @@ struct AudioRecording: Identifiable, Equatable {
 // MARK: - 主视图
 struct ContentView: View {
     @StateObject private var audioManager = AudioManagerAdapter()
-    @AppStorage("isDarkMode") private var isDarkMode = true
+    @AppStorage("isDarkMode") private var isDarkMode = false
     
     var body: some View {
         NavigationView {

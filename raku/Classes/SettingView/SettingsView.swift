@@ -10,6 +10,7 @@ import SwiftUI
 struct SettingsView: View {
     @Environment(\.dismiss) var dismiss
     @AppStorage("isDarkMode") private var isDarkMode = true
+    @State private var showingDatabaseDebug = false
     
     var body: some View {
         NavigationView {
@@ -52,6 +53,9 @@ struct SettingsView: View {
                         SettingsRowView(icon: "lock", title: "隐私", isDarkMode: isDarkMode, action: {})
                         SettingsRowView(icon: "questionmark.circle", title: "帮助", isDarkMode: isDarkMode, action: {})
                         SettingsRowView(icon: "info.circle", title: "关于", isDarkMode: isDarkMode, action: {})
+                        SettingsRowView(icon: "cylinder", title: "数据库调试", isDarkMode: isDarkMode, action: {
+                            showingDatabaseDebug = true
+                        })
                     }
                     .padding(.horizontal)
                     
@@ -71,6 +75,9 @@ struct SettingsView: View {
             }
         }
         .preferredColorScheme(isDarkMode ? .dark : .light)
+        .sheet(isPresented: $showingDatabaseDebug) {
+            DatabaseDebugView()
+        }
     }
 }
 
