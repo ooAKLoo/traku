@@ -28,17 +28,11 @@ struct TwoStepLLMConfiguration {
 
 // MARK: - 闪念类型枚举
 enum FlashThoughtType: String, CaseIterable {
-    case inspiration = "灵感"
-    case idea = "想法"
     case reflection = "思考"
     case unknown = "未分类"
     
     var promptKey: String {
         switch self {
-        case .inspiration:
-            return "inspiration"
-        case .idea:
-            return "idea"
         case .reflection:
             return "reflection"
         case .unknown:
@@ -158,8 +152,6 @@ class TwoStepLLMService: NSObject, ObservableObject {
         你是一个精准的闪念分类助手。请严格按照以下要求处理用户输入：
 
         1. **类型判定**（必须选择其一）：
-           - 经验感悟(insight)：个人经验总结、感悟体会、从经历中提炼的见解
-           - 想法(idea)：明确计划、具体决定、行动意向
            - 思考(reflection)：深度思考、疑问探索、矛盾分析
 
         2. **生成标题**：
@@ -174,7 +166,7 @@ class TwoStepLLMService: NSObject, ObservableObject {
         输出格式要求（严格JSON）：
         {
           "title": "简洁标题",
-          "type": "insight/idea/reflection",
+          "type": "reflection",
           "tags": ["标签1", "标签2"],
           \(needsSummary ? "\"summary\": \"一句话总结\"," : "")
           "confidence": 0.9
@@ -252,8 +244,6 @@ class TwoStepLLMService: NSObject, ObservableObject {
             let summary = result["summary"] as? String
             
             let thoughtType = FlashThoughtType(rawValue:
-                typeString == "insight" ? "经验感悟" :
-                typeString == "idea" ? "想法" :
                 typeString == "reflection" ? "思考" : "未分类"
             ) ?? .unknown
             
@@ -402,36 +392,12 @@ class TwoStepLLMService: NSObject, ObservableObject {
     
     private func getMarkdownPromptForType(_ type: FlashThoughtType) -> String {
         switch type {
-        case .inspiration:
-            return getInspirationMarkdownPrompt()
-        case .idea:
-            return getIdeaMarkdownPrompt()
         case .reflection:
             return getReflectionMarkdownPrompt()
         case .unknown:
             return getGeneralMarkdownPrompt()
         }
     }
-    
-    private func getInspirationMarkdownPrompt() -> String {
-            return """
-            你是一个专业的思维整理专家，擅长使用金字塔原理（Pyramid Principle）来结构化杂乱的想法，帮助人们深化和闭环他们的思考。通过分析用户的初步想法，提炼核心要素，串联逻辑，并以人性化、自然流畅的方式呈现，帮助用户获得更清晰的洞见和行动启发。
-
-            输出要求：
-            - 以Markdown格式输出，确保整体简洁、易读，避免学术化。
-            - 不使用emoji符号。
-            """
-        }
-    
-    private func getIdeaMarkdownPrompt() -> String {
-            return """
-            你是一个专业的思维整理专家，擅长使用金字塔原理（Pyramid Principle）来结构化杂乱的想法，帮助人们深化和闭环他们的思考。通过分析用户的初步想法，提炼核心要素，串联逻辑，并以人性化、自然流畅的方式呈现，帮助用户获得更清晰的洞见和行动启发。
-
-            输出要求：
-            - 以Markdown格式输出，确保整体简洁、易读，避免学术化。
-            - 不使用emoji符号。
-            """
-        }
     
     private func getReflectionMarkdownPrompt() -> String {
             return """

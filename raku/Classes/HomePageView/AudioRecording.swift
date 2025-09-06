@@ -33,7 +33,11 @@ struct AudioRecording: Identifiable, Equatable {
     }
     
     static func == (lhs: AudioRecording, rhs: AudioRecording) -> Bool {
-        return lhs.id == rhs.id
+        return lhs.id == rhs.id &&
+               lhs.transcription == rhs.transcription &&
+               lhs.summary == rhs.summary &&
+               lhs.tags == rhs.tags &&
+               lhs.enrichedContent == rhs.enrichedContent
     }
 }
 

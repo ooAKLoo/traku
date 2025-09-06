@@ -68,6 +68,7 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
     private var currentRecordingData: Data?
     private var currentDuration: TimeInterval = 0
     private var recordingStartTime: Date?
+    private var currentRecordingId: UUID?  // 当前录音的唯一ID，整个流程中保持不变
     
     // MARK: - Delegate
     weak var delegate: AudioProcessingPipelineDelegate?
@@ -138,10 +139,26 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
         // 如果pipeline未处于正确状态，重新启动处理流程
         if !isProcessing || currentStage != .recording {
             print("⚠️ Pipeline状态不正确，重新启动处理流程")
+            print("🔍 当前currentRecordingId: \(currentRecordingId?.uuidString ?? "nil")")
+            
+            // 只重置状态，保持现有的录音ID（如果存在）
+            let existingRecordingId = currentRecordingId
+            resetPipelineStateOnly()
+            
+            // 如果之前没有录音ID，才生成新的
+            if existingRecordingId == nil {
+                currentRecordingId = UUID()
+                print("🆔 为新录音会话生成ID: \(currentRecordingId?.uuidString ?? "unknown")")
+            } else {
+                currentRecordingId = existingRecordingId
+                print("🔄 保持现有录音ID: \(currentRecordingId?.uuidString ?? "unknown")")
+            }
+            
             isProcessing = true
             currentStage = .recording
-            recordingStartTime = Date()
             progress = 0.1
+            
+            print("✅ Pipeline状态已重置，使用录音ID: \(currentRecordingId?.uuidString ?? "nil")")
         }
         
         currentRecordingData = audioData
@@ -204,6 +221,13 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
     }
     
     private func resetPipeline() {
+        resetPipelineStateOnly()
+        currentRecordingId = UUID()  // 为新录音生成唯一ID
+        print("🆔 为新录音会话生成ID: \(currentRecordingId?.uuidString ?? "unknown")")
+    }
+    
+    /// 只重置pipeline状态，不生成新的录音ID
+    private func resetPipelineStateOnly() {
         currentRecordingData = nil
         currentDuration = 0
         recordingStartTime = nil
@@ -232,13 +256,16 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
     }
     
     private func createInitialRecording(audioData: Data, duration: TimeInterval) -> AudioRecording {
-        // 为初始录音记录生成独立的UUID
-        let initialRecordingId = UUID()
-        print("📝 为初始录音记录生成独立ID: \(initialRecordingId.uuidString)")
+        // 使用当前会话的UUID，确保整个流程中ID保持一致
+        guard let recordingId = currentRecordingId else {
+            fatalError("currentRecordingId 应该在 resetPipeline() 中被设置")
+        }
+        
+        print("📝 创建初始录音记录，使用会话ID: \(recordingId.uuidString)")
         
         guard let startTime = recordingStartTime else {
             return AudioRecording(
-                id: initialRecordingId,
+                id: recordingId,
                 timestamp: Date(),
                 duration: duration,
                 transcription: "处理中...",
@@ -250,7 +277,7 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
         }
         
         return AudioRecording(
-            id: initialRecordingId,
+            id: recordingId,
             timestamp: startTime,
             duration: duration,
             transcription: "处理中...",
@@ -263,10 +290,11 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
     
     private func createFinalRecording(analysisResult: TwoStepAnalysisResult) -> AudioRecording {
         guard let audioData = currentRecordingData,
-              let startTime = recordingStartTime else {
-            // 创建fallback录音，使用新的UUID
+              let startTime = recordingStartTime,
+              let recordingId = currentRecordingId else {
+            // 创建fallback录音，使用当前会话ID或新UUID
             return AudioRecording(
-                id: UUID(),
+                id: currentRecordingId ?? UUID(),
                 timestamp: Date(),
                 duration: currentDuration,
                 transcription: "录音处理失败",
@@ -277,12 +305,10 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
             )
         }
         
-        // 为最终录音记录生成新的UUID
-        let finalRecordingId = UUID()
-        print("📝 为LLM处理后的最终录音记录生成新ID: \(finalRecordingId.uuidString)")
+        print("📝 创建LLM处理后的最终录音记录，使用相同会话ID: \(recordingId.uuidString)")
         
         return AudioRecording(
-            id: finalRecordingId,
+            id: recordingId,  // 使用相同的ID
             timestamp: startTime,
             duration: currentDuration,
             transcription: analysisResult.originalText,
@@ -314,10 +340,11 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
     /// 直接使用语音识别结果创建最终录音记录（不使用LLM）
     private func createAndCompleteFinalRecordingWithSpeechResult(_ result: SpeechRecognitionResult) {
         guard let audioData = currentRecordingData,
-              let startTime = recordingStartTime else {
-            // 创建fallback录音，使用新的UUID
+              let startTime = recordingStartTime,
+              let recordingId = currentRecordingId else {
+            // 创建fallback录音，使用当前会话ID或新UUID
             let fallbackRecording = AudioRecording(
-                id: UUID(),
+                id: currentRecordingId ?? UUID(),
                 timestamp: Date(),
                 duration: currentDuration,
                 transcription: result.text,
@@ -330,13 +357,12 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
             return
         }
         
-        // 为最终录音记录生成新的UUID，确保不与初始记录冲突
-        let finalRecordingId = UUID()
-        print("📝 为最终录音记录生成新ID: \(finalRecordingId.uuidString)")
+        print("📝 创建基于语音识别的最终录音记录，使用相同会话ID: \(recordingId.uuidString)")
+        print("🎤 ASR返回的转录文本: \(result.text)")
         
         // 创建基于语音识别结果的最终录音记录
         let finalRecording = AudioRecording(
-            id: finalRecordingId,
+            id: recordingId,  // 使用相同的ID
             timestamp: startTime,
             duration: currentDuration,
             transcription: result.text,
@@ -346,7 +372,8 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
             enrichedContent: nil
         )
         
-        print("📝 不使用LLM，直接完成录音处理，转录文本：\(result.text)")
+        print("📝 不使用LLM，直接完成录音处理")
+        print("🎯 最终录音记录创建完成 - ID: \(finalRecording.id), 转录: \(finalRecording.transcription)")
         completePipeline(with: finalRecording)
     }
     
