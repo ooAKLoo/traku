@@ -103,7 +103,8 @@ struct RecordingsListView: View {
                 // 录音列表
                 HomepageListView(
                     filteredRecordings: filteredRecordings,
-                    isDarkMode: isDarkMode
+                    isDarkMode: isDarkMode,
+                    onDelete: deleteRecording
                 )
             }
             
@@ -119,6 +120,10 @@ struct RecordingsListView: View {
         .sheet(isPresented: $showingConnectionConfig) {
             ConnectionConfigView(audioManager: audioManager)
         }
+    }
+    
+    private func deleteRecording(_ recording: AudioRecording) {
+        audioManager.deleteRecording(recording)
     }
 }
 

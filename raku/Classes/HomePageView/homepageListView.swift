@@ -11,6 +11,7 @@ import SwiftUI
 struct HomepageListView: View {
     let filteredRecordings: [AudioRecording]
     let isDarkMode: Bool
+    let onDelete: (AudioRecording) -> Void
     
     var body: some View {
         ScrollView {
@@ -20,7 +21,11 @@ struct HomepageListView: View {
                         RecordingDetailView(recording: recording)
                             .navigationBarHidden(true)
                     ) {
-                        RecordingCardView(recording: recording, isDarkMode: isDarkMode)
+                        RecordingCardView(
+                            recording: recording,
+                            isDarkMode: isDarkMode,
+                            onDelete: { onDelete(recording) }
+                        )
                     }
                     .buttonStyle(PlainButtonStyle())
                     .transition(.asymmetric(
@@ -75,14 +80,16 @@ struct HomepageListView_Previews: PreviewProvider {
             // 浅色模式预览
             HomepageListView(
                 filteredRecordings: sampleRecordings,
-                isDarkMode: false
+                isDarkMode: false,
+                onDelete: { _ in print("Delete recording") }
             )
             .previewDisplayName("Light Mode")
             
             // 深色模式预览
             HomepageListView(
                 filteredRecordings: sampleRecordings,
-                isDarkMode: true
+                isDarkMode: true,
+                onDelete: { _ in print("Delete recording") }
             )
             .previewDisplayName("Dark Mode")
             .preferredColorScheme(.dark)
@@ -90,7 +97,8 @@ struct HomepageListView_Previews: PreviewProvider {
             // 空列表预览
             HomepageListView(
                 filteredRecordings: [],
-                isDarkMode: false
+                isDarkMode: false,
+                onDelete: { _ in print("Delete recording") }
             )
             .previewDisplayName("Empty List")
         }
