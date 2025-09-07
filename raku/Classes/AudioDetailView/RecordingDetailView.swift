@@ -89,42 +89,8 @@ struct RecordingDetailView: View {
                 
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 0) {
-                        // 标题区域 - 更紧凑
-                        VStack(alignment: .leading, spacing: 16) {
-                            Text(extractTitle(from: recording.summary))
-                                .font(.system(size: 24, weight: .semibold))
-                                .foregroundColor(isDarkMode ? .white.opacity(0.95) : .black.opacity(0.95))
-                                .lineLimit(2)
-                            
-                            // 时间和标签在同一行
-                            HStack(spacing: 22) {
-                                Text(recording.timestamp.smartFormatted)
-                                    .font(.system(size: 14, weight: .regular))
-                                    .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4))
-                                
-                                // 标签 - 更简洁
-                                if !recording.tags.isEmpty {
-                                    HStack(spacing: 8) {
-                                        ForEach(recording.tags.prefix(3), id: \.self) { tag in
-                                            Text("#\(tag)")
-                                                .font(.system(size: 13, weight: .regular))
-                                                .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
-                                                .padding(.horizontal, 8)
-                                                .padding(.vertical, 4)
-                                                .background(
-                                                    RoundedRectangle(cornerRadius: 8)
-                                                        .fill(isDarkMode ? Color.gray.opacity(0.2) : Color.gray.opacity(0.15))
-                                                )
-                                        }
-                                    }
-                                }
-                                
-                                Spacer()
-                            }
-                        }
-                        .padding(.horizontal, 24)
-                        .padding(.top, 20)
-                        .padding(.bottom, 50)
+                        // 标题区域 - 使用独立组件
+                        RecordingDetailTitleView(recording: recording)
                         
                         // 转写文本部分 - 引用样式
                         VStack(alignment: .leading, spacing: 20) {
@@ -169,7 +135,7 @@ struct RecordingDetailView: View {
     
     // 辅助函数
     
-    func extractTitle(from summary: String) -> String {
+    private func extractTitle(from summary: String) -> String {
         // 从总结中提取第一句作为标题
         let sentences = summary.components(separatedBy: CharacterSet(charactersIn: "。！？"))
         if let firstSentence = sentences.first, !firstSentence.isEmpty {
