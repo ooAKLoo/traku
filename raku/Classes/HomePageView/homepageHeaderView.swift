@@ -24,71 +24,132 @@ struct HomepageHeaderView: View {
         VStack(spacing: 20) {
             // 顶部信息栏
             HStack(spacing: 16) {
-                // 左侧产品信息区域
-                HStack(spacing: 12) {
-                    // 产品图片（可点击配置连接）
-                    Button(action: {
-                        showingConnectionConfig = true
-                    }) {
-                        Image("product")
-                            .resizable()
-                            .aspectRatio(contentMode: .fit)
-                            .frame(width: 40, height: 40)
-                            .background(
-                                Circle()
-                                    .fill(isDarkMode ? Color.gray.opacity(0.15) : Color.gray.opacity(0.1))
-                            )
-                            .clipShape(Circle())
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                    
-                    // 产品信息（纯展示，不可点击）
-                    VStack(alignment: .leading, spacing: 4) {
-                        Text("Echo o1")
-                            .font(.system(size: 16, weight: .medium))
-                            .foregroundColor(isDarkMode ? .white : .black)
+                if !showingSearchBar {
+                    // 左侧产品信息区域（搜索时隐藏）
+                    HStack(spacing: 12) {
+                        // 产品图片（可点击配置连接）
+                        Button(action: {
+                            showingConnectionConfig = true
+                        }) {
+                            Image("product")
+                                .resizable()
+                                .aspectRatio(contentMode: .fit)
+                                .frame(width: 40, height: 40)
+                                .background(
+                                    Circle()
+                                        .fill(isDarkMode ? Color.gray.opacity(0.15) : Color.gray.opacity(0.1))
+                                )
+                                .clipShape(Circle())
+                        }
+                        .buttonStyle(PlainButtonStyle())
                         
-                        Text(audioManager.isConnected ? "已连接" : "未连接")
-                            .font(.system(size: 12))
-                            .foregroundColor(audioManager.isConnected ? 
-                                (isDarkMode ? Color.green.opacity(0.8) : Color.green) : 
-                                (isDarkMode ? Color.red.opacity(0.8) : Color.red))
+                        // 产品信息（纯展示，不可点击）
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text("Echo o1")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(isDarkMode ? .white : .black)
+                            
+                            Text(audioManager.isConnected ? "已连接" : "未连接")
+                                .font(.system(size: 12))
+                                .foregroundColor(audioManager.isConnected ? 
+                                    (isDarkMode ? Color.green.opacity(0.8) : Color.green) : 
+                                    (isDarkMode ? Color.red.opacity(0.8) : Color.red))
+                        }
                     }
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .leading).combined(with: .opacity),
+                        removal: .move(edge: .leading).combined(with: .opacity)
+                    ))
                 }
                 
-                Spacer()
-                
-                // 右侧按钮区域
-                HStack(spacing: 12) {
-                    // 搜索按钮
-                    Button(action: {
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            showingSearchBar.toggle()
+                if showingSearchBar {
+                    // 搜索输入框
+                    HStack(spacing: 12) {
+                        // 返回按钮
+                        Button(action: {
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                showingSearchBar = false
+                                searchText = ""
+                            }
+                        }) {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 18, weight: .medium))
+                                .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.7))
                         }
-                    }) {
-                        Circle()
-                            .fill(isDarkMode ? Color.gray.opacity(0.15) : Color.gray.opacity(0.1))
-                            .frame(width: 40, height: 40)
-                            .overlay(
-                                Image(systemName: "magnifyingglass")
-                                    .font(.system(size: 16))
-                                    .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.7))
+                        
+                        // 搜索输入框
+                        TextField("搜索录音...", text: $searchText)
+                            .font(.system(size: 16))
+                            .foregroundColor(isDarkMode ? .white : .black)
+                            .textFieldStyle(PlainTextFieldStyle())
+                            .padding(.horizontal, 16)
+                            .padding(.vertical, 10)
+                            .background(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .fill(isDarkMode ? Color.gray.opacity(0.15) : Color.gray.opacity(0.1))
                             )
+                            .onAppear {
+                                // 搜索框出现时自动聚焦
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                    // iOS 中通过 UIKit 方式聚焦
+                                    UIApplication.shared.sendAction(#selector(UIResponder.becomeFirstResponder), to: nil, from: nil, for: nil)
+                                }
+                            }
+                        
+                        // 清除按钮
+                        if !searchText.isEmpty {
+                            Button(action: {
+                                searchText = ""
+                            }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 16))
+                                    .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
+                            }
+                        }
                     }
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .leading).combined(with: .opacity),
+                        removal: .move(edge: .leading).combined(with: .opacity)
+                    ))
+                } else {
+                    Spacer()
                     
-                    // 设置按钮
-                    Button(action: {
-                        showingSettings = true
-                    }) {
-                        Circle()
-                            .fill(isDarkMode ? Color.gray.opacity(0.15) : Color.gray.opacity(0.1))
-                            .frame(width: 40, height: 40)
-                            .overlay(
-                                Image(systemName: "gearshape")
-                                    .font(.system(size: 16))
-                                    .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.7))
-                            )
+                    // 右侧按钮区域（搜索时隐藏）
+                    HStack(spacing: 12) {
+                        // 搜索按钮
+                        Button(action: {
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                showingSearchBar.toggle()
+                            }
+                        }) {
+                            Circle()
+                                .fill(isDarkMode ? Color.gray.opacity(0.15) : Color.gray.opacity(0.1))
+                                .frame(width: 40, height: 40)
+                                .overlay(
+                                    Image(systemName: "magnifyingglass")
+                                        .font(.system(size: 16))
+                                        .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.7))
+                                )
+                        }
+                        
+                        // 设置按钮
+                        Button(action: {
+                            showingSettings = true
+                        }) {
+                            Circle()
+                                .fill(isDarkMode ? Color.gray.opacity(0.15) : Color.gray.opacity(0.1))
+                                .frame(width: 40, height: 40)
+                                .overlay(
+                                    Image(systemName: "gearshape")
+                                        .font(.system(size: 16))
+                                        .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.7))
+                                )
+                        }
                     }
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .trailing).combined(with: .opacity),
+                        removal: .move(edge: .trailing).combined(with: .opacity)
+                    ))
                 }
             }
             
