@@ -20,6 +20,9 @@ struct RecordingDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage("isDarkMode") private var isDarkMode = false
     @StateObject private var audioManager = AudioManagerAdapter()
+    @State private var headings: [HeadingNode] = []
+    @State private var selectedHeadingId: String? = nil
+    @State private var scrollProxy: ScrollViewProxy? = nil
     
     init(recording: AudioRecording) {
         self.recording = recording
@@ -94,8 +97,9 @@ struct RecordingDetailView: View {
                 }
                 .padding(.horizontal, 8)
                 
-                ScrollView(.vertical, showsIndicators: false) {
-                    VStack(alignment: .leading, spacing: 0) {
+                ScrollViewReader { proxy in
+                    ScrollView(.vertical, showsIndicators: false) {
+                        VStack(alignment: .leading, spacing: 0) {
                         // 标题区域 - 使用独立组件
                         RecordingDetailTitleView(
                             recording: AudioRecording(
@@ -135,25 +139,66 @@ struct RecordingDetailView: View {
                         // AI总结部分 - 黑体强调，无标题
                         VStack(alignment: .leading, spacing: 24) {
                             
-                            // 增强内容 - 使用Markdown渲染
+                            // 增强内容 - 使用分段Markdown渲染
                             if let enrichedContent = recording.enrichedContent, !enrichedContent.isEmpty {
-                                Markdown("\(enrichedContent)")
-                                    .markdownTheme(.customCompact)
-                                    .padding(.horizontal, 24)
-                                    .padding(.top, 12)
+                                MarkdownSectionView(
+                                    content: enrichedContent,
+                                    headings: headings,
+                                    selectedHeadingId: $selectedHeadingId,
+                                    scrollProxy: scrollProxy
+                                )
+                                .padding(.horizontal, 24)
+                                .padding(.top, 12)
                             }
                         }
                         
-                        // 底部留白
-                        Color.clear.frame(height: 60)
+                        // 底部留白（为章节标签栏预留空间）
+                        Color.clear.frame(height: headings.isEmpty ? 60 : 100)
+                        }
+                    }
+                    .onAppear {
+                        scrollProxy = proxy
                     }
                 }
+            }
+            
+            // 底部浮动章节标签栏
+            if !headings.isEmpty {
+                VStack {
+                    Spacer()
+                    ChapterTabBar(
+                        headings: headings,
+                        selectedHeadingId: $selectedHeadingId,
+                        onHeadingSelected: { index in
+                            // 跳转到对应章节
+                            withAnimation(.easeInOut(duration: 0.4)) {
+                                scrollProxy?.scrollTo("section_\(index)", anchor: .top)
+                            }
+                        }
+                    )
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .bottom).combined(with: .opacity),
+                        removal: .move(edge: .bottom).combined(with: .opacity)
+                    ))
+                }
+                .animation(.spring(response: 0.5, dampingFraction: 0.8), value: headings.count)
             }
         }
         .preferredColorScheme(.dark)
         .onAppear {
             if let enrichedContent = recording.enrichedContent, !enrichedContent.isEmpty {
                 let headingTree = MarkdownHeadingParser.parseHeadings(from: enrichedContent)
+                
+                // 更新标题列表
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    self.headings = headingTree.flatList
+                    // 默认选中第一个标题
+                    if !headingTree.flatList.isEmpty {
+                        self.selectedHeadingId = "0"
+                    }
+                }
+                
+                // 打印调试信息
                 print("=== 标题层级结构 ===")
                 print("目录结构:")
                 print(headingTree.getTableOfContents())
