@@ -9,6 +9,7 @@ import SwiftUI
 
 struct RecordingDetailTitleView: View {
     let recording: AudioRecording
+    let onTagTap: () -> Void
     @AppStorage("isDarkMode") private var isDarkMode = true
     
     var body: some View {
@@ -24,20 +25,46 @@ struct RecordingDetailTitleView: View {
                     .font(.system(size: 14, weight: .regular))
                     .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4))
                 
-                // 标签 - 更简洁
+                // 标签 - 更简洁，支持点击
                 if !recording.tags.isEmpty {
-                    HStack(spacing: 8) {
-                        ForEach(recording.tags.prefix(3), id: \.self) { tag in
-                            Text("#\(tag)")
-                                .font(.system(size: 13, weight: .regular))
-                                .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
-                                .padding(.horizontal, 8)
-                                .padding(.vertical, 4)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 8)
-                                        .fill(isDarkMode ? Color.gray.opacity(0.2) : Color.gray.opacity(0.15))
-                                )
+                    Button(action: onTagTap) {
+                        HStack(spacing: 8) {
+                            ForEach(recording.tags.prefix(3), id: \.self) { tag in
+                                Text("#\(tag)")
+                                    .font(.system(size: 13, weight: .regular))
+                                    .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
+                                    .padding(.horizontal, 8)
+                                    .padding(.vertical, 4)
+                                    .background(
+                                        RoundedRectangle(cornerRadius: 8)
+                                            .fill(isDarkMode ? Color.gray.opacity(0.2) : Color.gray.opacity(0.15))
+                                    )
+                            }
+                            
+                            // 编辑图标提示
+                            Image(systemName: "pencil.circle")
+                                .font(.system(size: 12))
+                                .foregroundColor(isDarkMode ? .white.opacity(0.3) : .black.opacity(0.3))
                         }
+                    }
+                } else {
+                    // 没有标签时显示添加按钮
+                    Button(action: onTagTap) {
+                        HStack(spacing: 6) {
+                            Image(systemName: "plus.circle")
+                                .font(.system(size: 12))
+                                .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4))
+                            
+                            Text("添加标签")
+                                .font(.system(size: 13, weight: .regular))
+                                .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4))
+                        }
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(isDarkMode ? Color.white.opacity(0.2) : Color.gray.opacity(0.3), lineWidth: 1)
+                        )
                     }
                 }
                 
@@ -75,7 +102,8 @@ struct RecordingDetailTitleView_Previews: PreviewProvider {
                 tags: ["会议", "产品", "开发"],
                 audioData: nil,
                 enrichedContent: nil
-            )
+            ),
+            onTagTap: {}
         )
         .background(Color.black)
     }

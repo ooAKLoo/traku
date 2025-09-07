@@ -15,9 +15,16 @@ struct RecordingDetailView: View {
     let recording: AudioRecording
     @State private var isPlaying = false
     @State private var playProgress: Double = 0
+    @State private var isTagEditModalPresented = false
+    @State private var editableTags: [String]
     @Environment(\.dismiss) private var dismiss
     @AppStorage("isDarkMode") private var isDarkMode = true
     @StateObject private var audioManager = AudioManagerAdapter()
+    
+    init(recording: AudioRecording) {
+        self.recording = recording
+        self._editableTags = State(initialValue: recording.tags)
+    }
     
     var body: some View {
         ZStack {
@@ -90,7 +97,20 @@ struct RecordingDetailView: View {
                 ScrollView(.vertical, showsIndicators: false) {
                     VStack(alignment: .leading, spacing: 0) {
                         // 标题区域 - 使用独立组件
-                        RecordingDetailTitleView(recording: recording)
+                        RecordingDetailTitleView(
+                            recording: AudioRecording(
+                                timestamp: recording.timestamp,
+                                duration: recording.duration,
+                                transcription: recording.transcription,
+                                summary: recording.summary,
+                                tags: editableTags,
+                                audioData: recording.audioData,
+                                enrichedContent: recording.enrichedContent
+                            ),
+                            onTagTap: {
+                                isTagEditModalPresented = true
+                            }
+                        )
                         
                         // 转写文本部分 - 引用样式
                         VStack(alignment: .leading, spacing: 20) {
@@ -131,6 +151,12 @@ struct RecordingDetailView: View {
             }
         }
         .preferredColorScheme(.dark)
+        .sheet(isPresented: $isTagEditModalPresented) {
+            TagEditModal(
+                isPresented: $isTagEditModalPresented,
+                tags: $editableTags
+            )
+        }
     }
     
     // 辅助函数
