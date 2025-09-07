@@ -61,7 +61,7 @@ struct TagFilterTabBar: View {
                 // 简洁背景，与 header 保持一致
                 (isDarkMode ? Color.black : Color.white)
             )
-            .padding(.horizontal, 20)
+//            .padding(.horizontal, 20)
             .padding(.bottom, 16)
         }
     }
