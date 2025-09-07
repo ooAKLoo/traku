@@ -99,14 +99,6 @@ extension Theme {
                 .markdownMargin(top: .em(0.4))  // 增加列表项间距
                 .relativeLineSpacing(.em(0.35))
         }
-        .table { configuration in
-            configuration.label
-                .markdownTableBackgroundStyle(
-                    .alternatingRows(Color.gray.opacity(0.05), Color.clear)
-                )
-                .markdownTableBorderStyle(.init(color: .gray.opacity(0.2)))
-                .markdownMargin(top: .em(1), bottom: .em(1.5))
-        }
         // 移除或修正 thematicBreak
         .thematicBreak {
             Divider()

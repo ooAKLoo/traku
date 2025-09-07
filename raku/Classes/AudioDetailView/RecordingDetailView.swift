@@ -151,6 +151,19 @@ struct RecordingDetailView: View {
             }
         }
         .preferredColorScheme(.dark)
+        .onAppear {
+            if let enrichedContent = recording.enrichedContent, !enrichedContent.isEmpty {
+                let headingTree = MarkdownHeadingParser.parseHeadings(from: enrichedContent)
+                print("=== 标题层级结构 ===")
+                print("目录结构:")
+                print(headingTree.getTableOfContents())
+                print("\n层级映射:")
+                for heading in headingTree.flatList {
+                    print("- '\(heading.text)': 原始\(heading.originalLevel)级 → 正则化\(heading.normalizedLevel)级")
+                }
+                print("==================")
+            }
+        }
         .sheet(isPresented: $isTagEditModalPresented) {
             TagEditModal(
                 isPresented: $isTagEditModalPresented,
@@ -358,10 +371,10 @@ struct RecordingDetailView_Previews: PreviewProvider {
                 tags: ["会议", "产品", "开发"],
                 audioData: "mock audio data".data(using: .utf8),
                 enrichedContent: """
-                ## 🎯 明确目标
+                ## 明确目标
                 > 3个月内完成1个科技艺术项目原型，实现AI生成艺术作品并线下展览
                 
-                ## ✅ 行动清单
+                ## 行动清单
                 - [ ] **优先级高**：调研科技艺术趋势与用户需求
                 - [ ] **优先级高**：确定技术实现方案与艺术形式
                 - [ ] **优先级中**：收集艺术素材与训练数据
@@ -374,12 +387,12 @@ struct RecordingDetailView_Previews: PreviewProvider {
                 | 工具 | AI工具（Midjourney/Stable Diffusion）、设计软件（PS/Blender）、项目管理工具（Trello） |
                 | 支持 | 技术伙伴、艺术指导、线下展览场地资源 |
                 
-                ## ⏰ 时间规划
+                ## 时间规划
                 **短期（1周内）**：每日2小时调研科技艺术案例，周末输出趋势报告与用户需求分析
                 **中期（1月内）**：前2周完成技术方案设计（含AI模型选型），后2周收集艺术素材与训练数据
                 **长期（3月内）**：第3-6周开发AI生成模型并测试优化，第7-8周筹备线下展览（布展/宣传）
                 
-                ## ⚠️ 潜在挑战
+                ## 潜在挑战
                 1. **挑战**：AI生成艺术效果未达预期 → **应对**：先小范围测试不同模型，参考艺术指导调整参数
                 2. **挑战**：缺乏技术/艺术合作资源 → **应对**：在艺术社群/高校发布招募信息，优先合作学生团队降低成本
                 """
