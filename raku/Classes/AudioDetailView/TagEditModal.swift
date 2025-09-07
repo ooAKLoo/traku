@@ -38,6 +38,7 @@ struct TagEditModal: View {
                                         Text("#\(tag)")
                                             .font(.system(size: 13, weight: .regular))
                                             .foregroundColor(isDarkMode ? .white.opacity(0.9) : .black.opacity(0.9))
+                                            .lineLimit(1)
                                         
                                         Button(action: {
                                             withAnimation(.spring(response: 0.3)) {
@@ -171,7 +172,7 @@ struct TagEditModal_Previews: PreviewProvider {
     static var previews: some View {
         TagEditModal(
             isPresented: .constant(true),
-            tags: .constant(["会议", "产品", "开发"])
+            tags: .constant(["会议", "产品", "开发","sdfsdfwe","dfsds"])
         )
     }
 }

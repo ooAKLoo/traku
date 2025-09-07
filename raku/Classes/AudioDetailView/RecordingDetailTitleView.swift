@@ -40,11 +40,6 @@ struct RecordingDetailTitleView: View {
                                             .fill(isDarkMode ? Color.gray.opacity(0.2) : Color.gray.opacity(0.15))
                                     )
                             }
-                            
-                            // 编辑图标提示
-                            Image(systemName: "pencil.circle")
-                                .font(.system(size: 12))
-                                .foregroundColor(isDarkMode ? .white.opacity(0.3) : .black.opacity(0.3))
                         }
                     }
                 } else {
