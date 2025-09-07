@@ -59,6 +59,7 @@ struct ChapterTabBar: View {
                         y: 5
                     )
             )
+            .clipShape(RoundedRectangle(cornerRadius: 24))
             .padding(.horizontal, 16)
             .padding(.bottom, 8)
         }
