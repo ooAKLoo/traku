@@ -1,6 +1,9 @@
 import Foundation
 import SQLite3
 
+// SQLite3 destructor type constants
+private let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
+
 class DatabaseManager {
     private var db: OpaquePointer?
     private let dbPath: String
@@ -155,30 +158,38 @@ class DatabaseManager {
     
     // MARK: - 新增：统一的保存或更新方法
     func saveOrUpdateRecording(_ recording: AudioRecording) -> Bool {
-        let existingCount = getRecordingCountById(recording.id)
-        if existingCount > 0 {
-            print("📝 记录已存在，执行更新操作")
-            return updateRecording(recording)
-        } else {
-            print("📝 记录不存在，执行保存操作")
-            return saveRecording(recording)
+        return dbQueue.sync {
+            let existingCount = getRecordingCountByIdInternal(recording.id)
+            if existingCount > 0 {
+                print("📝 记录已存在，执行更新操作")
+                return updateRecordingInternal(recording)
+            } else {
+                print("📝 记录不存在，执行保存操作")
+                return saveRecordingInternal(recording)
+            }
         }
     }
     
     func saveRecording(_ recording: AudioRecording) -> Bool {
+        return dbQueue.sync {
+            return saveRecordingInternal(recording)
+        }
+    }
+    
+    private func saveRecordingInternal(_ recording: AudioRecording) -> Bool {
         // 使用 INSERT 确保每条记录都是新的，不覆盖现有记录
-        let insertSQL = """
-            INSERT INTO audio_recordings (id, timestamp, duration, transcription, summary, tags, audio_data, enriched_content, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-        """
-        
-        var statement: OpaquePointer?
-        
-        print("💾 准备保存录音，ID: \(recording.id.uuidString), 转录: \(recording.transcription)")
-        
-        if sqlite3_prepare_v2(db, insertSQL, -1, &statement, nil) == SQLITE_OK {
+            let insertSQL = """
+                INSERT INTO audio_recordings (id, timestamp, duration, transcription, summary, tags, audio_data, enriched_content, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            """
+            
+            var statement: OpaquePointer?
+            
+            print("💾 准备保存录音，ID: \(recording.id.uuidString), 转录: \(recording.transcription)")
+            
+            if sqlite3_prepare_v2(db, insertSQL, -1, &statement, nil) == SQLITE_OK {
             let tagsJSON = try? JSONEncoder().encode(recording.tags)
-            let tagsString = tagsJSON != nil ? String(data: tagsJSON!, encoding: .utf8) : "[]"
+            let tagsString = tagsJSON.flatMap { String(data: $0, encoding: .utf8) } ?? "[]"
             
             // 使用SQLITE_TRANSIENT确保字符串被复制
             let idString = recording.id.uuidString
@@ -205,7 +216,7 @@ class DatabaseManager {
             
             if sqlite3_step(statement) == SQLITE_DONE {
                 print("✅ 录音保存成功，ID: \(recording.id.uuidString)")
-                let totalCount = getRecordingCount()
+                let totalCount = getRecordingCountInternal()
                 print("📊 当前数据库总记录数: \(totalCount)")
                 
                 // 验证刚保存的数据是否可以读取
@@ -213,7 +224,8 @@ class DatabaseManager {
                 let verifySQL = "SELECT id, transcription FROM audio_recordings WHERE id = ?"
                 var verifyStatement: OpaquePointer?
                 if sqlite3_prepare_v2(db, verifySQL, -1, &verifyStatement, nil) == SQLITE_OK {
-                    sqlite3_bind_text(verifyStatement, 1, recording.id.uuidString, -1, nil)
+                        let verifyIdString = recording.id.uuidString
+                    sqlite3_bind_text(verifyStatement, 1, (verifyIdString as NSString).utf8String, -1, SQLITE_TRANSIENT)
                     if sqlite3_step(verifyStatement) == SQLITE_ROW {
                         if let idString = sqlite3_column_text(verifyStatement, 0),
                            let transcription = sqlite3_column_text(verifyStatement, 1) {
@@ -225,12 +237,12 @@ class DatabaseManager {
                 }
                 sqlite3_finalize(verifyStatement)
                 
-                // 额外验证：使用getRecordingCountById方法验证
-                print("🔍 使用getRecordingCountById验证刚保存的记录...")
-                let countCheck = getRecordingCountById(recording.id)
-                print("🔍 getRecordingCountById返回: \(countCheck)")
+                // 额外验证：使用getRecordingCountByIdInternal方法验证
+                print("🔍 使用getRecordingCountByIdInternal验证刚保存的记录...")
+                let countCheck = getRecordingCountByIdInternal(recording.id)
+                print("🔍 getRecordingCountByIdInternal返回: \(countCheck)")
                 if countCheck != 1 {
-                    print("⚠️ 警告：保存成功但getRecordingCountById无法找到记录！")
+                    print("⚠️ 警告：保存成功但getRecordingCountByIdInternal无法找到记录！")
                 }
                 
                 sqlite3_finalize(statement)
@@ -242,7 +254,7 @@ class DatabaseManager {
                     print("错误信息: \(message)")
                 }
             }
-        } else {
+            } else {
             print("❌ SQL语句准备失败")
             if let errorPointer = sqlite3_errmsg(db) {
                 let message = String(cString: errorPointer)
@@ -338,25 +350,34 @@ class DatabaseManager {
     }
     
     func deleteRecording(id: UUID) -> Bool {
-        let deleteSQL = "DELETE FROM audio_recordings WHERE id = ?"
-        var statement: OpaquePointer?
-        
-        if sqlite3_prepare_v2(db, deleteSQL, -1, &statement, nil) == SQLITE_OK {
-            sqlite3_bind_text(statement, 1, id.uuidString, -1, nil)
+        return dbQueue.sync {
+            let deleteSQL = "DELETE FROM audio_recordings WHERE id = ?"
+            var statement: OpaquePointer?
             
-            if sqlite3_step(statement) == SQLITE_DONE {
-                print("录音删除成功")
-                sqlite3_finalize(statement)
-                return true
+            if sqlite3_prepare_v2(db, deleteSQL, -1, &statement, nil) == SQLITE_OK {
+                let idString = id.uuidString
+                sqlite3_bind_text(statement, 1, (idString as NSString).utf8String, -1, SQLITE_TRANSIENT)
+                
+                if sqlite3_step(statement) == SQLITE_DONE {
+                    print("录音删除成功")
+                    sqlite3_finalize(statement)
+                    return true
+                }
             }
+            
+            sqlite3_finalize(statement)
+            return false
         }
-        
-        sqlite3_finalize(statement)
-        return false
     }
     
     func updateRecording(_ recording: AudioRecording) -> Bool {
-        print("🔄 DatabaseManager.updateRecording: 尝试更新录音，ID: \(recording.id.uuidString)")
+        return dbQueue.sync {
+            return updateRecordingInternal(recording)
+        }
+    }
+    
+    private func updateRecordingInternal(_ recording: AudioRecording) -> Bool {
+        print("🔄 DatabaseManager.updateRecordingInternal: 尝试更新录音，ID: \(recording.id.uuidString)")
         
         let updateSQL = """
             UPDATE audio_recordings 
@@ -368,13 +389,13 @@ class DatabaseManager {
         
         if sqlite3_prepare_v2(db, updateSQL, -1, &statement, nil) == SQLITE_OK {
             let tagsJSON = try? JSONEncoder().encode(recording.tags)
-            let tagsString = tagsJSON != nil ? String(data: tagsJSON!, encoding: .utf8) : "[]"
+            let tagsString = tagsJSON.flatMap { String(data: $0, encoding: .utf8) } ?? "[]"
             
             sqlite3_bind_double(statement, 1, recording.timestamp.timeIntervalSince1970)
             sqlite3_bind_double(statement, 2, recording.duration)
-            sqlite3_bind_text(statement, 3, recording.transcription, -1, nil)
-            sqlite3_bind_text(statement, 4, recording.summary, -1, nil)
-            sqlite3_bind_text(statement, 5, tagsString, -1, nil)
+            sqlite3_bind_text(statement, 3, (recording.transcription as NSString).utf8String, -1, SQLITE_TRANSIENT)
+            sqlite3_bind_text(statement, 4, (recording.summary as NSString).utf8String, -1, SQLITE_TRANSIENT)
+            sqlite3_bind_text(statement, 5, (tagsString as NSString).utf8String, -1, SQLITE_TRANSIENT)
             
             if let audioData = recording.audioData {
                 sqlite3_bind_blob(statement, 6, audioData.withUnsafeBytes { $0.bindMemory(to: Int8.self).baseAddress }, Int32(audioData.count), nil)
@@ -383,18 +404,19 @@ class DatabaseManager {
             }
             
             if let enrichedContent = recording.enrichedContent {
-                sqlite3_bind_text(statement, 7, enrichedContent, -1, nil)
+                sqlite3_bind_text(statement, 7, (enrichedContent as NSString).utf8String, -1, SQLITE_TRANSIENT)
             } else {
                 sqlite3_bind_null(statement, 7)
             }
             
-            sqlite3_bind_text(statement, 8, recording.id.uuidString, -1, nil)
+            let idString = recording.id.uuidString
+            sqlite3_bind_text(statement, 8, (idString as NSString).utf8String, -1, SQLITE_TRANSIENT)
             
-            if sqlite3_step(statement) == SQLITE_DONE {
-                print("录音更新成功")
-                sqlite3_finalize(statement)
-                return true
-            }
+        if sqlite3_step(statement) == SQLITE_DONE {
+            print("录音更新成功")
+            sqlite3_finalize(statement)
+            return true
+        }
         }
         
         sqlite3_finalize(statement)
@@ -449,14 +471,21 @@ class DatabaseManager {
     }
     
     private func getRecordingCountById(_ id: UUID) -> Int {
-        print("🔍 getRecordingCountById: 查询ID \(id.uuidString.prefix(8))... 的记录数量")
+        return dbQueue.sync {
+            return getRecordingCountByIdInternal(id)
+        }
+    }
+    
+    private func getRecordingCountByIdInternal(_ id: UUID) -> Int {
+        print("🔍 getRecordingCountByIdInternal: 查询ID \(id.uuidString.prefix(8))... 的记录数量")
         
         let countSQL = "SELECT COUNT(*) FROM audio_recordings WHERE id = ?"
         var statement: OpaquePointer?
         var count = 0
         
-        if sqlite3_prepare_v2(db, countSQL, -1, &statement, nil) == SQLITE_OK {
-            sqlite3_bind_text(statement, 1, id.uuidString, -1, nil)
+            if sqlite3_prepare_v2(db, countSQL, -1, &statement, nil) == SQLITE_OK {
+                let idString = id.uuidString
+                sqlite3_bind_text(statement, 1, (idString as NSString).utf8String, -1, SQLITE_TRANSIENT)
             if sqlite3_step(statement) == SQLITE_ROW {
                 count = Int(sqlite3_column_int(statement, 0))
                 print("🔍 查询结果: ID \(id.uuidString.prefix(8))... 的记录数量为 \(count)")
@@ -476,7 +505,8 @@ class DatabaseManager {
             var detailStatement: OpaquePointer?
             
             if sqlite3_prepare_v2(db, detailSQL, -1, &detailStatement, nil) == SQLITE_OK {
-                sqlite3_bind_text(detailStatement, 1, id.uuidString, -1, nil)
+                    let detailIdString = id.uuidString
+                    sqlite3_bind_text(detailStatement, 1, (detailIdString as NSString).utf8String, -1, SQLITE_TRANSIENT)
                 if sqlite3_step(detailStatement) == SQLITE_ROW {
                     if let idStr = sqlite3_column_text(detailStatement, 0),
                        let transcription = sqlite3_column_text(detailStatement, 1),
@@ -560,7 +590,7 @@ class DatabaseManager {
                 print("✅ 成功清理 \(invalidCount) 条无效记录")
                 
                 // 验证清理结果
-                let afterCount = getRecordingCount()
+                let afterCount = getRecordingCountInternal()
                 print("📊 清理后数据库记录数: \(afterCount)")
             } else {
                 print("❌ 清理无效记录失败")
@@ -628,7 +658,10 @@ class DatabaseManager {
                     debugInfo += "\nRecord #\(index):\n"
                     
                     if let id = sqlite3_column_text(statement, 0) {
-                        debugInfo += "  ID: \(String(cString: id))\n"
+                        let idStr = String(cString: id)
+                        debugInfo += "  ID: \(idStr.isEmpty ? "[EMPTY]" : idStr)\n"
+                    } else {
+                        debugInfo += "  ID: [NULL]\n"
                     }
                     
                     let timestamp = sqlite3_column_double(statement, 1)
