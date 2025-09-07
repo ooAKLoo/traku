@@ -122,64 +122,6 @@ struct RecordingsListView: View {
     }
 }
 
-// MARK: - 录音卡片视图
-struct RecordingCardView: View {
-    let recording: AudioRecording
-    let isDarkMode: Bool
-    @State private var isHovered = false
-    
-    var body: some View {
-        HStack(alignment: .top, spacing: 15) {
-            // 卡片内容
-            VStack(alignment: .leading, spacing: 8) {
-                // 时间戳
-                Text(recording.timestamp.timeFormatted)
-                    .font(.system(size: 12))
-                    .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
-                
-                // 标题（总结的第一句）
-                Text(recording.summary.prefix(50) + "...")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(isDarkMode ? .white : .black)
-                    .lineLimit(2)
-                
-                // 标签
-                HStack(spacing: 8) {
-                    ForEach(recording.tags, id: \.self) { tag in
-                        TagView(text: tag, isDarkMode: isDarkMode)
-                    }
-                }
-                
-                // 时长
-                HStack {
-                    Image(systemName: "waveform")
-                        .font(.system(size: 12))
-                    Text("\(Int(recording.duration))秒")
-                        .font(.system(size: 12))
-                }
-                .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4))
-            }
-            .padding(16)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(isDarkMode ? Color.white.opacity(0.05) : Color.white)
-                    .shadow(
-                        color: Color.black.opacity(isDarkMode ? 0.3 : 0.05),
-                        radius: isHovered ? 8 : 4,
-                        x: 0,
-                        y: isHovered ? 4 : 2
-                    )
-            )
-            .scaleEffect(isHovered ? 1.01 : 1.0)
-            .animation(.easeInOut(duration: 0.2), value: isHovered)
-        }
-        .onHover { hovering in
-            isHovered = hovering
-        }
-    }
-    
-}
 
 // MARK: - 标签视图
 struct TagView: View {
