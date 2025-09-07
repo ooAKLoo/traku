@@ -60,7 +60,7 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
     @Published var isPaused = false
     @Published var currentStage = ProcessingStage.idle
     @Published var progress: Float = 0.0
-    @Published var isLLMEnabled = false  // LLM开关，默认关闭
+    @Published var isLLMEnabled = true  // LLM开关，默认关闭
     
     // MARK: - Private Properties
     private let speechService: VolcEngineSpeechService

@@ -18,7 +18,7 @@ struct RecordingDetailView: View {
     @State private var isTagEditModalPresented = false
     @State private var editableTags: [String]
     @Environment(\.dismiss) private var dismiss
-    @AppStorage("isDarkMode") private var isDarkMode = true
+    @AppStorage("isDarkMode") private var isDarkMode = false
     @StateObject private var audioManager = AudioManagerAdapter()
     
     init(recording: AudioRecording) {
