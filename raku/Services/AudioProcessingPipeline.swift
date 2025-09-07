@@ -226,11 +226,12 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
         print("🆔 为新录音会话生成ID: \(currentRecordingId?.uuidString ?? "unknown")")
     }
     
-    /// 只重置pipeline状态，不生成新的录音ID
+    /// 只重置pipeline状态，不生成新的录音ID，保留录音相关数据
     private func resetPipelineStateOnly() {
-        currentRecordingData = nil
-        currentDuration = 0
-        recordingStartTime = nil
+        // 保留录音相关数据，因为我们仍在处理同一次录音
+        // currentRecordingData = nil
+        // currentDuration = 0 
+        // recordingStartTime = nil
         progress = 0.0
         isPaused = false
     }
@@ -343,6 +344,11 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
               let startTime = recordingStartTime,
               let recordingId = currentRecordingId else {
             // 创建fallback录音，使用当前会话ID或新UUID
+            print("⚠️ 创建fallback录音，原因：")
+            print("   - currentRecordingData: \(currentRecordingData?.count ?? -1) bytes")
+            print("   - recordingStartTime: \(recordingStartTime?.description ?? "nil")")
+            print("   - currentRecordingId: \(currentRecordingId?.uuidString ?? "nil")")
+            
             let fallbackRecording = AudioRecording(
                 id: currentRecordingId ?? UUID(),
                 timestamp: Date(),
@@ -359,6 +365,7 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
         
         print("📝 创建基于语音识别的最终录音记录，使用相同会话ID: \(recordingId.uuidString)")
         print("🎤 ASR返回的转录文本: \(result.text)")
+        print("🎵 音频数据大小: \(audioData.count) bytes")
         
         // 创建基于语音识别结果的最终录音记录
         let finalRecording = AudioRecording(
