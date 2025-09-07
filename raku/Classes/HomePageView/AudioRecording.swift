@@ -72,18 +72,27 @@ struct RecordingsListView: View {
     @State private var hoveredFilter: String? = nil
     @State private var searchText = ""
     @State private var showingConnectionConfig = false
+    @State private var selectedTag: String? = nil
     
     
     var filteredRecordings: [AudioRecording] {
-        if searchText.isEmpty {
-            return audioManager.recordings
-        } else {
-            return audioManager.recordings.filter { recording in
+        var recordings = audioManager.recordings
+        
+        // 按标签过滤
+        if let selectedTag = selectedTag {
+            recordings = recordings.filter { $0.tags.contains(selectedTag) }
+        }
+        
+        // 按搜索文本过滤
+        if !searchText.isEmpty {
+            recordings = recordings.filter { recording in
                 recording.summary.localizedCaseInsensitiveContains(searchText) ||
                 recording.transcription.localizedCaseInsensitiveContains(searchText) ||
                 recording.tags.contains { $0.localizedCaseInsensitiveContains(searchText) }
             }
         }
+        
+        return recordings
     }
     
     var body: some View {
@@ -99,6 +108,24 @@ struct RecordingsListView: View {
                     searchText: $searchText,
                     showingConnectionConfig: $showingConnectionConfig
                 )
+                .onChange(of: selectedFilter) { newFilter in
+                    // 当切换到非标签过滤器时，清除选中的标签
+                    if newFilter != "标签" {
+                        selectedTag = nil
+                    }
+                }
+                
+                // 标签过滤 TabBar（当选择"标签"时显示在 header 下面）
+                if selectedFilter == "标签" {
+                    TagFilterTabBar(
+                        allRecordings: audioManager.recordings,
+                        selectedTag: $selectedTag
+                    )
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .top).combined(with: .opacity),
+                        removal: .move(edge: .top).combined(with: .opacity)
+                    ))
+                }
                 
                 // 录音列表
                 HomepageListView(
@@ -113,6 +140,7 @@ struct RecordingsListView: View {
                 Spacer()
                 FloatingRecordingControlCard(audioManager: audioManager)
             }
+            
         }
         .sheet(isPresented: $showingSettings) {
             SettingsView()
@@ -125,6 +153,7 @@ struct RecordingsListView: View {
     private func deleteRecording(_ recording: AudioRecording) {
         audioManager.deleteRecording(recording)
     }
+    
 }
 
 

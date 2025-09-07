@@ -119,7 +119,7 @@ struct RecordingCardView: View {
                 .animation(.easeInOut(duration: 0.2), value: isHovered && !isDragging)
             }
             .offset(x: offset)
-            .gesture(
+            .simultaneousGesture(
                 DragGesture()
                     .onChanged { value in
                         withAnimation(.interactiveSpring(response: 0.3)) {

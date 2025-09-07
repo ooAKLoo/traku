@@ -16,7 +16,7 @@ struct HomepageListView: View {
     var body: some View {
         ScrollView {
             LazyVStack(spacing: 15) {
-                ForEach(Array(filteredRecordings.enumerated()), id: \.element.id) { index, recording in
+                ForEach(filteredRecordings, id: \.id) { recording in
                     NavigationLink(destination:
                         RecordingDetailView(recording: recording)
                             .navigationBarHidden(true)
@@ -28,18 +28,21 @@ struct HomepageListView: View {
                         )
                     }
                     .buttonStyle(PlainButtonStyle())
+                    // 简化动画，移除延迟动画以提升性能
                     .transition(.asymmetric(
                         insertion: .opacity.combined(with: .move(edge: .trailing)),
-                        removal: .opacity.combined(with: .scale)
+                        removal: .opacity
                     ))
-                    .animation(.easeInOut(duration: 0.3).delay(Double(index) * 0.05))
+                    // 移除基于 index 的延迟动画，直接使用简单动画
+                    .animation(.easeInOut(duration: 0.2), value: filteredRecordings.count)
                 }
             }
             .padding(.horizontal, 20)
             .padding(.top, 10)
             .padding(.bottom, 120)
-            .background(.white)
         }
+        // 优化滚动性能
+        .scrollDismissesKeyboard(.immediately)
     }
 }
 
