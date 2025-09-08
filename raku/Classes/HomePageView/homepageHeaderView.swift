@@ -221,7 +221,7 @@ struct HomepageHeaderView: View {
 
 #Preview("Light Mode") {
     HomepageHeaderView(
-        audioManager: AudioManagerAdapter(),
+        audioManager: AudioManagerAdapter(skipDatabaseLoad: true),
         isDarkMode: false,
         selectedFilter: .constant("全部"),
         showingSettings: .constant(false),
@@ -233,7 +233,7 @@ struct HomepageHeaderView: View {
 
 #Preview("Dark Mode") {
     HomepageHeaderView(
-        audioManager: AudioManagerAdapter(),
+        audioManager: AudioManagerAdapter(skipDatabaseLoad: true),
         isDarkMode: true,
         selectedFilter: .constant("标签"),
         showingSettings: .constant(false),

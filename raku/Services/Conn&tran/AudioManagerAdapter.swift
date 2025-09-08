@@ -30,7 +30,7 @@ class AudioManagerAdapter: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
     
     // MARK: - Initialization
-    init() {
+    init(skipDatabaseLoad: Bool = false) {
         self.esp32Service = ESP32AudioService()
         self.processingPipeline = AudioProcessingPipeline()
         self.phoneRecordingManager = PhoneRecordingManager()
@@ -44,16 +44,20 @@ class AudioManagerAdapter: ObservableObject {
         setupAudioInputSources()
         processingPipeline.delegate = self
         
-        // 从数据库加载录音数据
-        print("🚀 AudioManagerAdapter初始化: 开始加载数据库中的录音记录")
-        loadRecordingsFromDatabase()
-        
-        // 加载mock数据（仅在DEBUG模式下）
-        #if DEBUG
-        if recordings.isEmpty {
-            loadMockData()
+        // 从数据库加载录音数据（可跳过，用于预览/单元测试）
+        if !skipDatabaseLoad {
+            print("🚀 AudioManagerAdapter初始化: 开始加载数据库中的录音记录")
+            loadRecordingsFromDatabase()
+            
+            // 加载mock数据（仅在DEBUG模式下，且数据库为空时）
+            #if DEBUG
+            if recordings.isEmpty {
+                loadMockData()
+            }
+            #endif
+        } else {
+            print("🧩 AudioManagerAdapter初始化: 已跳过数据库加载（skipDatabaseLoad=true）")
         }
-        #endif
     }
     
     // MARK: - Public Methods

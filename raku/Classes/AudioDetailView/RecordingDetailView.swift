@@ -18,13 +18,20 @@ struct RecordingDetailView: View {
     @State private var editableTags: [String]
     @Environment(\.dismiss) private var dismiss
     @AppStorage("isDarkMode") private var isDarkMode = false
-    @StateObject private var audioManager = AudioManagerAdapter()
+    @StateObject private var audioManager: AudioManagerAdapter
     @State private var headings: [HeadingNode] = []
     @State private var selectedHeadingId: String? = nil
     @State private var scrollProxy: ScrollViewProxy? = nil
     
     init(recording: AudioRecording) {
         self.recording = recording
+        self._audioManager = StateObject(wrappedValue: AudioManagerAdapter())
+        self._editableTags = State(initialValue: recording.tags)
+    }
+
+    init(recording: AudioRecording, audioManager: AudioManagerAdapter) {
+        self.recording = recording
+        self._audioManager = StateObject(wrappedValue: audioManager)
         self._editableTags = State(initialValue: recording.tags)
     }
     
@@ -445,7 +452,8 @@ struct RecordingDetailView_Previews: PreviewProvider {
                 1. **挑战**：AI生成艺术效果未达预期 → **应对**：先小范围测试不同模型，参考艺术指导调整参数
                 2. **挑战**：缺乏技术/艺术合作资源 → **应对**：在艺术社群/高校发布招募信息，优先合作学生团队降低成本
                 """
-            )
+            ),
+            audioManager: AudioManagerAdapter(skipDatabaseLoad: true)
         )
     }
 }

@@ -245,7 +245,7 @@ struct FloatingRecordingControlCard_Previews: PreviewProvider {
                 Spacer()
                 
                 // 主要的录音控制卡片
-                FloatingRecordingControlCard(audioManager: AudioManagerAdapter())
+                FloatingRecordingControlCard(audioManager: AudioManagerAdapter(skipDatabaseLoad: true))
                 
             }
         }

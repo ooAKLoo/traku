@@ -75,33 +75,37 @@ struct RecordingCardView: View {
             // 卡片内容
             HStack(alignment: .top, spacing: 15) {
                 // 卡片内容
-                VStack(alignment: .leading, spacing: 8) {
-                    // 时间戳
+                VStack(alignment: .leading, spacing: 12) {
+                    // 顶部信息组 - 时间戳
                     Text(recording.timestamp.timeFormatted)
-                        .font(.system(size: 12))
-                        .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
+                        .font(.system(size: 11, weight: .regular))
+                        .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4))
                     
-                    // 标题（总结的第一句）
+                    // 标题（总结的第一句）- 增强视觉权重
                     Text(recording.summary.prefix(50) + "...")
-                        .font(.system(size: 16, weight: .medium))
+                        .font(.system(size: 18, weight: .semibold))
                         .foregroundColor(isDarkMode ? .white : .black)
                         .lineLimit(2)
+                        .padding(.bottom, 4)
                     
-                    // 标签
-                    HStack(spacing: 8) {
-                        ForEach(recording.tags, id: \.self) { tag in
-                            TagView(text: tag, isDarkMode: isDarkMode)
+                    // 底部信息组
+                    VStack(alignment: .leading, spacing: 8) {
+                        // 标签
+                        HStack(spacing: 6) {
+                            ForEach(recording.tags, id: \.self) { tag in
+                                TagView(text: tag, isDarkMode: isDarkMode)
+                            }
                         }
+                        
+                        // 时长 - 更弱化的样式
+                        HStack(spacing: 4) {
+                            Image(systemName: "waveform")
+                                .font(.system(size: 10, weight: .light))
+                            Text("\(Int(recording.duration))秒")
+                                .font(.system(size: 10, weight: .light))
+                        }
+                        .foregroundColor(isDarkMode ? .white.opacity(0.3) : .black.opacity(0.3))
                     }
-                    
-                    // 时长
-                    HStack {
-                        Image(systemName: "waveform")
-                            .font(.system(size: 12))
-                        Text("\(Int(recording.duration))秒")
-                            .font(.system(size: 12))
-                    }
-                    .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4))
                 }
                 .padding(16)
                 .frame(maxWidth: .infinity, alignment: .leading)
