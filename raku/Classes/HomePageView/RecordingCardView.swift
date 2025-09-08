@@ -7,6 +7,52 @@
 
 import SwiftUI
 
+// MARK: - 天气类型枚举
+enum WeatherType: String, CaseIterable {
+    case sunny = "sun.max.fill"
+    case partlyCloudy = "cloud.sun.fill"
+    case cloudy = "cloud.fill"
+    case rainy = "cloud.rain.fill"
+    case stormy = "cloud.bolt.rain.fill"
+    case snowy = "cloud.snow.fill"
+    case foggy = "cloud.fog.fill"
+    case windy = "wind"
+    
+    var colors: (primary: Color, secondary: Color) {
+        switch self {
+        case .sunny:
+            return (.orange, .yellow)
+        case .partlyCloudy:
+            return (.blue, .orange)
+        case .cloudy:
+            return (.gray, .blue.opacity(0.3))
+        case .rainy:
+            return (.blue, .cyan)
+        case .stormy:
+            return (.purple, .blue)
+        case .snowy:
+            return (.white, .blue.opacity(0.2))
+        case .foggy:
+            return (.gray.opacity(0.7), .white.opacity(0.3))
+        case .windy:
+            return (.teal, .mint)
+        }
+    }
+    
+    var rotation: Double {
+        switch self {
+        case .sunny: return 15
+        case .partlyCloudy: return 12
+        case .cloudy: return 8
+        case .rainy: return -5
+        case .stormy: return -8
+        case .snowy: return 10
+        case .foggy: return 0
+        case .windy: return 20
+        }
+    }
+}
+
 struct RecordingCardView: View {
     let recording: AudioRecording
     let isDarkMode: Bool
@@ -17,6 +63,13 @@ struct RecordingCardView: View {
     @State private var isDragging = false
     @State private var isDeleting = false
     @State private var hasTriggeredHaptic = false
+    
+    // 随机天气类型（基于录音ID生成稳定的随机数）
+    private var weatherType: WeatherType {
+        let hashValue = abs(recording.id.hashValue)
+        let index = hashValue % WeatherType.allCases.count
+        return WeatherType.allCases[index]
+    }
     
     // 删除阈值（圆环完全闭合的滑动距离）- 增加距离防止误触
     private let deleteThreshold: CGFloat = -180
@@ -158,16 +211,43 @@ struct RecordingCardView: View {
                 
                 // 天气图标overlay - 右上角装饰
                 VStack {
-                    Image(systemName: "cloud.sun.fill")
-                        .font(.system(size: 28, weight: .ultraLight))
-                        .foregroundColor(isDarkMode ? Color.white.opacity(0.12) : Color.black.opacity(0.06))
-                        .rotationEffect(.degrees(12))
-                        .shadow(
-                            color: isDarkMode ? Color.black.opacity(0.2) : Color.white.opacity(0.6),
-                            radius: 1,
-                            x: 0,
-                            y: 0.5
-                        )
+                    ZStack {
+                        // 背景光晕效果
+                        Circle()
+                            .fill(
+                                RadialGradient(
+                                    gradient: Gradient(colors: [
+                                        weatherType.colors.secondary.opacity(isDarkMode ? 0.15 : 0.1),
+                                        Color.clear
+                                    ]),
+                                    center: .center,
+                                    startRadius: 0,
+                                    endRadius: 20
+                                )
+                            )
+                            .frame(width: 40, height: 40)
+                        
+                        // 天气图标
+                        Image(systemName: weatherType.rawValue)
+                            .font(.system(size: 24, weight: .ultraLight))
+                            .foregroundStyle(
+                                LinearGradient(
+                                    gradient: Gradient(colors: [
+                                        weatherType.colors.primary.opacity(isDarkMode ? 0.25 : 0.15),
+                                        weatherType.colors.secondary.opacity(isDarkMode ? 0.20 : 0.12)
+                                    ]),
+                                    startPoint: .topLeading,
+                                    endPoint: .bottomTrailing
+                                )
+                            )
+                            .rotationEffect(.degrees(weatherType.rotation))
+                            .shadow(
+                                color: weatherType.colors.primary.opacity(isDarkMode ? 0.1 : 0.05),
+                                radius: 2,
+                                x: 0,
+                                y: 1
+                            )
+                    }
                 }
                 .padding(.top, 16)
                 .padding(.trailing, 16)
