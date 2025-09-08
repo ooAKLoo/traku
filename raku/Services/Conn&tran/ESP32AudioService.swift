@@ -31,6 +31,7 @@ class ESP32AudioService: NSObject, ObservableObject {
     @Published var isConnected = false
     @Published var connectionStatus = "未连接"
     @Published var isRecording = false
+    @Published var isPlaying = false
     @Published var recordingDuration: TimeInterval = 0
     @Published var currentAmplitude: Float = 0
     @Published var audioLevels: [Float] = Array(repeating: 0, count: 50)
@@ -304,11 +305,15 @@ extension ESP32AudioService: AudioStreamModuleDelegate {
     }
     
     func audioStreamDidStartPlaying(_ module: AudioStreamModule) {
-        // 播放状态处理
+        DispatchQueue.main.async {
+            self.isPlaying = true
+        }
     }
     
     func audioStreamDidStopPlaying(_ module: AudioStreamModule) {
-        // 播放结束处理
+        DispatchQueue.main.async {
+            self.isPlaying = false
+        }
     }
     
     func audioStreamDidEncounterError(_ module: AudioStreamModule, error: Error) {

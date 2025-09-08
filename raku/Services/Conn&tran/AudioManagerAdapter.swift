@@ -13,6 +13,7 @@ class AudioManagerAdapter: ObservableObject {
     @Published var isConnected = false
     @Published var isRecording = false
     @Published var isPaused = false
+    @Published var isPlaying = false
     @Published var recordings: [AudioRecording] = []
     @Published var audioLevels: [Float] = []
     @Published var connectionStatus = "未连接"
@@ -148,11 +149,13 @@ class AudioManagerAdapter: ObservableObject {
     /// 播放录音
     func playRecording(_ recording: AudioRecording) {
         esp32Service.playRecording(recording)
+        isPlaying = true
     }
     
     /// 停止播放
     func stopPlaying() {
         esp32Service.stopPlaying()
+        isPlaying = false
     }
     
     /// 删除录音
@@ -181,6 +184,12 @@ class AudioManagerAdapter: ObservableObject {
         esp32Service.$connectionStatus
             .receive(on: DispatchQueue.main)
             .assign(to: \.connectionStatus, on: self)
+            .store(in: &cancellables)
+        
+        // 绑定播放状态
+        esp32Service.$isPlaying
+            .receive(on: DispatchQueue.main)
+            .assign(to: \.isPlaying, on: self)
             .store(in: &cancellables)
         
         // 绑定音频输入管理器的录音状态

@@ -13,7 +13,6 @@ import MarkdownUI
 // MARK: - 录音详情视图
 struct RecordingDetailView: View {
     let recording: AudioRecording
-    @State private var isPlaying = false
     @State private var playProgress: Double = 0
     @State private var isTagEditModalPresented = false
     @State private var editableTags: [String]
@@ -51,8 +50,9 @@ struct RecordingDetailView: View {
                     HStack(spacing: 12) {
                         Button(action: togglePlayback) {
                             HStack(spacing: 8) {
-                                Image(systemName: isPlaying ? "pause.fill" : "play.fill")
+                                Image(systemName: audioManager.isPlaying ? "pause.fill" : "play.fill")
                                     .font(.system(size: 14))
+                                    .contentTransition(.symbolEffect(.replace.downUp))
                                 Text(FormatHelper.formatDuration(recording.duration))
                                     .font(.system(size: 13, weight: .medium, design: .monospaced))
                             }
@@ -64,17 +64,22 @@ struct RecordingDetailView: View {
                                     .fill(isDarkMode ? Color.white.opacity(0.08) : Color.black.opacity(0.05))
                             )
                         }
+                        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: audioManager.isPlaying)
                         
                         // 下载按钮 - 只在播放时显示
-                        if isPlaying {
+                        if audioManager.isPlaying {
                             Button(action: downloadAudio) {
                                 Image(systemName: "arrow.down.circle.fill")
                                     .font(.system(size: 20))
                                     .foregroundColor(isDarkMode ? .white.opacity(0.7) : .black.opacity(0.7))
                             }
-                            .transition(.opacity.combined(with: .scale))
+                            .transition(.asymmetric(
+                                insertion: .scale.combined(with: .opacity),
+                                removal: .scale(scale: 0.8).combined(with: .opacity)
+                            ))
                         }
                     }
+                    .animation(.easeInOut(duration: 0.25), value: audioManager.isPlaying)
                     
                     Spacer()
                     
@@ -364,25 +369,24 @@ struct RecordingDetailView: View {
     }
     
     func togglePlayback() {
-        if isPlaying {
+        if audioManager.isPlaying {
             audioManager.stopPlaying()
-            isPlaying = false
         } else {
             if let audioData = recording.audioData {
                 if MockDataService.shared.isMockAudioData(audioData) {
                     showMockDataAlert()
                 } else {
                     audioManager.playRecording(recording)
-                    isPlaying = true
                 }
             }
         }
     }
     
     private func showMockDataAlert() {
-        isPlaying = true
+        // 模拟播放状态，3秒后自动停止
+        audioManager.isPlaying = true
         DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-            isPlaying = false
+            audioManager.isPlaying = false
         }
     }
     

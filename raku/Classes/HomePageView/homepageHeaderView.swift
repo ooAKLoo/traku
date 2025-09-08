@@ -78,7 +78,7 @@ struct HomepageHeaderView: View {
                         }
                         
                         // 搜索输入框
-                        TextField("搜索录音...", text: $searchText)
+                        TextField("智能搜索内容、语义、标签...", text: $searchText)
                             .font(.system(size: 16))
                             .foregroundColor(isDarkMode ? .white : .black)
                             .textFieldStyle(PlainTextFieldStyle())
