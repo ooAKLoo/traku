@@ -93,12 +93,35 @@ struct MarkdownSectionView: View {
                                             showingPopupForSection = nil
                                         } else {
                                             selectedSection = index
-                                            // 计算弹出位置
+                                            // 计算弹出位置，确保在可见区域内
                                             let frame = geometry.frame(in: .global)
-                                            popupPosition = CGPoint(
-                                                x: frame.midX,
-                                                y: frame.minY + 40
-                                            )
+                                            let screenWidth = UIScreen.main.bounds.width
+                                            let screenHeight = UIScreen.main.bounds.height
+                                            let popupWidth: CGFloat = 88
+                                            let popupHeight: CGFloat = 44
+                                            
+                                            // 计算X坐标，确保不超出屏幕边界
+                                            let preferredX = frame.midX
+                                            let minX = popupWidth / 2 + 20
+                                            let maxX = screenWidth - popupWidth / 2 - 20
+                                            let adjustedX = max(minX, min(maxX, preferredX))
+                                            
+                                            // 计算Y坐标，优先显示在段落上方，如果空间不够则显示在下方
+                                            var adjustedY: CGFloat
+                                            if frame.minY > popupHeight + 60 {
+                                                // 上方有足够空间，显示在段落上方
+                                                adjustedY = frame.minY - 30
+                                            } else {
+                                                // 上方空间不够，显示在段落下方
+                                                adjustedY = frame.maxY + 30
+                                            }
+                                            
+                                            // 确保Y坐标在可见区域内
+                                            let minY = popupHeight / 2 + 50 // 顶部安全距离
+                                            let maxY = screenHeight - popupHeight / 2 - 100 // 底部安全距离
+                                            adjustedY = max(minY, min(maxY, adjustedY))
+                                            
+                                            popupPosition = CGPoint(x: adjustedX, y: adjustedY)
                                             showingPopupForSection = index
                                         }
                                     }
