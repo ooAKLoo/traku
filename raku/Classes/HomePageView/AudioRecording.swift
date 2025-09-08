@@ -20,7 +20,7 @@ struct AudioRecording: Identifiable, Equatable {
     let tags: [String]
     let audioData: Data?
     var isPlaying: Bool = false
-    let enrichedContent: String?
+    var enrichedContent: String?
     
     init(id: UUID? = nil, timestamp: Date, duration: TimeInterval, transcription: String, title: String, summary: String, tags: [String], audioData: Data?, enrichedContent: String?) {
         self.id = id ?? UUID()

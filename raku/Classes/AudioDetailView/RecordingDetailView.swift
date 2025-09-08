@@ -22,6 +22,10 @@ struct RecordingDetailView: View {
     @State private var headings: [HeadingNode] = []
     @State private var selectedHeadingId: String? = nil
     @State private var scrollProxy: ScrollViewProxy? = nil
+    @State private var isEditingSectionPresented = false
+    @State private var editingSectionIndex: Int = 0
+    @State private var editingSectionContent: String = ""
+    @State private var modifiedEnrichedContent: String = ""
     
     init(recording: AudioRecording) {
         self.recording = recording
@@ -155,10 +159,18 @@ struct RecordingDetailView: View {
                             // 增强内容 - 使用分段Markdown渲染
                             if let enrichedContent = recording.enrichedContent, !enrichedContent.isEmpty {
                                 MarkdownSectionView(
-                                    content: enrichedContent,
+                                    content: modifiedEnrichedContent.isEmpty ? enrichedContent : modifiedEnrichedContent,
                                     headings: headings,
                                     selectedHeadingId: $selectedHeadingId,
-                                    scrollProxy: scrollProxy
+                                    scrollProxy: scrollProxy,
+                                    onEditSection: { index, content in
+                                        editingSectionIndex = index
+                                        editingSectionContent = content
+                                        isEditingSectionPresented = true
+                                    },
+                                    onDeleteSection: { index in
+                                        deleteSection(at: index)
+                                    }
                                 )
                                 .padding(.horizontal, 24)
                                 .padding(.top, 12)
@@ -215,6 +227,9 @@ struct RecordingDetailView: View {
         }
         .onAppear {
             if let enrichedContent = recording.enrichedContent, !enrichedContent.isEmpty {
+                // 初始化修改后的内容
+                modifiedEnrichedContent = enrichedContent
+                
                 let headingTree = MarkdownHeadingParser.parseHeadings(from: enrichedContent)
                 
                 // 更新标题列表
@@ -241,6 +256,16 @@ struct RecordingDetailView: View {
             TagEditModal(
                 isPresented: $isTagEditModalPresented,
                 tags: $editableTags
+            )
+        }
+        .sheet(isPresented: $isEditingSectionPresented) {
+            SectionEditModal(
+                isPresented: $isEditingSectionPresented,
+                sectionContent: editingSectionContent,
+                sectionIndex: editingSectionIndex,
+                onSave: { index, newContent in
+                    updateSection(at: index, with: newContent)
+                }
             )
         }
     }
@@ -428,6 +453,114 @@ struct RecordingDetailView: View {
            let rootVC = windowScene.windows.first?.rootViewController {
             rootVC.present(alert, animated: true)
         }
+    }
+    
+    // MARK: - 段落编辑功能
+    private func updateSection(at index: Int, with newContent: String) {
+        guard !modifiedEnrichedContent.isEmpty else { return }
+        
+        // 解析当前内容的段落
+        let parser = MarkdownSectionParser(content: modifiedEnrichedContent)
+        var sections = parser.parseSections()
+        
+        // 更新指定段落
+        guard index < sections.count else { return }
+        sections[index] = newContent
+        
+        // 重新组合内容
+        modifiedEnrichedContent = sections.joined(separator: "\n\n")
+        
+        // 更新数据库
+        saveModifiedContent()
+        
+        // 重新解析标题
+        updateHeadings()
+        
+        // 显示成功提示
+        ToastManager.shared.showSuccess("段落已更新")
+    }
+    
+    private func deleteSection(at index: Int) {
+        guard !modifiedEnrichedContent.isEmpty else { return }
+        
+        // 解析当前内容的段落
+        let parser = MarkdownSectionParser(content: modifiedEnrichedContent)
+        var sections = parser.parseSections()
+        
+        // 删除指定段落
+        guard index < sections.count else { return }
+        sections.remove(at: index)
+        
+        // 重新组合内容
+        modifiedEnrichedContent = sections.joined(separator: "\n\n")
+        
+        // 更新数据库
+        saveModifiedContent()
+        
+        // 重新解析标题
+        updateHeadings()
+        
+        // 显示成功提示
+        ToastManager.shared.showSuccess("段落已删除")
+    }
+    
+    private func saveModifiedContent() {
+        // 更新录音记录的增强内容
+        var updatedRecording = recording
+        updatedRecording.enrichedContent = modifiedEnrichedContent
+        
+        // 保存到数据库
+        DatabaseManager.shared.updateRecording(updatedRecording)
+    }
+    
+    private func updateHeadings() {
+        let headingTree = MarkdownHeadingParser.parseHeadings(from: modifiedEnrichedContent)
+        withAnimation(.easeInOut(duration: 0.3)) {
+            self.headings = headingTree.flatList
+        }
+    }
+}
+
+// MARK: - Markdown段落解析器
+private class MarkdownSectionParser {
+    let content: String
+    
+    init(content: String) {
+        self.content = content
+    }
+    
+    func parseSections() -> [String] {
+        var sections: [String] = []
+        let lines = content.split(separator: "\n", omittingEmptySubsequences: false).map { String($0) }
+        var currentSection: [String] = []
+        
+        for line in lines {
+            // 检查是否是标题行（新段落开始）
+            if isHeadingLine(line) && !currentSection.isEmpty {
+                // 保存当前段落
+                sections.append(currentSection.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines))
+                currentSection = [line]
+            } else {
+                currentSection.append(line)
+            }
+        }
+        
+        // 保存最后一个段落
+        if !currentSection.isEmpty {
+            let sectionContent = currentSection.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
+            if !sectionContent.isEmpty {
+                sections.append(sectionContent)
+            }
+        }
+        
+        return sections
+    }
+    
+    private func isHeadingLine(_ line: String) -> Bool {
+        let pattern = "^#{1,6}\\s+.+$"
+        guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else { return false }
+        let range = NSRange(location: 0, length: line.utf16.count)
+        return regex.firstMatch(in: line, options: [], range: range) != nil
     }
 }
 
