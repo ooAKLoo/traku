@@ -83,36 +83,63 @@ struct RecordingCardView: View {
             }
             
             // 卡片内容
-            HStack(alignment: .top, spacing: 15) {
-                // 卡片内容
-                VStack(alignment: .leading, spacing: 12) {
-                    // 顶部信息组 - 时间戳
-                    Text(recording.timestamp.smartFormatted)
-                        .font(.system(size: 11, weight: .regular))
-                        .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4))
-                    
-                    // 标题 - 增强视觉权重
-                    Text(recording.title)
-                        .font(.system(size: 18, weight: .semibold))
-                        .foregroundColor(isDarkMode ? .white : .black)
-                        .lineLimit(2)
-                    
-                    // 标签
-                    HStack(spacing: 6) {
-                        ForEach(recording.tags, id: \.self) { tag in
-                            TagView(text: tag, isDarkMode: isDarkMode)
+            ZStack(alignment: .topTrailing) {
+                HStack(alignment: .top, spacing: 15) {
+                    // 卡片内容 - 两行布局
+                    VStack(alignment: .leading, spacing: 16) {
+                        // 第一行：时间戳和标题
+                        VStack(alignment: .leading, spacing: 8) {
+                            // 时间戳
+                            Text(recording.timestamp.smartFormatted)
+                                .font(.system(size: 11, weight: .regular))
+                                .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
+                            
+                            // 标题 - 主要视觉焦点
+                            Text(recording.title)
+                                .font(.system(size: 20, weight: .semibold))
+                                .foregroundColor(isDarkMode ? .white : .black)
+                                .lineLimit(2)
+                                .multilineTextAlignment(.leading)
+                        }
+                        
+                        // 第二行：标签和时长
+                        HStack(alignment: .center) {
+                            // 标签组
+                            HStack(spacing: 8) {
+                                ForEach(recording.tags.prefix(3), id: \.self) { tag in
+                                    TagView(text: tag, isDarkMode: isDarkMode)
+                                }
+                                if recording.tags.count > 3 {
+                                    Text("+\(recording.tags.count - 3)")
+                                        .font(.system(size: 10, weight: .medium))
+                                        .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4))
+                                        .padding(.horizontal, 6)
+                                        .padding(.vertical, 2)
+                                        .background(
+                                            RoundedRectangle(cornerRadius: 8)
+                                                .fill(isDarkMode ? Color.white.opacity(0.1) : Color.black.opacity(0.05))
+                                        )
+                                }
+                            }
+                            
+                            Spacer()
+                            
+                            // 时长信息
+                            HStack(spacing: 4) {
+                                Image(systemName: "waveform")
+                                    .font(.system(size: 11, weight: .medium))
+                                Text("\(Int(recording.duration))秒")
+                                    .font(.system(size: 11, weight: .medium))
+                            }
+                            .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4))
+                            .padding(.horizontal, 8)
+                            .padding(.vertical, 4)
+                            .background(
+                                RoundedRectangle(cornerRadius: 6)
+                                    .fill(isDarkMode ? Color.white.opacity(0.08) : Color.black.opacity(0.03))
+                            )
                         }
                     }
-                    
-                    // 时长 - 更弱化的样式
-                    HStack(spacing: 4) {
-                        Image(systemName: "waveform")
-                            .font(.system(size: 10, weight: .light))
-                        Text("\(Int(recording.duration))秒")
-                            .font(.system(size: 10, weight: .light))
-                    }
-                    .foregroundColor(isDarkMode ? .white.opacity(0.3) : .black.opacity(0.3))
-                }
                 .padding(16)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(
@@ -127,6 +154,23 @@ struct RecordingCardView: View {
                 )
                 .scaleEffect((isHovered && !isDragging) ? 1.01 : 1.0)
                 .animation(.easeInOut(duration: 0.2), value: isHovered && !isDragging)
+                }
+                
+                // 天气图标overlay - 右上角装饰
+                VStack {
+                    Image(systemName: "cloud.sun.fill")
+                        .font(.system(size: 28, weight: .ultraLight))
+                        .foregroundColor(isDarkMode ? Color.white.opacity(0.12) : Color.black.opacity(0.06))
+                        .rotationEffect(.degrees(12))
+                        .shadow(
+                            color: isDarkMode ? Color.black.opacity(0.2) : Color.white.opacity(0.6),
+                            radius: 1,
+                            x: 0,
+                            y: 0.5
+                        )
+                }
+                .padding(.top, 16)
+                .padding(.trailing, 16)
             }
             .offset(x: offset)
             .simultaneousGesture(
