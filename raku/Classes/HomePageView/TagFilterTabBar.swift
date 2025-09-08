@@ -127,7 +127,8 @@ struct TagFilterTabBar_Previews: PreviewProvider {
                 timestamp: Date(),
                 duration: 120.5,
                 transcription: "会议录音",
-                summary: "项目讨论",
+                title: "项目讨论会议",
+                summary: "项目进展讨论和下阶段计划",
                 tags: ["会议", "工作"],
                 audioData: Data(),
                 enrichedContent: nil
@@ -136,7 +137,8 @@ struct TagFilterTabBar_Previews: PreviewProvider {
                 timestamp: Date().addingTimeInterval(-3600),
                 duration: 45.2,
                 transcription: "学习笔记",
-                summary: "知识总结",
+                title: "知识学习总结",
+                summary: "学习要点和知识总结整理",
                 tags: ["学习", "笔记"],
                 audioData: Data(),
                 enrichedContent: nil
@@ -145,7 +147,8 @@ struct TagFilterTabBar_Previews: PreviewProvider {
                 timestamp: Date().addingTimeInterval(-7200),
                 duration: 89.1,
                 transcription: "个人想法",
-                summary: "灵感记录",
+                title: "创意灵感记录",
+                summary: "个人想法和创意灵感的记录",
                 tags: ["个人", "想法", "创意"],
                 audioData: Data(),
                 enrichedContent: nil

@@ -350,6 +350,7 @@ extension AudioManagerAdapter: AudioProcessingPipelineDelegate {
             timestamp: Date(),
             duration: 0,
             transcription: "录音处理失败: \(error.localizedDescription)",
+            title: "录音处理失败",
             summary: "录音 \(recordings.count + 1) - 处理失败",
             tags: ["录音", "错误"],
             audioData: generateMockAudioData(),

@@ -15,17 +15,19 @@ struct AudioRecording: Identifiable, Equatable {
     let timestamp: Date
     let duration: TimeInterval
     let transcription: String
+    let title: String
     let summary: String
     let tags: [String]
     let audioData: Data?
     var isPlaying: Bool = false
     let enrichedContent: String?
     
-    init(id: UUID? = nil, timestamp: Date, duration: TimeInterval, transcription: String, summary: String, tags: [String], audioData: Data?, enrichedContent: String?) {
+    init(id: UUID? = nil, timestamp: Date, duration: TimeInterval, transcription: String, title: String, summary: String, tags: [String], audioData: Data?, enrichedContent: String?) {
         self.id = id ?? UUID()
         self.timestamp = timestamp
         self.duration = duration
         self.transcription = transcription
+        self.title = title
         self.summary = summary
         self.tags = tags
         self.audioData = audioData
@@ -35,6 +37,7 @@ struct AudioRecording: Identifiable, Equatable {
     static func == (lhs: AudioRecording, rhs: AudioRecording) -> Bool {
         return lhs.id == rhs.id &&
                lhs.transcription == rhs.transcription &&
+               lhs.title == rhs.title &&
                lhs.summary == rhs.summary &&
                lhs.tags == rhs.tags &&
                lhs.enrichedContent == rhs.enrichedContent
@@ -171,7 +174,8 @@ class PreviewAudioManager: AudioManagerAdapter {
                 timestamp: Date(),
                 duration: 185.5,
                 transcription: "这是一段会议录音的转写内容，讨论了关于新产品开发的进度和计划。我们需要在下个季度完成主要功能的开发，并准备进行用户测试。团队决定采用敏捷开发方法，每两周进行一次迭代评审。",
-                summary: "产品开发会议总结：确定了Q2的开发目标，包括核心功能完成、用户界面优化和测试计划制定。",
+                title: "产品开发会议讨论",
+                summary: "确定了Q2的开发目标，包括核心功能完成、用户界面优化和测试计划制定。",
                 tags: ["会议", "产品", "开发"],
                 audioData: "mock audio data".data(using: .utf8),
                 enrichedContent: """
@@ -194,7 +198,8 @@ class PreviewAudioManager: AudioManagerAdapter {
                 timestamp: Date().addingTimeInterval(-3600),
                 duration: 45.2,
                 transcription: "今天的学习笔记，主要学习了SwiftUI的高级动画技巧。包括自定义转场动画、弹簧动画的参数调节，以及如何优化动画性能。",
-                summary: "SwiftUI动画学习：掌握了转场动画和弹簧动画的实现方法，了解了动画性能优化的关键点。",
+                title: "SwiftUI动画技巧学习",
+                summary: "掌握了转场动画和弹簧动画的实现方法，了解了动画性能优化的关键点。",
                 tags: ["学习", "SwiftUI", "动画"],
                 audioData: "mock audio data".data(using: .utf8),
                 enrichedContent: """
@@ -213,7 +218,8 @@ class PreviewAudioManager: AudioManagerAdapter {
                 timestamp: Date().addingTimeInterval(-7200),
                 duration: 126.8,
                 transcription: "团队周会录音，讨论了本周的工作进展和下周的计划安排。产品团队完成了新功能的设计稿，开发团队修复了几个重要的bug。",
-                summary: "团队周会总结：产品设计按计划完成，开发进度良好，下周将开始新功能开发。",
+                title: "团队周会总结",
+                summary: "产品设计按计划完成，开发进度良好，下周将开始新功能开发。",
                 tags: ["团队", "周会", "进度"],
                 audioData: "mock audio data".data(using: .utf8),
                 enrichedContent: nil
@@ -222,7 +228,8 @@ class PreviewAudioManager: AudioManagerAdapter {
                 timestamp: Date().addingTimeInterval(-10800),
                 duration: 89.3,
                 transcription: "个人想法记录：关于如何提升用户体验的一些思考，包括界面设计的简化、交互流程的优化，以及反馈机制的改进。",
-                summary: "用户体验优化思考：从界面、交互、反馈三个维度提出了改进建议。",
+                title: "用户体验优化思考",
+                summary: "从界面、交互、反馈三个维度提出了改进建议。",
                 tags: ["个人", "用户体验", "思考"],
                 audioData: "mock audio data".data(using: .utf8),
                 enrichedContent: """

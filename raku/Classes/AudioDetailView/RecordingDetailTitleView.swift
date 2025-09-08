@@ -14,7 +14,7 @@ struct RecordingDetailTitleView: View {
     
     var body: some View {
         VStack(alignment: .leading, spacing: 26) {
-            Text(extractTitle(from: recording.summary))
+            Text(recording.title)
                 .font(.system(size: 24, weight: .semibold))
                 .foregroundColor(isDarkMode ? .white.opacity(0.95) : .black.opacity(0.95))
                 .lineLimit(2)
@@ -70,19 +70,6 @@ struct RecordingDetailTitleView: View {
         .padding(.top, 20)
         .padding(.bottom, 50)
     }
-    
-    private func extractTitle(from summary: String) -> String {
-        // 从总结中提取第一句作为标题
-        let sentences = summary.components(separatedBy: CharacterSet(charactersIn: "。！？"))
-        if let firstSentence = sentences.first, !firstSentence.isEmpty {
-            // 限制标题长度
-            if firstSentence.count > 30 {
-                return String(firstSentence.prefix(30)) + "..."
-            }
-            return firstSentence
-        }
-        return "录音记录"
-    }
 }
 
 // MARK: - 预览
@@ -93,7 +80,8 @@ struct RecordingDetailTitleView_Previews: PreviewProvider {
                 timestamp: Date(),
                 duration: 185,
                 transcription: "这是一段会议录音的转写内容",
-                summary: "产品开发会议总结：确定了Q2的开发目标，包括核心功能完成、用户界面优化和测试计划制定。",
+                title: "产品开发会议总结",
+                summary: "确定了Q2的开发目标，包括核心功能完成、用户界面优化和测试计划制定。",
                 tags: ["会议", "产品", "开发"],
                 audioData: nil,
                 enrichedContent: nil

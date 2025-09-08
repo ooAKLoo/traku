@@ -320,11 +320,15 @@ class DatabaseManager {
                     enrichedContent = String(cString: enrichedText)
                 }
                 
+                // 从 summary 中提取 title，如果找不到则使用 summary 本身
+                let title = extractTitleFromSummary(summaryStr)
+                
                 let recording = AudioRecording(
                     id: id,
                     timestamp: timestamp,
                     duration: duration,
                     transcription: transcriptionStr,
+                    title: title,
                     summary: summaryStr,
                     tags: tags,
                     audioData: audioData,
@@ -347,6 +351,34 @@ class DatabaseManager {
             print("✅ 成功加载 \(recordings.count) 条录音记录")
             return recordings
         }
+    }
+    
+    // MARK: - 辅助方法
+    
+    /// 从 summary 中提取 title
+    private func extractTitleFromSummary(_ summary: String) -> String {
+        // 如果 summary 包含 "：" 或 "-"，提取前面的部分作为 title
+        if let colonRange = summary.range(of: "：") {
+            let title = String(summary[..<colonRange.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
+            if !title.isEmpty {
+                return title
+            }
+        }
+        
+        if let dashRange = summary.range(of: " - ") {
+            let title = String(summary[..<dashRange.lowerBound]).trimmingCharacters(in: .whitespacesAndNewlines)
+            if !title.isEmpty {
+                return title
+            }
+        }
+        
+        // 如果找不到分隔符，使用前30个字符作为 title
+        if summary.count > 30 {
+            return String(summary.prefix(30)).trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        
+        // 如果 summary 很短，直接使用作为 title
+        return summary.isEmpty ? "未命名录音" : summary
     }
     
     func deleteRecording(id: UUID) -> Bool {

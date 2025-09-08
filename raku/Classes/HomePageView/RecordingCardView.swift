@@ -81,8 +81,8 @@ struct RecordingCardView: View {
                         .font(.system(size: 11, weight: .regular))
                         .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4))
                     
-                    // 标题（总结的第一句）- 增强视觉权重
-                    Text(recording.summary.prefix(50) + "...")
+                    // 标题 - 增强视觉权重
+                    Text(recording.title)
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundColor(isDarkMode ? .white : .black)
                         .lineLimit(2)
@@ -171,7 +171,8 @@ struct RecordingCardView_Previews: PreviewProvider {
         timestamp: Date(),
         duration: 45.5,
         transcription: "这是一段关于SwiftUI开发的音频记录，讨论了如何使用SwiftUI构建优美的用户界面，以及最佳实践和性能优化技巧。",
-        summary: "SwiftUI开发最佳实践：本音频记录详细介绍了使用SwiftUI框架构建现代化iOS应用的技巧和方法...",
+        title: "SwiftUI开发最佳实践",
+        summary: "本音频记录详细介绍了使用SwiftUI框架构建现代化iOS应用的技巧和方法",
         tags: ["SwiftUI", "iOS开发", "UI设计"],
         audioData: nil,
         enrichedContent: "深度内容分析..."
@@ -183,7 +184,8 @@ struct RecordingCardView_Previews: PreviewProvider {
             timestamp: Date().addingTimeInterval(-3600),
             duration: 75.2,
             transcription: "项目管理会议记录",
-            summary: "项目进展讨论：本次会议重点讨论了当前项目的进展情况和下一阶段的计划...",
+            title: "项目进展讨论",
+            summary: "本次会议重点讨论了当前项目的进展情况和下一阶段的计划",
             tags: ["会议", "项目管理"],
             audioData: nil,
             enrichedContent: nil
@@ -192,7 +194,8 @@ struct RecordingCardView_Previews: PreviewProvider {
             timestamp: Date().addingTimeInterval(-7200),
             duration: 32.8,
             transcription: "学习笔记记录",
-            summary: "算法学习：今天学习了动态规划的基本概念和经典问题的解法...",
+            title: "算法学习记录",
+            summary: "今天学习了动态规划的基本概念和经典问题的解法",
             tags: ["学习", "算法"],
             audioData: nil,
             enrichedContent: nil
@@ -253,7 +256,8 @@ struct RecordingListPreview: View {
             timestamp: Date(),
             duration: 45.5,
             transcription: "SwiftUI开发记录",
-            summary: "SwiftUI开发最佳实践：本音频记录详细介绍了使用SwiftUI框架构建现代化iOS应用的技巧和方法...",
+            title: "SwiftUI开发最佳实践",
+            summary: "本音频记录详细介绍了使用SwiftUI框架构建现代化iOS应用的技巧和方法",
             tags: ["SwiftUI", "iOS开发", "UI设计"],
             audioData: nil,
             enrichedContent: "深度内容分析..."
@@ -262,7 +266,8 @@ struct RecordingListPreview: View {
             timestamp: Date().addingTimeInterval(-3600),
             duration: 75.2,
             transcription: "项目管理会议记录",
-            summary: "项目进展讨论：本次会议重点讨论了当前项目的进展情况和下一阶段的计划...",
+            title: "项目进展讨论",
+            summary: "本次会议重点讨论了当前项目的进展情况和下一阶段的计划",
             tags: ["会议", "项目管理"],
             audioData: nil,
             enrichedContent: nil
@@ -271,7 +276,8 @@ struct RecordingListPreview: View {
             timestamp: Date().addingTimeInterval(-7200),
             duration: 32.8,
             transcription: "学习笔记记录",
-            summary: "算法学习：今天学习了动态规划的基本概念和经典问题的解法...",
+            title: "算法学习记录", 
+            summary: "今天学习了动态规划的基本概念和经典问题的解法",
             tags: ["学习", "算法"],
             audioData: nil,
             enrichedContent: nil

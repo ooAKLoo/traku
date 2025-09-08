@@ -118,6 +118,7 @@ struct RecordingDetailView: View {
                                 timestamp: recording.timestamp,
                                 duration: recording.duration,
                                 transcription: recording.transcription,
+                                title: recording.title,
                                 summary: recording.summary,
                                 tags: editableTags,
                                 audioData: recording.audioData,
@@ -423,7 +424,8 @@ struct RecordingDetailView_Previews: PreviewProvider {
                 timestamp: Date(),
                 duration: 185,
                 transcription: "这是一段会议录音的转写内容，讨论了关于新产品开发的进度和计划。我们需要在下个季度完成主要功能的开发，并准备进行用户测试。",
-                summary: "产品开发会议总结：确定了Q2的开发目标，包括核心功能完成、用户界面优化和测试计划制定。团队将采用敏捷开发方法，每两周进行一次迭代评审。",
+                title: "产品开发会议总结",
+                summary: "确定了Q2的开发目标，包括核心功能完成、用户界面优化和测试计划制定。团队将采用敏捷开发方法，每两周进行一次迭代评审。",
                 tags: ["会议", "产品", "开发"],
                 audioData: "mock audio data".data(using: .utf8),
                 enrichedContent: """

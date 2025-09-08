@@ -66,7 +66,8 @@ class MockDataService {
                 timeOffset: -3600, // 1小时前
                 duration: 45.2,
                 transcription: "这是第一段测试录音的转录内容，用于展示应用的基本功能。包含语音识别、文本分析等核心特性。",
-                summary: "功能演示录音",
+                title: "功能演示录音",
+                summary: "展示应用的基本功能，包含语音识别、文本分析等核心特性",
                 tags: ["测试", "演示", "功能"],
                 audioDataSuffix: "1",
                 enrichedContent: createBasicEnrichedContent(title: "应用功能演示", content: "展示了语音录制、转录和分析的完整流程")
@@ -76,7 +77,8 @@ class MockDataService {
                 timeOffset: -1800, // 30分钟前
                 duration: 62.8,
                 transcription: "第二段录音内容，展示了更长的录音时间和更多的文本内容。这段录音包含了复杂的语音模式和多种话题讨论。",
-                summary: "长时间录音测试",
+                title: "长时间录音测试",
+                summary: "展示更长的录音时间和更多的文本内容，包含复杂的语音模式和多种话题讨论",
                 tags: ["长录音", "测试", "复杂"],
                 audioDataSuffix: "2",
                 enrichedContent: createBasicEnrichedContent(title: "长时间录音分析", content: "演示了系统处理长时间音频的能力")
@@ -86,7 +88,8 @@ class MockDataService {
                 timeOffset: -300, // 5分钟前
                 duration: 28.5,
                 transcription: "嗯，结合大道质简，如何理解真经一句话，假经万卷书。这句话体现了什么样的哲学思想？",
-                summary: "理解真经与假经",
+                title: "真经与假经思考",
+                summary: "结合大道质简，理解真经一句话，假经万卷书的哲学思想",
                 tags: ["哲学", "思考", "真经"],
                 audioDataSuffix: "3",
                 enrichedContent: createPhilosophyEnrichedContent()
@@ -96,7 +99,8 @@ class MockDataService {
                 timeOffset: -120, // 2分钟前
                 duration: 15.3,
                 transcription: "今天的会议讨论了产品的下一阶段开发计划，重点关注用户体验的改进。",
-                summary: "产品会议记录",
+                title: "产品会议记录",
+                summary: "讨论产品下一阶段开发计划，重点关注用户体验的改进",
                 tags: ["会议", "产品", "规划"],
                 audioDataSuffix: "4",
                 enrichedContent: createBasicEnrichedContent(title: "会议要点", content: "讨论了产品开发的关键要素和用户反馈")
@@ -106,7 +110,8 @@ class MockDataService {
                 timeOffset: -60, // 1分钟前
                 duration: 33.7,
                 transcription: "关于技术架构的重构，我们需要考虑性能优化、代码可维护性以及扩展性等多个方面。",
-                summary: "技术架构讨论",
+                title: "技术架构讨论",
+                summary: "考虑性能优化、代码可维护性以及扩展性等多个方面的技术架构重构",
                 tags: ["技术", "架构", "重构"],
                 audioDataSuffix: "5",
                 enrichedContent: createTechEnrichedContent()
@@ -119,6 +124,7 @@ class MockDataService {
         timeOffset: TimeInterval,
         duration: TimeInterval,
         transcription: String,
+        title: String,
         summary: String,
         tags: [String],
         audioDataSuffix: String,
@@ -128,6 +134,7 @@ class MockDataService {
             timestamp: Date().addingTimeInterval(timeOffset),
             duration: duration,
             transcription: transcription,
+            title: title,
             summary: summary,
             tags: tags,
             audioData: generateMockAudioData(suffix: audioDataSuffix),

@@ -257,7 +257,8 @@ class ESP32AudioService: NSObject, ObservableObject {
             timestamp: Date(),
             duration: duration,
             transcription: "录音已保存",
-            summary: "录音 \(recordings.count + 1) - \(formatDuration(duration))",
+            title: "录音 \(recordings.count + 1)",
+            summary: "时长 \(formatDuration(duration)) 的录音记录",
             tags: ["录音"],
             audioData: wavData,
             enrichedContent: nil

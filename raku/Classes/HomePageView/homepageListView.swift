@@ -54,7 +54,8 @@ struct HomepageListView_Previews: PreviewProvider {
                 timestamp: Date(),
                 duration: 120.5,
                 transcription: "这是一段示例录音的转录内容，包含了语音识别的结果文本。",
-                summary: "会议讨论 - 项目进度汇报",
+                title: "项目进度汇报会议",
+                summary: "项目进度汇报讨论和下阶段规划",
                 tags: ["会议", "工作", "项目"],
                 audioData: Data(),
                 enrichedContent: "这是丰富化内容的示例"
@@ -63,7 +64,8 @@ struct HomepageListView_Previews: PreviewProvider {
                 timestamp: Date().addingTimeInterval(-3600),
                 duration: 45.2,
                 transcription: "另一段录音内容，展示不同类型的语音记录。",
-                summary: "个人笔记 - 想法记录",
+                title: "个人想法记录",
+                summary: "想法记录和思考总结",
                 tags: ["个人", "笔记"],
                 audioData: Data(),
                 enrichedContent: nil
@@ -72,7 +74,8 @@ struct HomepageListView_Previews: PreviewProvider {
                 timestamp: Date().addingTimeInterval(-7200),
                 duration: 89.1,
                 transcription: "第三段录音展示更多样化的内容和标签。",
-                summary: "学习笔记 - 知识总结",
+                title: "学习知识总结",
+                summary: "知识总结和要点梳理",
                 tags: ["学习", "笔记", "总结"],
                 audioData: Data(),
                 enrichedContent: "详细的学习内容分析"
