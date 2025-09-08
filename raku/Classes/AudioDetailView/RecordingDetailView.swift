@@ -146,7 +146,7 @@ struct RecordingDetailView: View {
                             }
                             .padding(.horizontal, 18)
                         }
-                        .padding(.bottom, 58)
+                        .padding(.bottom, 38)
                         
                         // AI总结部分 - 黑体强调，无标题
                         VStack(alignment: .leading, spacing: 24) {

@@ -77,7 +77,7 @@ struct RecordingCardView: View {
                 // 卡片内容
                 VStack(alignment: .leading, spacing: 12) {
                     // 顶部信息组 - 时间戳
-                    Text(recording.timestamp.timeFormatted)
+                    Text(recording.timestamp.smartFormatted)
                         .font(.system(size: 11, weight: .regular))
                         .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4))
                     

@@ -13,7 +13,7 @@ struct RecordingDetailTitleView: View {
     @AppStorage("isDarkMode") private var isDarkMode = true
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
+        VStack(alignment: .leading, spacing: 26) {
             Text(extractTitle(from: recording.summary))
                 .font(.system(size: 24, weight: .semibold))
                 .foregroundColor(isDarkMode ? .white.opacity(0.95) : .black.opacity(0.95))
