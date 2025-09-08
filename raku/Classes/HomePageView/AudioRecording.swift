@@ -271,7 +271,7 @@ struct PreviewContentView: View {
         NavigationView {
             ZStack {
                 // 极简背景
-                (forcedDarkMode ? Color.black : Color(white: 0.98))
+                (forcedDarkMode ? Color.black : Color.white)
                     .ignoresSafeArea()
                 
                 RecordingsListView(

@@ -55,14 +55,13 @@ struct TagFilterTabBar: View {
                     }
                 }
                 .padding(.horizontal, 20)
-                .padding(.vertical, 12)
+                .padding(.top,2)
+                .padding(.bottom,4)
             }
             .background(
                 // 简洁背景，与 header 保持一致
                 (isDarkMode ? Color.black : Color.white)
             )
-//            .padding(.horizontal, 20)
-            .padding(.bottom, 16)
         }
     }
 }
