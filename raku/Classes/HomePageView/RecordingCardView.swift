@@ -17,9 +17,9 @@ struct RecordingCardView: View {
     @State private var isDragging = false
     @State private var isDeleting = false
     
-    // 删除阈值（圆环完全闭合的滑动距离）
-    private let deleteThreshold: CGFloat = -120
-    private let maxSwipeDistance: CGFloat = -150
+    // 删除阈值（圆环完全闭合的滑动距离）- 增加距离防止误触
+    private let deleteThreshold: CGFloat = -180
+    private let maxSwipeDistance: CGFloat = -220
     
     // 计算进度 (0 到 1)
     private var progress: CGFloat {
