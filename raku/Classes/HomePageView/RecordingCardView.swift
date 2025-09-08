@@ -16,6 +16,7 @@ struct RecordingCardView: View {
     @State private var offset: CGFloat = 0
     @State private var isDragging = false
     @State private var isDeleting = false
+    @State private var hasTriggeredHaptic = false
     
     // 删除阈值（圆环完全闭合的滑动距离）- 增加距离防止误触
     private let deleteThreshold: CGFloat = -180
@@ -66,6 +67,15 @@ struct RecordingCardView: View {
                         .foregroundColor(progress == 1 ? Color.red : trashColor)
                         .scaleEffect(progress == 1 ? 1.1 : 1.0)
                         .animation(.spring(response: 0.3, dampingFraction: 0.7), value: progress)
+                        .onChange(of: progress == 1) { showingCheckmark in
+                            if showingCheckmark && !hasTriggeredHaptic {
+                                let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                                impactFeedback.impactOccurred()
+                                hasTriggeredHaptic = true
+                            } else if !showingCheckmark {
+                                hasTriggeredHaptic = false
+                            }
+                        }
                 }
                 .frame(width: 60)
                 .opacity(offset < -10 ? 1 : 0)
