@@ -49,11 +49,20 @@ struct HomepageHeaderView: View {
                                 .font(.system(size: 16, weight: .medium))
                                 .foregroundColor(isDarkMode ? .white : .black)
                             
-                            Text(audioManager.isConnected ? "已连接" : "未连接")
-                                .font(.system(size: 12))
-                                .foregroundColor(audioManager.isConnected ? 
-                                    (isDarkMode ? Color.green.opacity(0.8) : Color.green) : 
-                                    (isDarkMode ? Color.red.opacity(0.8) : Color.red))
+                            HStack(spacing: 4) {
+                                // 连接状态图标
+                                Image(systemName: audioManager.isConnected ? "checkmark.circle" : "circle.dotted")
+                                    .font(.system(size: 10, weight: audioManager.isConnected ? .light : .medium))
+                                    .foregroundColor(audioManager.isConnected ?
+                                                     (isDarkMode ? Color.green.opacity(0.8) : Color.green) :
+                                                        (isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4)))
+                                
+                                Text(audioManager.isConnected ? "已连接" : "未连接")
+                                    .font(.system(size: 12, weight: .regular))
+                                    .foregroundColor(audioManager.isConnected ?
+                                                     (isDarkMode ? Color.green.opacity(0.8) : Color.green) :
+                                                        (isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4)))
+                            }
                         }
                     }
                     .transition(.asymmetric(
@@ -165,10 +174,10 @@ struct HomepageHeaderView: View {
                             Text(filter)
                                 .font(.system(size: 16, weight: selectedFilter == filter ? .semibold : .regular))
                                 .foregroundColor(selectedFilter == filter ?
-                                    (isDarkMode ? .white : .black) :
-                                    (hoveredFilter == filter ?
-                                        (isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8)) :
-                                        (isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))))
+                                                 (isDarkMode ? .white : .black) :
+                                                    (hoveredFilter == filter ?
+                                                     (isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8)) :
+                                                        (isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))))
                                 .animation(.easeInOut(duration: 0.2), value: selectedFilter)
                                 .animation(.easeInOut(duration: 0.15), value: hoveredFilter)
                             

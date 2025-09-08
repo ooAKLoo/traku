@@ -38,7 +38,7 @@ struct RecordingDetailView: View {
     var body: some View {
         ZStack {
             // 极简背景
-            (isDarkMode ? Color.black : Color(white: 0.98))
+            (isDarkMode ? Color.black : Color.white)
                 .ignoresSafeArea()
             
             VStack(spacing: 0) {

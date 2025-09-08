@@ -259,8 +259,8 @@ struct TagView: View {
         Text(text)
             .font(.system(size: 11, weight: .regular))
             .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
-            .padding(.horizontal, 8)
-            .padding(.vertical, 3)
+            .padding(.horizontal, 14)
+            .padding(.vertical, 4)
             .background(
                 Capsule()
                     .fill(isDarkMode ? Color.white.opacity(0.08) : Color.black.opacity(0.05))

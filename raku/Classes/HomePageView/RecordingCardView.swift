@@ -86,26 +86,22 @@ struct RecordingCardView: View {
                         .font(.system(size: 18, weight: .semibold))
                         .foregroundColor(isDarkMode ? .white : .black)
                         .lineLimit(2)
-                        .padding(.bottom, 4)
                     
-                    // 底部信息组
-                    VStack(alignment: .leading, spacing: 8) {
-                        // 标签
-                        HStack(spacing: 6) {
-                            ForEach(recording.tags, id: \.self) { tag in
-                                TagView(text: tag, isDarkMode: isDarkMode)
-                            }
+                    // 标签
+                    HStack(spacing: 6) {
+                        ForEach(recording.tags, id: \.self) { tag in
+                            TagView(text: tag, isDarkMode: isDarkMode)
                         }
-                        
-                        // 时长 - 更弱化的样式
-                        HStack(spacing: 4) {
-                            Image(systemName: "waveform")
-                                .font(.system(size: 10, weight: .light))
-                            Text("\(Int(recording.duration))秒")
-                                .font(.system(size: 10, weight: .light))
-                        }
-                        .foregroundColor(isDarkMode ? .white.opacity(0.3) : .black.opacity(0.3))
                     }
+                    
+                    // 时长 - 更弱化的样式
+                    HStack(spacing: 4) {
+                        Image(systemName: "waveform")
+                            .font(.system(size: 10, weight: .light))
+                        Text("\(Int(recording.duration))秒")
+                            .font(.system(size: 10, weight: .light))
+                    }
+                    .foregroundColor(isDarkMode ? .white.opacity(0.3) : .black.opacity(0.3))
                 }
                 .padding(16)
                 .frame(maxWidth: .infinity, alignment: .leading)
