@@ -58,6 +58,18 @@ struct ChapterTabBar: View {
                         x: 0,
                         y: 5
                     )
+                    .mask(
+                        // 上边沿渐变虚化
+                        LinearGradient(
+                            gradient: Gradient(stops: [
+                                .init(color: .clear, location: 0),
+                                .init(color: .black, location: 0.3),
+                                .init(color: .black, location: 1)
+                            ]),
+                            startPoint: .top,
+                            endPoint: .bottom
+                        )
+                    )
             )
             .clipShape(RoundedRectangle(cornerRadius: 24))
             .padding(.horizontal, 16)

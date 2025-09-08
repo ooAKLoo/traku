@@ -17,7 +17,7 @@ struct RecordingDetailView: View {
     @State private var isTagEditModalPresented = false
     @State private var editableTags: [String]
     @Environment(\.dismiss) private var dismiss
-    @AppStorage("isDarkMode") private var isDarkMode = false
+    @AppStorage("isDarkMode") private var isDarkMode = true
     @StateObject private var audioManager: AudioManagerAdapter
     @State private var headings: [HeadingNode] = []
     @State private var selectedHeadingId: String? = nil
@@ -193,11 +193,26 @@ struct RecordingDetailView: View {
                         insertion: .move(edge: .bottom).combined(with: .opacity),
                         removal: .move(edge: .bottom).combined(with: .opacity)
                     ))
+                    .background(
+                        (isDarkMode ? Color.black.opacity(0.85) : Color.white.opacity(0.95))
+                            .mask(
+                                // 上边沿渐变虚化
+                                LinearGradient(
+                                    gradient: Gradient(stops: [
+                                        .init(color: .clear, location: 0),
+                                        .init(color: .black, location: 0.3),
+                                        .init(color: .black, location: 1)
+                                    ]),
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                )
+                            )
+                    )
+                    .offset(y:20)
                 }
                 .animation(.spring(response: 0.5, dampingFraction: 0.8), value: headings.count)
             }
         }
-        .preferredColorScheme(.dark)
         .onAppear {
             if let enrichedContent = recording.enrichedContent, !enrichedContent.isEmpty {
                 let headingTree = MarkdownHeadingParser.parseHeadings(from: enrichedContent)

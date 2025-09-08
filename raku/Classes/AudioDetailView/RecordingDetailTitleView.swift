@@ -10,7 +10,7 @@ import SwiftUI
 struct RecordingDetailTitleView: View {
     let recording: AudioRecording
     let onTagTap: () -> Void
-    @AppStorage("isDarkMode") private var isDarkMode = true
+    @AppStorage("isDarkMode") private var isDarkMode = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: 26) {
