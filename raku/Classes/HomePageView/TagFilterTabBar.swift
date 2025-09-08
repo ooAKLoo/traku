@@ -90,16 +90,15 @@ struct TagFilterItem: View {
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(
                         isSelected
-                        ? (isDarkMode ? .black.opacity(0.6) : .white.opacity(0.7))
+                        ? (isDarkMode ? .black.opacity(0.7) : .black)
                         : (isDarkMode ? .white.opacity(0.4) : .gray.opacity(0.6))
                     )
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
+                    .frame(width: 20, height: 20)
                     .background(
-                        Capsule()
+                        Circle()
                             .fill(
                                 isSelected
-                                ? (isDarkMode ? Color.white.opacity(0.2) : Color.black.opacity(0.1))
+                                ? (isDarkMode ? Color.black.opacity(0.15) : Color.white.opacity(0.9))
                                 : (isDarkMode ? Color.white.opacity(0.08) : Color.gray.opacity(0.15))
                             )
                     )
