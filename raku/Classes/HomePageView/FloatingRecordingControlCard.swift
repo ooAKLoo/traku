@@ -35,19 +35,12 @@ struct FloatingRecordingControlCard: View {
                 }
             }
             Capsule()
-                .fill(
-                    LinearGradient(
-                        colors: isRecording ?
-                            ([Color.red.opacity(0.2), Color.red.opacity(0.4)]) :
-                            [Color.blue, Color.purple],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+                .fill(Color.white)
                 .frame(
                     width: isRecording ? 220 : 70,
                     height: 70
                 )
+                .shadow(color: Color.black.opacity(0.1), radius: 8)
             
             // 前景内容
             if isRecording {
@@ -103,12 +96,12 @@ struct FloatingRecordingControlCard: View {
             VStack(spacing: 4) {
                 Text(FormatHelper.formatDurationWithDecimal(recordingTime))
                     .font(.system(size: 18, weight: .semibold, design: .monospaced))
-                    .foregroundColor(.white)
+                    .foregroundColor(.black)
                 
                 HStack(spacing: 6) {
                     // 录音状态指示点
                     Circle()
-                        .fill(isPaused ? Color.white.opacity(0.8) : Color.white)
+                        .fill(isPaused ? Color.black.opacity(0.5) : Color.red)
                         .frame(width: 8, height: 8)
                         .scaleEffect(isPaused ? 1.0 : 1.3)
                         .opacity(isPaused ? 0.7 : 1.0)
@@ -121,7 +114,7 @@ struct FloatingRecordingControlCard: View {
                     
                     Text(isPaused ? "已暂停" : "录音中")
                         .font(.system(size: 12, weight: .medium))
-                        .foregroundColor(.white.opacity(0.9))
+                        .foregroundColor(.black.opacity(0.7))
                 }
             }
             .layoutPriority(1)
@@ -150,8 +143,7 @@ struct FloatingRecordingControlCard: View {
         VStack(spacing: 4) {
             Image(systemName: "mic.fill")
                 .font(.system(size: 24, weight: .medium))
-                .foregroundColor(.white)
-                .shadow(color: .black.opacity(0.2), radius: 2)
+                .foregroundColor(.black)
         }
         .frame(width: 70,height: 70)
     }

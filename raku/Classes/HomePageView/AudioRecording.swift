@@ -270,88 +270,88 @@ struct TagView: View {
 
 
 // MARK: - 主界面录音控制
-struct RecordingControlView: View {
-    @ObservedObject var audioManager: AudioManagerAdapter
-    @State private var isRecording = false
-    @State private var recordingTime: TimeInterval = 0
-    @State private var timer: Timer?
-    @AppStorage("isDarkMode") private var isDarkMode = true
-    
-    var body: some View {
-        VStack(spacing: 30) {
-            // 音频波形可视化
-            if audioManager.isRecording {
-                AudioWaveformView(levels: audioManager.audioLevels, isDarkMode: isDarkMode)
-                    .frame(height: 100)
-                    .padding(.horizontal)
-            }
-            
-            // 录音时间
-            if isRecording {
-                Text(FormatHelper.formatDurationWithDecimal(recordingTime))
-                    .font(.system(size: 48, weight: .thin, design: .monospaced))
-                    .foregroundColor(isDarkMode ? .white : .black)
-            }
-            
-            // 录音按钮
-            Button(action: toggleRecording) {
-                ZStack {
-                    Circle()
-                        .fill(
-                            LinearGradient(
-                                colors: isRecording ?
-                                    [Color.red, Color.red.opacity(0.8)] :
-                                    [Color.blue, Color.purple],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            )
-                        )
-                        .frame(width: 100, height: 100)
-                        .shadow(color: isRecording ? Color.red.opacity(0.5) : Color.blue.opacity(0.5),
-                               radius: isRecording ? 20 : 10)
-                    
-                    Image(systemName: isRecording ? "stop.fill" : "mic.fill")
-                        .font(.system(size: 40))
-                        .foregroundColor(.white)
-                        .scaleEffect(isRecording ? 0.8 : 1.0)
-                        .animation(.easeInOut(duration: 0.2), value: isRecording)
-                }
-            }
-            .disabled(!audioManager.isConnected)
-            .opacity(audioManager.isConnected ? 1.0 : 0.5)
-            
-            // 连接状态提示
-            if !audioManager.isConnected {
-                Text("请先连接设备")
-                    .font(.system(size: 14))
-                    .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
-            }
-        }
-        .padding()
-    }
-    
-    func toggleRecording() {
-        if isRecording {
-            // 停止录音
-            audioManager.stopRecording()
-            timer?.invalidate()
-            timer = nil
-            recordingTime = 0
-        } else {
-            // 开始录音
-            audioManager.startRecording()
-            recordingTime = 0
-            timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
-                recordingTime += 0.1
-            }
-        }
-        
-        withAnimation(.spring()) {
-            isRecording.toggle()
-        }
-    }
-    
-}
+//struct RecordingControlView: View {
+//    @ObservedObject var audioManager: AudioManagerAdapter
+//    @State private var isRecording = false
+//    @State private var recordingTime: TimeInterval = 0
+//    @State private var timer: Timer?
+//    @AppStorage("isDarkMode") private var isDarkMode = false
+//    
+//    var body: some View {
+//        VStack(spacing: 30) {
+//            // 音频波形可视化
+//            if audioManager.isRecording {
+//                AudioWaveformView(levels: audioManager.audioLevels, isDarkMode: isDarkMode)
+//                    .frame(height: 100)
+//                    .padding(.horizontal)
+//            }
+//            
+//            // 录音时间
+//            if isRecording {
+//                Text(FormatHelper.formatDurationWithDecimal(recordingTime))
+//                    .font(.system(size: 48, weight: .thin, design: .monospaced))
+//                    .foregroundColor(isDarkMode ? .white : .black)
+//            }
+//            
+//            // 录音按钮
+//            Button(action: toggleRecording) {
+//                ZStack {
+//                    Circle()
+//                        .fill(
+//                            LinearGradient(
+//                                colors: isRecording ?
+//                                    [Color.red, Color.red.opacity(0.8)] :
+//                                    [Color.blue, Color.purple],
+//                                startPoint: .topLeading,
+//                                endPoint: .bottomTrailing
+//                            )
+//                        )
+//                        .frame(width: 100, height: 100)
+//                        .shadow(color: isRecording ? Color.red.opacity(0.5) : Color.blue.opacity(0.5),
+//                               radius: isRecording ? 20 : 10)
+//                    
+//                    Image(systemName: isRecording ? "stop.fill" : "mic.fill")
+//                        .font(.system(size: 40))
+//                        .foregroundColor(.white)
+//                        .scaleEffect(isRecording ? 0.8 : 1.0)
+//                        .animation(.easeInOut(duration: 0.2), value: isRecording)
+//                }
+//            }
+//            .disabled(!audioManager.isConnected)
+//            .opacity(audioManager.isConnected ? 1.0 : 0.5)
+//            
+//            // 连接状态提示
+//            if !audioManager.isConnected {
+//                Text("请先连接设备")
+//                    .font(.system(size: 14))
+//                    .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
+//            }
+//        }
+//        .padding()
+//    }
+//    
+//    func toggleRecording() {
+//        if isRecording {
+//            // 停止录音
+//            audioManager.stopRecording()
+//            timer?.invalidate()
+//            timer = nil
+//            recordingTime = 0
+//        } else {
+//            // 开始录音
+//            audioManager.startRecording()
+//            recordingTime = 0
+//            timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
+//                recordingTime += 0.1
+//            }
+//        }
+//        
+//        withAnimation(.spring()) {
+//            isRecording.toggle()
+//        }
+//    }
+//    
+//}
 
 
 // MARK: - Preview
