@@ -27,7 +27,7 @@ struct TagFilterTabBar: View {
     var body: some View {
         if !allTags.isEmpty {
             ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 8) {
+                HStack(spacing: 10) {
                     // "全部" 选项
                     TagFilterItem(
                         title: "全部",
@@ -35,7 +35,7 @@ struct TagFilterTabBar: View {
                         isSelected: selectedTag == nil,
                         isDarkMode: isDarkMode
                     ) {
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
                             selectedTag = nil
                         }
                     }
@@ -48,18 +48,16 @@ struct TagFilterTabBar: View {
                             isSelected: selectedTag == tag,
                             isDarkMode: isDarkMode
                         ) {
-                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
                                 selectedTag = selectedTag == tag ? nil : tag
                             }
                         }
                     }
                 }
                 .padding(.horizontal, 20)
-                .padding(.top,2)
-                .padding(.bottom,4)
+                .padding(.vertical, 8)
             }
             .background(
-                // 简洁背景，与 header 保持一致
                 (isDarkMode ? Color.black : Color.white)
             )
         }
@@ -74,99 +72,203 @@ struct TagFilterItem: View {
     let isDarkMode: Bool
     let onTap: () -> Void
     
+    // 定义更精致的颜色方案
+    private var backgroundColor: Color {
+        if isSelected {
+            // 选中状态：深色主题色
+            return isDarkMode ? Color.white : Color(red: 0.1, green: 0.1, blue: 0.12)
+        } else {
+            // 未选中状态：更轻的背景
+            return isDarkMode ? Color.white.opacity(0.08) : Color(red: 0.96, green: 0.96, blue: 0.97)
+        }
+    }
+    
+    private var textColor: Color {
+        if isSelected {
+            // 选中状态：高对比度文字
+            return isDarkMode ? Color.black : Color.white
+        } else {
+            // 未选中状态：柔和的文字颜色
+            return isDarkMode ? Color.white.opacity(0.65) : Color(red: 0.4, green: 0.4, blue: 0.45)
+        }
+    }
+    
+    private var countBackgroundColor: Color {
+        if isSelected {
+            // 选中状态：使用纯色而非透明度，避免"脏"的感觉
+            return isDarkMode
+                ? Color(red: 0.92, green: 0.92, blue: 0.93)  // 浅灰色
+                : Color(red: 0.25, green: 0.25, blue: 0.28)  // 深灰色
+        } else {
+            // 未选中状态
+            return isDarkMode
+                ? Color.white.opacity(0.1)
+                : Color(red: 0.88, green: 0.88, blue: 0.9)
+        }
+    }
+    
+    private var countTextColor: Color {
+        if isSelected {
+            // 选中状态：确保清晰的对比度
+            return isDarkMode
+                ? Color(red: 0.2, green: 0.2, blue: 0.22)  // 深灰色文字
+                : Color(red: 0.85, green: 0.85, blue: 0.87)  // 浅灰色文字
+        } else {
+            // 未选中状态
+            return isDarkMode
+                ? Color.white.opacity(0.5)
+                : Color(red: 0.55, green: 0.55, blue: 0.6)
+        }
+    }
+    
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 6) {
+            HStack(spacing: 8) {
                 Text(title)
-                    .font(.system(size: 13, weight: isSelected ? .medium : .regular))
-                    .foregroundColor(
-                        isSelected 
-                        ? (isDarkMode ? .black : .white)
-                        : (isDarkMode ? .white.opacity(0.7) : .gray)
-                    )
+                    .font(.system(size: 12, weight: isSelected ? .semibold : .regular))
+                    .foregroundColor(textColor)
                 
-                // 数量标签
+                // 数量标签 - 优化设计
                 Text("\(count)")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(
-                        isSelected
-                        ? (isDarkMode ? .black.opacity(0.7) : .black)
-                        : (isDarkMode ? .white.opacity(0.4) : .gray.opacity(0.6))
-                    )
-                    .frame(width: 20, height: 20)
+                    .font(.system(size: 10, weight: .semibold))
+                    .foregroundColor(countTextColor)
+                    .frame(width: 18, height: 18)
                     .background(
                         Circle()
-                            .fill(
-                                isSelected
-                                ? (isDarkMode ? Color.black.opacity(0.15) : Color.white.opacity(0.9))
-                                : (isDarkMode ? Color.white.opacity(0.08) : Color.gray.opacity(0.15))
-                            )
+                            .fill(countBackgroundColor)
                     )
             }
-            .padding(.horizontal, 16)
+            .padding(.horizontal, 14)
             .padding(.vertical, 8)
             .background(
-                RoundedRectangle(cornerRadius: 18)
-                    .fill(
-                        isSelected
-                        ? (isDarkMode ? Color.white : Color.black)
-                        : (isDarkMode ? Color.white.opacity(0.12) : Color.gray.opacity(0.1))
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(backgroundColor)
+                    // 选中时添加细微阴影增加层次感
+                    .shadow(
+                        color: isSelected
+                            ? Color.black.opacity(0.08)
+                            : Color.clear,
+                        radius: 4,
+                        x: 0,
+                        y: 2
                     )
             )
-            .scaleEffect(isSelected ? 1.05 : 1.0)
+            // 选中时轻微放大
+            .scaleEffect(isSelected ? 1.02 : 1.0)
         }
-        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isSelected)
+        .animation(.spring(response: 0.3, dampingFraction: 0.85), value: isSelected)
     }
 }
 
-// MARK: - 预览
-struct TagFilterTabBar_Previews: PreviewProvider {
-    static var previews: some View {
-        let sampleRecordings = [
-            AudioRecording(
-                timestamp: Date(),
-                duration: 120.5,
-                transcription: "会议录音",
-                title: "项目讨论会议",
-                summary: "项目进展讨论和下阶段计划",
-                tags: ["会议", "工作"],
-                audioData: Data(),
-                enrichedContent: nil
-            ),
-            AudioRecording(
-                timestamp: Date().addingTimeInterval(-3600),
-                duration: 45.2,
-                transcription: "学习笔记",
-                title: "知识学习总结",
-                summary: "学习要点和知识总结整理",
-                tags: ["学习", "笔记"],
-                audioData: Data(),
-                enrichedContent: nil
-            ),
-            AudioRecording(
-                timestamp: Date().addingTimeInterval(-7200),
-                duration: 89.1,
-                transcription: "个人想法",
-                title: "创意灵感记录",
-                summary: "个人想法和创意灵感的记录",
-                tags: ["个人", "想法", "创意"],
-                audioData: Data(),
-                enrichedContent: nil
-            )
-        ]
-        
-        ZStack {
-            Color.gray.opacity(0.1)
-                .ignoresSafeArea()
-            
-            VStack {
-                Spacer()
-                TagFilterTabBar(
-                    allRecordings: sampleRecordings,
-                    selectedTag: .constant("会议")
-                )
+// MARK: - 增强版设计（可选方案）
+struct TagFilterItemEnhanced: View {
+    let title: String
+    let count: Int
+    let isSelected: Bool
+    let isDarkMode: Bool
+    let onTap: () -> Void
+    
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 5) {
+                Text(title)
+                    .font(.system(size: 12, weight: isSelected ? .semibold : .regular, design: .rounded))
+                    .foregroundColor(
+                        isSelected
+                        ? .white
+                        : (isDarkMode ? Color.white.opacity(0.7) : Color(hex: "667085"))
+                    )
+                
+                if isSelected {
+                    // 选中时使用实心点分隔
+                    Circle()
+                        .fill(Color.white.opacity(0.4))
+                        .frame(width: 2.5, height: 2.5)
+                    
+                    Text("\(count)")
+                        .font(.system(size: 11, weight: .bold, design: .rounded))
+                        .foregroundColor(.white.opacity(0.9))
+                } else {
+                    // 未选中时简洁显示
+                    Text("\(count)")
+                        .font(.system(size: 10, weight: .medium, design: .rounded))
+                        .foregroundColor(
+                            isDarkMode
+                            ? Color.white.opacity(0.4)
+                            : Color(hex: "98A2B3")
+                        )
+                }
             }
+            .padding(.horizontal, isSelected ? 16 : 14)
+            .padding(.vertical, isSelected ? 8 : 7)
+            .background(
+                Group {
+                    if isSelected {
+                        // 选中时使用渐变背景，更有质感
+                        LinearGradient(
+                            colors: isDarkMode
+                                ? [Color(hex: "FFFFFF"), Color(hex: "F5F5F7")]
+                                : [Color(hex: "1A1A1C"), Color(hex: "2C2C2E")],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    } else {
+                        // 未选中时使用纯色
+                        Color(isDarkMode
+                            ? Color.white.opacity(0.06)
+                            : Color(hex: "F9FAFB")
+                        )
+                    }
+                }
+                .clipShape(RoundedRectangle(cornerRadius: 18))
+            )
+            // 选中时添加边框光晕效果
+            .overlay(
+                RoundedRectangle(cornerRadius: 18)
+                    .stroke(
+                        isSelected
+                            ? (isDarkMode ? Color.white.opacity(0.1) : Color.black.opacity(0.1))
+                            : Color.clear,
+                        lineWidth: 0.5
+                    )
+            )
+            .shadow(
+                color: isSelected
+                    ? (isDarkMode ? Color.white.opacity(0.05) : Color.black.opacity(0.1))
+                    : Color.clear,
+                radius: isSelected ? 6 : 0,
+                x: 0,
+                y: isSelected ? 2 : 0
+            )
+            .scaleEffect(isSelected ? 1.02 : 1.0)
         }
-        .preferredColorScheme(.light)
+        .animation(.spring(response: 0.35, dampingFraction: 0.88), value: isSelected)
+    }
+}
+
+// MARK: - Color Extension
+extension Color {
+    init(hex: String) {
+        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
+        var int: UInt64 = 0
+        Scanner(string: hex).scanHexInt64(&int)
+        let a, r, g, b: UInt64
+        switch hex.count {
+        case 3: // RGB (12-bit)
+            (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
+        case 6: // RGB (24-bit)
+            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
+        case 8: // ARGB (32-bit)
+            (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
+        default:
+            (a, r, g, b) = (255, 0, 0, 0)
+        }
+        self.init(
+            .sRGB,
+            red: Double(r) / 255,
+            green: Double(g) / 255,
+            blue: Double(b) / 255,
+            opacity: Double(a) / 255
+        )
     }
 }

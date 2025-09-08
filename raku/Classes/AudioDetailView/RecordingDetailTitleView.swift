@@ -13,9 +13,9 @@ struct RecordingDetailTitleView: View {
     @AppStorage("isDarkMode") private var isDarkMode = false
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 26) {
+        VStack(alignment: .leading, spacing: 22) {
             Text(recording.title)
-                .font(.system(size: 24, weight: .semibold))
+                .font(.system(size: 26, weight: .semibold))
                 .foregroundColor(isDarkMode ? .white.opacity(0.95) : .black.opacity(0.95))
                 .lineLimit(2)
             
@@ -68,7 +68,7 @@ struct RecordingDetailTitleView: View {
         }
         .padding(.horizontal, 24)
         .padding(.top, 20)
-        .padding(.bottom, 50)
+        .padding(.bottom, 40)
     }
 }
 
