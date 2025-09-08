@@ -12,6 +12,7 @@ struct rakuApp: App {
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .toastContainer()
         }
     }
 }

@@ -37,6 +37,7 @@ enum AudioProcessingError: Error, LocalizedError {
     case speechRecognitionFailed(Error)
     case llmAnalysisFailed(Error)
     case pipelineCancelled
+    case audioProcessingError
     
     var errorDescription: String? {
         switch self {
@@ -48,6 +49,8 @@ enum AudioProcessingError: Error, LocalizedError {
             return "LLM分析失败: \(error.localizedDescription)"
         case .pipelineCancelled:
             return "处理流程已取消"
+        case .audioProcessingError:
+            return "音频处理失败"
         }
     }
 }
@@ -440,6 +443,29 @@ extension AudioProcessingPipeline: VolcEngineSpeechServiceDelegate {
         }
         
         delegate?.pipeline(self, didReceiveSpeechResult: result)
+        
+        // 检查识别结果是否为空
+        let trimmedText = result.text.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmedText.isEmpty {
+            print("⚠️ 检测到空录音，直接结束流程")
+            
+            // 显示Toast提示
+            DispatchQueue.main.async {
+                ToastManager.shared.showWarning("录音内容为空，请重新录制")
+            }
+            
+            // 重置流程状态，不保存到数据库
+            currentStage = .idle
+            progress = 0.0
+            isProcessing = false
+            
+            // 清理录音数据
+            currentRecordingData = nil
+            currentDuration = 0
+            recordingStartTime = nil
+            
+            return
+        }
         
         // 语音识别完成，检查是否需要LLM分析
         if isLLMEnabled {
