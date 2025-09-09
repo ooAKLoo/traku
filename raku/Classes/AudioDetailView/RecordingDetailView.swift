@@ -26,6 +26,9 @@ struct RecordingDetailView: View {
     @State private var editingSectionIndex: Int = 0
     @State private var editingSectionContent: String = ""
     @State private var modifiedEnrichedContent: String = ""
+    @State private var currentTranscriptionPage: Int = 0
+    @State private var originalTranscription: String = ""
+    @State private var polishedTranscription: String = ""
     
     init(recording: AudioRecording) {
         self.recording = recording
@@ -142,14 +145,87 @@ struct RecordingDetailView: View {
                                     .foregroundColor(isDarkMode ? Color.white.opacity(0.15) : Color.gray.opacity(0.2))
                                     .offset(y: -11)
                                 
-                                // 转写内容 - 浅色斜体
-                                Text(recording.transcription)
-                                    .font(.system(size: 17, weight: .regular))
-                                    .italic()
-                                    .foregroundColor(isDarkMode ? .white.opacity(0.5) : .gray.opacity(0.6))
-                                    .lineSpacing(12)
+                                // 转写内容 - 原文/润色版切换
+                                VStack {
+                                    TabView(selection: $currentTranscriptionPage) {
+                                        // 第一页：原始转写
+                                        ScrollView {
+                                            Text(originalTranscription)
+                                                .font(.system(size: 17, weight: .regular))
+                                                .italic()
+                                                .foregroundColor(isDarkMode ? .white.opacity(0.5) : .gray.opacity(0.6))
+                                                .lineSpacing(12)
+                                                .frame(maxWidth: .infinity, alignment: .leading)
+                                        }
+                                        .frame(maxHeight: 120) // 约4行高度
+                                        .tag(0)
+                                        
+                                        // 第二页：润色版本
+                                        ScrollView {
+                                            Text(polishedTranscription)
+                                                .font(.system(size: 17, weight: .regular))
+                                                .italic()
+                                                .foregroundColor(isDarkMode ? .white.opacity(0.65) : .gray.opacity(0.75))
+                                                .lineSpacing(12)
+                                                .frame(maxWidth: .infinity, alignment: .leading)
+                                        }
+                                        .frame(maxHeight: 120) // 约4行高度
+                                        .tag(1)
+                                    }
+                                    .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
+                                    .frame(height: 120)
+                                }
                             }
                             .padding(.horizontal, 18)
+                            
+                            // 条形分页指示器 - 原文/润色版
+                            HStack(spacing: 8) {
+                                // 原文指示器
+                                HStack(spacing: 4) {
+                                    Capsule()
+                                        .fill(currentTranscriptionPage == 0 ? 
+                                              (isDarkMode ? Color.white.opacity(0.8) : Color.black.opacity(0.8)) :
+                                              (isDarkMode ? Color.white.opacity(0.2) : Color.black.opacity(0.2)))
+                                        .frame(width: currentTranscriptionPage == 0 ? 20 : 6, height: 4)
+                                        .animation(.easeInOut(duration: 0.3), value: currentTranscriptionPage)
+                                    
+                                    Text("原文")
+                                        .font(.system(size: 10, weight: .medium))
+                                        .foregroundColor(currentTranscriptionPage == 0 ? 
+                                                        (isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8)) :
+                                                        (isDarkMode ? .white.opacity(0.3) : .black.opacity(0.3)))
+                                        .animation(.easeInOut(duration: 0.3), value: currentTranscriptionPage)
+                                }
+                                .onTapGesture {
+                                    withAnimation(.easeInOut(duration: 0.3)) {
+                                        currentTranscriptionPage = 0
+                                    }
+                                }
+                                
+                                // 润色版指示器  
+                                HStack(spacing: 4) {
+                                    Capsule()
+                                        .fill(currentTranscriptionPage == 1 ? 
+                                              (isDarkMode ? Color.white.opacity(0.8) : Color.black.opacity(0.8)) :
+                                              (isDarkMode ? Color.white.opacity(0.2) : Color.black.opacity(0.2)))
+                                        .frame(width: currentTranscriptionPage == 1 ? 20 : 6, height: 4)
+                                        .animation(.easeInOut(duration: 0.3), value: currentTranscriptionPage)
+                                    
+                                    Text("润色版")
+                                        .font(.system(size: 10, weight: .medium))
+                                        .foregroundColor(currentTranscriptionPage == 1 ? 
+                                                        (isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8)) :
+                                                        (isDarkMode ? .white.opacity(0.3) : .black.opacity(0.3)))
+                                        .animation(.easeInOut(duration: 0.3), value: currentTranscriptionPage)
+                                }
+                                .onTapGesture {
+                                    withAnimation(.easeInOut(duration: 0.3)) {
+                                        currentTranscriptionPage = 1
+                                    }
+                                }
+                            }
+                            .padding(.horizontal, 28)
+                            .padding(.top, 12)
                         }
                         .padding(.bottom, 35)
                         
@@ -227,6 +303,9 @@ struct RecordingDetailView: View {
             }
         }
         .onAppear {
+            // 初始化转写文本内容
+            setupTranscriptionContent()
+            
             if let enrichedContent = recording.enrichedContent, !enrichedContent.isEmpty {
                 // 初始化修改后的内容
                 modifiedEnrichedContent = enrichedContent
@@ -520,6 +599,16 @@ struct RecordingDetailView: View {
             self.headings = headingTree.flatList
         }
     }
+    
+    // 设置转写文本内容
+    private func setupTranscriptionContent() {
+        // 原始转写内容
+        originalTranscription = recording.transcription
+        
+        // 润色版本（暂时使用相同内容，后续可接入AI服务）
+        polishedTranscription = recording.transcription
+    }
+    
 }
 
 // MARK: - Markdown段落解析器
@@ -572,7 +661,7 @@ struct RecordingDetailView_Previews: PreviewProvider {
             recording: AudioRecording(
                 timestamp: Date(),
                 duration: 185,
-                transcription: "这是一段会议录音的转写内容，讨论了关于新产品开发的进度和计划。我们需要在下个季度完成主要功能的开发，并准备进行用户测试。",
+                transcription: "嗯，这个，就是一段会议录音的转写内容，讨论了关于新产品开发的进度和计划。我觉得我们需要在下个季度完成主要功能的开发，并准备进行用户测试。那个产品的核心功能包括用户界面设计、后端API开发、数据库优化等多个方面。然后团队决定采用敏捷开发模式，确保项目能够按时交付。其实我们也需要考虑用户体验的优化，包括界面的友好性和功能的易用性。在技术选型方面，我们应该使用最新的开发框架和工具，以确保产品的技术先进性和稳定性。",
                 title: "产品开发会议总结",
                 summary: "确定了Q2的开发目标，包括核心功能完成、用户界面优化和测试计划制定。团队将采用敏捷开发方法，每两周进行一次迭代评审。",
                 tags: ["会议", "产品", "开发"],
