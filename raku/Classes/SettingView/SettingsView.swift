@@ -6,11 +6,13 @@
 //
 
 import SwiftUI
+import WebKit
 
 struct SettingsView: View {
     @Environment(\.dismiss) var dismiss
     @AppStorage("isDarkMode") private var isDarkMode = true
     @State private var showingDatabaseDebug = false
+    @State private var showingAboutView = false
     
     var body: some View {
         NavigationView {
@@ -52,7 +54,9 @@ struct SettingsView: View {
                         SettingsRowView(icon: "bell", title: "通知", isDarkMode: isDarkMode, action: {})
                         SettingsRowView(icon: "lock", title: "隐私", isDarkMode: isDarkMode, action: {})
                         SettingsRowView(icon: "questionmark.circle", title: "帮助", isDarkMode: isDarkMode, action: {})
-                        SettingsRowView(icon: "info.circle", title: "关于", isDarkMode: isDarkMode, action: {})
+                        SettingsRowView(icon: "info.circle", title: "关于", isDarkMode: isDarkMode, action: {
+                            showingAboutView = true
+                        })
                         SettingsRowView(icon: "cylinder", title: "数据库调试", isDarkMode: isDarkMode, action: {
                             showingDatabaseDebug = true
                         })
@@ -78,6 +82,46 @@ struct SettingsView: View {
         .sheet(isPresented: $showingDatabaseDebug) {
             DatabaseDebugView()
         }
+        .sheet(isPresented: $showingAboutView) {
+            AboutWebView(isDarkMode: isDarkMode)
+        }
+    }
+}
+
+// MARK: - 关于页面 WebView
+struct AboutWebView: View {
+    @Environment(\.dismiss) var dismiss
+    let isDarkMode: Bool
+    
+    var body: some View {
+        NavigationView {
+            WebView(url: URL(string: "https://ooakloo.top/en/about")!)
+                .navigationTitle("关于")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button("完成") {
+                            dismiss()
+                        }
+                        .foregroundColor(isDarkMode ? .white : .black)
+                    }
+                }
+        }
+        .preferredColorScheme(isDarkMode ? .dark : .light)
+    }
+}
+
+// MARK: - WebView 组件
+struct WebView: UIViewRepresentable {
+    let url: URL
+    
+    func makeUIView(context: Context) -> WKWebView {
+        return WKWebView()
+    }
+    
+    func updateUIView(_ webView: WKWebView, context: Context) {
+        let request = URLRequest(url: url)
+        webView.load(request)
     }
 }
 

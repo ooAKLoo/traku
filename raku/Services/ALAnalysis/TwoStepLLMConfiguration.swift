@@ -48,6 +48,7 @@ struct FirstStepAnalysis {
     let thoughtType: FlashThoughtType
     let tags: [String]
     let originalText: String
+    let polishedText: String  // 润色后的文本
     let timestamp: Date
 }
 
@@ -59,6 +60,7 @@ struct TwoStepAnalysisResult {
     let tags: [String]
     let enrichedContent: String  // 第二步生成的Markdown内容
     let originalText: String
+    let polishedText: String  // 润色后的文本
     let timestamp: Date
 }
 
@@ -151,20 +153,26 @@ class TwoStepLLMService: NSObject, ObservableObject {
         let systemPrompt = """
         你是一个精准的闪念分类助手。请严格按照以下要求处理用户输入：
 
-        1. **类型判定**（必须选择其一）：
+        1. **ASR文本润色**：
+           - 去掉语气词（如"呃"、"就是"、"然后"等）
+           - 修正明显的识别错误，使其语义更通顺
+           - 保持原意，不要进行过度改写
+
+        2. **类型判定**（必须选择其一）：
            - 思考(reflection)：深度思考、疑问探索、矛盾分析
 
-        2. **生成标题**：
+        3. **生成标题**：
            - 提取核心内容，生成10字以内的简洁标题
            - 保持原意，不过度概括
 
-        3. **标签生成**：
+        4. **标签生成**：
            - 生成1-2个相关标签，每个标签2-4个字
 
-        \(needsSummary ? "4. **一句话总结**：\n   - 因为输入超过150字，请提供一句话总结（30字以内）\n   - 保留核心信息，去除冗余内容" : "")
+        \(needsSummary ? "5. **一句话总结**：\n   - 因为输入超过150字，请提供一句话总结（30字以内）\n   - 保留核心信息，去除冗余内容" : "")
 
         输出格式要求（严格JSON）：
         {
+          "polishedText": "润色后的文本",
           "title": "简洁标题",
           "type": "reflection",
           "tags": ["标签1", "标签2"],
@@ -182,7 +190,7 @@ class TwoStepLLMService: NSObject, ObservableObject {
                 ["role": "user", "content": text]
             ],
             "temperature": 0.3,
-            "max_tokens": 200
+            "max_tokens": 1000
         ]
         
         do {
@@ -242,6 +250,7 @@ class TwoStepLLMService: NSObject, ObservableObject {
             let typeString = result["type"] as? String ?? "unknown"
             let tags = result["tags"] as? [String] ?? []
             let summary = result["summary"] as? String
+            let polishedText = result["polishedText"] as? String ?? originalText
             
             let thoughtType = FlashThoughtType(rawValue:
                 typeString == "reflection" ? "思考" : "未分类"
@@ -253,6 +262,7 @@ class TwoStepLLMService: NSObject, ObservableObject {
                 thoughtType: thoughtType,
                 tags: tags,
                 originalText: originalText,
+                polishedText: polishedText,
                 timestamp: Date()
             )
             
@@ -292,7 +302,7 @@ class TwoStepLLMService: NSObject, ObservableObject {
             "model": configuration.flashModel,
             "messages": [
                 ["role": "system", "content": systemPrompt],
-                ["role": "user", "content": firstStepResult.originalText]
+                ["role": "user", "content": firstStepResult.polishedText]
             ],
             "temperature": 0.6,
             "max_tokens": 1000
@@ -353,11 +363,12 @@ class TwoStepLLMService: NSObject, ObservableObject {
             // 构建最终结果
             let finalResult = TwoStepAnalysisResult(
                 title: firstStepResult.title,
-                summary: firstStepResult.oneSentenceSummary ?? firstStepResult.originalText,
+                summary: firstStepResult.oneSentenceSummary ?? firstStepResult.polishedText,
                 thoughtType: firstStepResult.thoughtType,
                 tags: firstStepResult.tags,
                 enrichedContent: content, // 直接使用Markdown内容
                 originalText: firstStepResult.originalText,
+                polishedText: firstStepResult.polishedText,
                 timestamp: firstStepResult.timestamp
             )
             
@@ -373,11 +384,12 @@ class TwoStepLLMService: NSObject, ObservableObject {
             
             let fallbackResult = TwoStepAnalysisResult(
                 title: firstStepResult.title,
-                summary: firstStepResult.oneSentenceSummary ?? firstStepResult.originalText,
+                summary: firstStepResult.oneSentenceSummary ?? firstStepResult.polishedText,
                 thoughtType: firstStepResult.thoughtType,
                 tags: firstStepResult.tags,
                 enrichedContent: fallbackContent,
                 originalText: firstStepResult.originalText,
+                polishedText: firstStepResult.polishedText,
                 timestamp: firstStepResult.timestamp
             )
             

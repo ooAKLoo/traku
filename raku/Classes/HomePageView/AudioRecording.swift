@@ -21,8 +21,9 @@ struct AudioRecording: Identifiable, Equatable {
     let audioData: Data?
     var isPlaying: Bool = false
     var enrichedContent: String?
+    var polishedText: String = ""  // 润色后的文本，默认为空
     
-    init(id: UUID? = nil, timestamp: Date, duration: TimeInterval, transcription: String, title: String, summary: String, tags: [String], audioData: Data?, enrichedContent: String?) {
+    init(id: UUID? = nil, timestamp: Date, duration: TimeInterval, transcription: String, title: String, summary: String, tags: [String], audioData: Data?, enrichedContent: String?, polishedText: String = "") {
         self.id = id ?? UUID()
         self.timestamp = timestamp
         self.duration = duration
@@ -32,6 +33,7 @@ struct AudioRecording: Identifiable, Equatable {
         self.tags = tags
         self.audioData = audioData
         self.enrichedContent = enrichedContent
+        self.polishedText = polishedText
     }
     
     static func == (lhs: AudioRecording, rhs: AudioRecording) -> Bool {
@@ -40,7 +42,8 @@ struct AudioRecording: Identifiable, Equatable {
                lhs.title == rhs.title &&
                lhs.summary == rhs.summary &&
                lhs.tags == rhs.tags &&
-               lhs.enrichedContent == rhs.enrichedContent
+               lhs.enrichedContent == rhs.enrichedContent &&
+               lhs.polishedText == rhs.polishedText
     }
 }
 

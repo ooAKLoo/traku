@@ -73,9 +73,14 @@ class DatabaseManager {
                 tags TEXT NOT NULL,
                 audio_data BLOB,
                 enriched_content TEXT,
+                polished_text TEXT,
                 created_at REAL NOT NULL DEFAULT (julianday('now'))
             );
         """
+        
+        // 检查并添加 polished_text 列（兼容旧数据库）
+        let addColumnSQL = "ALTER TABLE audio_recordings ADD COLUMN polished_text TEXT;"
+        sqlite3_exec(db, addColumnSQL, nil, nil, nil) // 忽略错误（列可能已存在）
         
         if sqlite3_exec(db, createTableSQL, nil, nil, nil) == SQLITE_OK {
             print("✅ 录音表创建成功")
@@ -179,8 +184,8 @@ class DatabaseManager {
     private func saveRecordingInternal(_ recording: AudioRecording) -> Bool {
         // 使用 INSERT 确保每条记录都是新的，不覆盖现有记录
             let insertSQL = """
-                INSERT INTO audio_recordings (id, timestamp, duration, transcription, summary, tags, audio_data, enriched_content, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO audio_recordings (id, timestamp, duration, transcription, summary, tags, audio_data, enriched_content, polished_text, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """
             
             var statement: OpaquePointer?
@@ -212,7 +217,13 @@ class DatabaseManager {
                 sqlite3_bind_null(statement, 8)
             }
             
-            sqlite3_bind_double(statement, 9, Date().timeIntervalSince1970)
+            if !recording.polishedText.isEmpty {
+                sqlite3_bind_text(statement, 9, (recording.polishedText as NSString).utf8String, -1, SQLITE_TRANSIENT)
+            } else {
+                sqlite3_bind_null(statement, 9)
+            }
+            
+            sqlite3_bind_double(statement, 10, Date().timeIntervalSince1970)
             
             if sqlite3_step(statement) == SQLITE_DONE {
                 print("✅ 录音保存成功，ID: \(recording.id.uuidString)")
@@ -268,7 +279,7 @@ class DatabaseManager {
     
     func loadRecordings() -> [AudioRecording] {
         return dbQueue.sync {
-            let querySQL = "SELECT id, timestamp, duration, transcription, summary, tags, audio_data, enriched_content FROM audio_recordings ORDER BY timestamp DESC"
+            let querySQL = "SELECT id, timestamp, duration, transcription, summary, tags, audio_data, enriched_content, polished_text FROM audio_recordings ORDER BY timestamp DESC"
             
             var statement: OpaquePointer?
             var recordings: [AudioRecording] = []
@@ -320,6 +331,11 @@ class DatabaseManager {
                     enrichedContent = String(cString: enrichedText)
                 }
                 
+                var polishedText: String = ""
+                if let polishedTextData = sqlite3_column_text(statement, 8) {
+                    polishedText = String(cString: polishedTextData)
+                }
+                
                 // 从 summary 中提取 title，如果找不到则使用 summary 本身
                 let title = extractTitleFromSummary(summaryStr)
                 
@@ -332,7 +348,8 @@ class DatabaseManager {
                     summary: summaryStr,
                     tags: tags,
                     audioData: audioData,
-                    enrichedContent: enrichedContent
+                    enrichedContent: enrichedContent,
+                    polishedText: polishedText
                 )
                 
                 print("✅ 第 \(rowIndex) 行录音记录解析成功: ID=\(id.uuidString.prefix(8))..., 转录=\(transcriptionStr.prefix(30))...")
@@ -413,7 +430,7 @@ class DatabaseManager {
         
         let updateSQL = """
             UPDATE audio_recordings 
-            SET timestamp = ?, duration = ?, transcription = ?, summary = ?, tags = ?, audio_data = ?, enriched_content = ?
+            SET timestamp = ?, duration = ?, transcription = ?, summary = ?, tags = ?, audio_data = ?, enriched_content = ?, polished_text = ?
             WHERE id = ?
         """
         
@@ -441,8 +458,14 @@ class DatabaseManager {
                 sqlite3_bind_null(statement, 7)
             }
             
+            if !recording.polishedText.isEmpty {
+                sqlite3_bind_text(statement, 8, (recording.polishedText as NSString).utf8String, -1, SQLITE_TRANSIENT)
+            } else {
+                sqlite3_bind_null(statement, 8)
+            }
+            
             let idString = recording.id.uuidString
-            sqlite3_bind_text(statement, 8, (idString as NSString).utf8String, -1, SQLITE_TRANSIENT)
+            sqlite3_bind_text(statement, 9, (idString as NSString).utf8String, -1, SQLITE_TRANSIENT)
             
         if sqlite3_step(statement) == SQLITE_DONE {
             print("录音更新成功")
@@ -682,7 +705,7 @@ class DatabaseManager {
             
             // 获取所有记录
             debugInfo += "\n=== All Records ===\n"
-            let querySQL = "SELECT id, timestamp, duration, transcription, summary, tags, LENGTH(audio_data) as audio_size, created_at FROM audio_recordings ORDER BY created_at DESC"
+            let querySQL = "SELECT id, timestamp, duration, transcription, summary, tags, LENGTH(audio_data) as audio_size, LENGTH(polished_text) as polished_size, created_at FROM audio_recordings ORDER BY created_at DESC"
             
             if sqlite3_prepare_v2(db, querySQL, -1, &statement, nil) == SQLITE_OK {
                 var index = 1
@@ -719,7 +742,10 @@ class DatabaseManager {
                     let audioSize = sqlite3_column_int(statement, 6)
                     debugInfo += "  Audio Size: \(audioSize) bytes\n"
                     
-                    let createdAt = sqlite3_column_double(statement, 7)
+                    let polishedSize = sqlite3_column_int(statement, 7)
+                    debugInfo += "  Polished Text Size: \(polishedSize) chars\n"
+                    
+                    let createdAt = sqlite3_column_double(statement, 8)
                     debugInfo += "  Created At: \(Date(timeIntervalSince1970: createdAt))\n"
                     
                     index += 1

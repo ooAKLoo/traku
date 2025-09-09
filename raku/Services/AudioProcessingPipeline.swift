@@ -308,7 +308,8 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
                 summary: "录音处理失败",
                 tags: ["错误"],
                 audioData: Data(),
-                enrichedContent: nil
+                enrichedContent: nil,
+                polishedText: ""
             )
         }
         
@@ -323,7 +324,8 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
             summary: analysisResult.summary,
             tags: analysisResult.tags,
             audioData: audioData,
-            enrichedContent: analysisResult.enrichedContent
+            enrichedContent: analysisResult.enrichedContent,
+            polishedText: analysisResult.polishedText
         )
     }
     
@@ -405,6 +407,7 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
                 thoughtType: .unknown,
                 tags: ["模拟", "测试"],
                 originalText: text,
+                polishedText: text,
                 timestamp: Date()
             )
             
@@ -423,6 +426,7 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
                     tags: ["模拟", "测试"],
                     enrichedContent: "这是模拟的丰富内容，包含了对录音的详细分析和理解。",
                     originalText: text,
+                    polishedText: text,
                     timestamp: Date()
                 )
                 
