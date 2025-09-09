@@ -219,6 +219,7 @@ struct RecordingDetailView: View {
                                     endPoint: .bottom
                                 )
                             )
+                            .ignoresSafeArea(edges: .bottom)
                     )
                     .offset(y:20)
                 }
