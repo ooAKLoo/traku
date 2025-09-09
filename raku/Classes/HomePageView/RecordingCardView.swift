@@ -213,8 +213,9 @@ struct RecordingCardView: View {
                             Text(recording.title)
                                 .font(.system(size: 20, weight: .semibold))
                                 .foregroundColor(isDarkMode ? .white : .black)
-                                .lineLimit(2)
-                                .multilineTextAlignment(.leading)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                                .padding(.trailing, 50) // 为天气图标预留空间
                         }
                         
                         // 第二行：标签和时长
