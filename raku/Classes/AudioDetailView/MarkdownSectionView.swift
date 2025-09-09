@@ -8,33 +8,6 @@
 import SwiftUI
 import MarkdownUI
 
-// MARK: - Color Extension
-extension Color {
-    init(hex: String) {
-        let hex = hex.trimmingCharacters(in: CharacterSet.alphanumerics.inverted)
-        var int: UInt64 = 0
-        Scanner(string: hex).scanHexInt64(&int)
-        let a, r, g, b: UInt64
-        switch hex.count {
-        case 3: // RGB (12-bit)
-            (a, r, g, b) = (255, (int >> 8) * 17, (int >> 4 & 0xF) * 17, (int & 0xF) * 17)
-        case 6: // RGB (24-bit)
-            (a, r, g, b) = (255, int >> 16, int >> 8 & 0xFF, int & 0xFF)
-        case 8: // ARGB (32-bit)
-            (a, r, g, b) = (int >> 24, int >> 16 & 0xFF, int >> 8 & 0xFF, int & 0xFF)
-        default:
-            (a, r, g, b) = (1, 1, 1, 0)
-        }
-        self.init(
-            .sRGB,
-            red: Double(r) / 255,
-            green: Double(g) / 255,
-            blue: Double(b) / 255,
-            opacity: Double(a) / 255
-        )
-    }
-}
-
 // MARK: - 分段的 Markdown 视图
 struct MarkdownSectionView: View {
     let content: String
@@ -94,35 +67,71 @@ struct MarkdownSectionView: View {
                                         } else {
                                             selectedSection = index
                                             // 计算弹出位置，确保在可见区域内
-                                            let frame = geometry.frame(in: .global)
-                                            let screenWidth = UIScreen.main.bounds.width
-                                            let screenHeight = UIScreen.main.bounds.height
+                                            let localFrame = geometry.frame(in: .local)
+                                            let namedFrame = geometry.frame(in: .named("markdownSectionView"))
+                                            let globalFrame = geometry.frame(in: .global)
+                                            
                                             let popupWidth: CGFloat = 88
                                             let popupHeight: CGFloat = 44
                                             
-                                            // 计算X坐标，确保不超出屏幕边界
+                                            print("=== 弹窗位置计算调试 ===")
+                                            print("section \(index) 点击")
+                                            print("local frame: \(localFrame)")
+                                            print("named frame: \(namedFrame)")
+                                            print("global frame: \(globalFrame)")
+                                            print("弹窗尺寸: \(popupWidth) x \(popupHeight)")
+                                            
+                                            // 使用global坐标系进行计算，确保边界检查正确
+                                            let frame = globalFrame
+                                            
+                                            // 获取容器的实际可视区域
+                                            let containerWidth = UIScreen.main.bounds.width
+                                            let containerHeight = UIScreen.main.bounds.height
+                                            
+                                            print("容器尺寸: \(containerWidth) x \(containerHeight)")
+                                            print("使用frame: \(frame)")
+                                            
+                                            // 计算X坐标，确保不超出容器边界
                                             let preferredX = frame.midX
                                             let minX = popupWidth / 2 + 20
-                                            let maxX = screenWidth - popupWidth / 2 - 20
+                                            let maxX = containerWidth - popupWidth / 2 - 20
                                             let adjustedX = max(minX, min(maxX, preferredX))
+                                            
+                                            print("X坐标计算: 期望=\(preferredX), 范围=[\(minX), \(maxX)], 最终=\(adjustedX)")
                                             
                                             // 计算Y坐标，优先显示在段落上方，如果空间不够则显示在下方
                                             var adjustedY: CGFloat
                                             if frame.minY > popupHeight + 60 {
                                                 // 上方有足够空间，显示在段落上方
                                                 adjustedY = frame.minY - 30
+                                                print("Y坐标: 上方显示, frame.minY=\(frame.minY), adjustedY=\(adjustedY)")
                                             } else {
                                                 // 上方空间不够，显示在段落下方
                                                 adjustedY = frame.maxY + 30
+                                                print("Y坐标: 下方显示, frame.maxY=\(frame.maxY), adjustedY=\(adjustedY)")
                                             }
                                             
-                                            // 确保Y坐标在可见区域内
-                                            let minY = popupHeight / 2 + 50 // 顶部安全距离
-                                            let maxY = screenHeight - popupHeight / 2 - 100 // 底部安全距离
+                                            // 确保Y坐标在屏幕可见区域内（使用global坐标系）
+                                            let safeAreaTop: CGFloat = 100  // 状态栏+导航栏高度
+                                            let safeAreaBottom: CGFloat = 150  // 底部安全区域
+                                            
+                                            let minY = safeAreaTop + popupHeight / 2
+                                            let maxY = containerHeight - safeAreaBottom - popupHeight / 2
+                                            let originalY = adjustedY
                                             adjustedY = max(minY, min(maxY, adjustedY))
                                             
-                                            popupPosition = CGPoint(x: adjustedX, y: adjustedY)
+                                            print("Y坐标边界检查: 原始=\(originalY), 范围=[\(minY), \(maxY)], 最终=\(adjustedY)")
+                                            
+                                            // 将global坐标转换为named坐标系
+                                            let globalToNamedOffsetY = namedFrame.minY - globalFrame.minY
+                                            let namedY = adjustedY + globalToNamedOffsetY
+                                            
+                                            popupPosition = CGPoint(x: adjustedX, y: namedY)
                                             showingPopupForSection = index
+                                            
+                                            print("最终弹窗位置: \(popupPosition)")
+                                            print("选中section: \(index), 弹窗显示: \(showingPopupForSection ?? -1)")
+                                            print("======================\n")
                                         }
                                     }
                                 }
@@ -139,9 +148,11 @@ struct MarkdownSectionView: View {
                     position: popupPosition,
                     isDarkMode: isDarkMode,
                     onEdit: { index in
+                        print("编辑按钮点击 - section: \(index)")
                         onEditSection?(index, sections[index].content)
                     },
                     onDelete: { index in
+                        print("删除按钮点击 - section: \(index)")
                         onDeleteSection?(index)
                     }
                 )
@@ -149,8 +160,15 @@ struct MarkdownSectionView: View {
                     insertion: .scale(scale: 0.8, anchor: .top).combined(with: .opacity),
                     removal: .scale(scale: 0.9).combined(with: .opacity)
                 ))
+                .onAppear {
+                    print("弹窗显示 - section: \(sectionIndex), position: \(popupPosition)")
+                }
+                .onDisappear {
+                    print("弹窗消失 - section: \(sectionIndex)")
+                }
             }
         }
+        .coordinateSpace(name: "markdownSectionView")
     }
     
     // 解析内容，按标题分段
@@ -293,6 +311,11 @@ struct SectionPopupMenu: View {
         )
         .frame(width: 88, height: 44)
         .position(x: position.x, y: position.y)
+        .onAppear {
+            print("SectionPopupMenu显示 - section: \(sectionIndex)")
+            print("弹窗实际位置: x=\(position.x), y=\(position.y)")
+            print("在named坐标系中显示弹窗")
+        }
         .confirmationDialog(
             "确定要删除这个段落吗？",
             isPresented: $showDeleteConfirmation,
