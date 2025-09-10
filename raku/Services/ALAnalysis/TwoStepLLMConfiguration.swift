@@ -150,13 +150,17 @@ class TwoStepLLMService: NSObject, ObservableObject {
         // 判断是否需要一句话总结
         let needsSummary = text.count > 150
         
+        let summaryField = needsSummary ? "\"summary\": \"用30-50字概括主要观点和核心论据\"," : ""
+        
         let systemPrompt = """
         你是一个精准的闪念分类助手。请严格按照以下要求处理用户asr处理后的输入内容：
 
-        1. **ASR文本矫正**：
-           - 去掉语气词（如"呃"、"就是"、"然后"等）
-           - 修正明显的识别错误，使其语义更通顺
-           - 保持原意，不要进行改写
+        1. **ASR文本矫正（用于polishedText字段）**：
+           - 必须保留原文的所有句子和观点，不能遗漏或合并
+           - 不允许省略补充论点、例子、细节，哪怕是次要的
+           - 仅删除语气词（如"呃"、"嗯"、"就是"、"然后"、"Yeah"等）
+           - 必须保持原文的完整逻辑链和所有表达
+           - 不要对文本进行压缩、总结或抽象
 
         2. **类型判定**（必须选择其一）：
            - 思考(reflection)：深度思考、疑问探索、矛盾分析
@@ -170,25 +174,31 @@ class TwoStepLLMService: NSObject, ObservableObject {
 
         输出格式要求（严格JSON）：
         {
-          "polishedText": "润色后的文本",
+          "polishedText": "完整的润色后文本（去除口语词但保留所有内容）",
           "title": "简洁标题",
           "type": "reflection",
           "tags": ["标签1", "标签2"],
-          \(needsSummary ? "\"summary\": \"一句话总结\"," : "")
+          \(summaryField)
           "confidence": 0.9
         }
+
+        重要说明：
+        - polishedText：必须是原文的完整润色版本，只清理口语化表达，不做任何总结
+        - summary（如有）：这才是一句话总结
+        - 两个字段功能完全不同，不要混淆
+        - polishedText 必须与原文句子数量和顺序保持一致，只删除语气词和修正错误，不得合并句子或缩写。
 
         注意：必须输出纯JSON，不要有任何额外文字。
         """
         
         let requestBody: [String: Any] = [
-            "model": configuration.liteModel,
+            "model": configuration.flashModel,
             "messages": [
                 ["role": "system", "content": systemPrompt],
                 ["role": "user", "content": text]
             ],
-            "temperature": 0.3,
-            "max_tokens": 3000
+            "temperature": 1,
+            "max_tokens": 10000
         ]
         
         do {
@@ -200,7 +210,7 @@ class TwoStepLLMService: NSObject, ObservableObject {
             return
         }
         
-        print("第一步：使用lite模型进行分类...")
+        print("第一步：使用flash模型进行分类...")
         
         currentTask = urlSession.dataTask(with: request) { [weak self] data, response, error in
             guard let self = self else { return }
