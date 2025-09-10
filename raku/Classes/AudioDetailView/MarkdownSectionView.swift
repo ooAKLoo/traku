@@ -32,13 +32,26 @@ struct MarkdownSectionView: View {
     
     var body: some View {
         ZStack {
+            // 1. 底层透明背景 - 仅在弹窗显示时存在
+            if showingPopupForSection != nil {
+                Color.clear
+                    .contentShape(Rectangle())
+                    .onTapGesture {
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            selectedSection = nil
+                            showingPopupForSection = nil
+                        }
+                    }
+            }
+            
+            // 2. 主内容
             VStack(alignment: .leading, spacing: 20) {
                 ForEach(sections.indices, id: \.self) { index in
                     VStack(alignment: .leading, spacing: 0) {
-                        // 锚点（带偏移量，让内容不要紧贴顶部）
+                        // 锚点
                         Color.clear
                             .frame(height: 1)
-                            .padding(.top, -80) // 负偏移让锚点在内容上方
+                            .padding(.top, -80)
                             .id("section_\(index)")
                         
                         // 内容
@@ -47,103 +60,30 @@ struct MarkdownSectionView: View {
                             .padding(.horizontal, 12)
                             .padding(.vertical, 8)
                     }
-                    // 只在非最后一个段落后添加间距
                     .padding(.bottom, index < sections.count - 1 ? 8 : 0)
                     .background(
                         RoundedRectangle(cornerRadius: 8)
-                            .fill(selectedSection == index ? Color(hex: "F5F5F5") : Color.clear)
+                            .fill((selectedSection == index && showingPopupForSection == index) ?
+                                Color(hex: "F5F5F5") : Color.clear)
                     )
-                    .background(
+                    .overlay( // 使用 overlay 而不是 background
                         GeometryReader { geometry in
                             Color.clear
                                 .contentShape(Rectangle())
                                 .onTapGesture {
-                                    // 单击选中section
-                                    withAnimation(.easeInOut(duration: 0.2)) {
-                                        if selectedSection == index && showingPopupForSection == index {
-                                            // 如果已选中且显示浮窗，则取消选中
-                                            selectedSection = nil
-                                            showingPopupForSection = nil
-                                        } else {
-                                            selectedSection = index
-                                            // 计算弹出位置，确保在可见区域内
-                                            let localFrame = geometry.frame(in: .local)
-                                            let namedFrame = geometry.frame(in: .named("markdownSectionView"))
-                                            let globalFrame = geometry.frame(in: .global)
-                                            
-                                            let popupWidth: CGFloat = 88
-                                            let popupHeight: CGFloat = 44
-                                            
-                                            print("=== 弹窗位置计算调试 ===")
-                                            print("section \(index) 点击")
-                                            print("local frame: \(localFrame)")
-                                            print("named frame: \(namedFrame)")
-                                            print("global frame: \(globalFrame)")
-                                            print("弹窗尺寸: \(popupWidth) x \(popupHeight)")
-                                            
-                                            // 使用global坐标系进行计算，确保边界检查正确
-                                            let frame = globalFrame
-                                            
-                                            // 获取容器的实际可视区域
-                                            let containerWidth = UIScreen.main.bounds.width
-                                            let containerHeight = UIScreen.main.bounds.height
-                                            
-                                            print("容器尺寸: \(containerWidth) x \(containerHeight)")
-                                            print("使用frame: \(frame)")
-                                            
-                                            // 计算X坐标，确保不超出容器边界
-                                            let preferredX = frame.midX
-                                            let minX = popupWidth / 2 + 20
-                                            let maxX = containerWidth - popupWidth / 2 - 20
-                                            let adjustedX = max(minX, min(maxX, preferredX))
-                                            
-                                            print("X坐标计算: 期望=\(preferredX), 范围=[\(minX), \(maxX)], 最终=\(adjustedX)")
-                                            
-                                            // 计算Y坐标，优先显示在段落上方，如果空间不够则显示在下方
-                                            var adjustedY: CGFloat
-                                            if frame.minY > popupHeight + 60 {
-                                                // 上方有足够空间，显示在段落上方
-                                                adjustedY = frame.minY - 30
-                                                print("Y坐标: 上方显示, frame.minY=\(frame.minY), adjustedY=\(adjustedY)")
-                                            } else {
-                                                // 上方空间不够，显示在段落下方
-                                                adjustedY = frame.maxY + 30
-                                                print("Y坐标: 下方显示, frame.maxY=\(frame.maxY), adjustedY=\(adjustedY)")
-                                            }
-                                            
-                                            // 确保Y坐标在屏幕可见区域内（使用global坐标系）
-                                            let safeAreaTop: CGFloat = 100  // 状态栏+导航栏高度
-                                            let safeAreaBottom: CGFloat = 150  // 底部安全区域
-                                            
-                                            let minY = safeAreaTop + popupHeight / 2
-                                            let maxY = containerHeight - safeAreaBottom - popupHeight / 2
-                                            let originalY = adjustedY
-                                            adjustedY = max(minY, min(maxY, adjustedY))
-                                            
-                                            print("Y坐标边界检查: 原始=\(originalY), 范围=[\(minY), \(maxY)], 最终=\(adjustedY)")
-                                            
-                                            // 将global坐标转换为named坐标系
-                                            let globalToNamedOffsetY = namedFrame.minY - globalFrame.minY
-                                            let namedY = adjustedY + globalToNamedOffsetY
-                                            
-                                            popupPosition = CGPoint(x: adjustedX, y: namedY)
-                                            showingPopupForSection = index
-                                            
-                                            print("最终弹窗位置: \(popupPosition)")
-                                            print("选中section: \(index), 弹窗显示: \(showingPopupForSection ?? -1)")
-                                            print("======================\n")
-                                        }
-                                    }
+                                    handleSectionTap(index: index, geometry: geometry)
                                 }
                         }
+                        .allowsHitTesting(true) // 确保可以接收点击
                     )
                 }
             }
             
-            // 弹出菜单
+            // 3. 弹出菜单 - 移除了内部的全屏背景
             if let sectionIndex = showingPopupForSection {
                 SectionPopupMenu(
                     isShowing: $showingPopupForSection,
+                    selectedSection: $selectedSection,
                     sectionIndex: sectionIndex,
                     position: popupPosition,
                     isDarkMode: isDarkMode,
@@ -154,21 +94,89 @@ struct MarkdownSectionView: View {
                     onDelete: { index in
                         print("删除按钮点击 - section: \(index)")
                         onDeleteSection?(index)
+                    },
+                    onCopyBlock: { index in
+                        print("块复制按钮点击 - section: \(index)")
+                        copyToClipboard(sections[index].content)
                     }
                 )
                 .transition(.asymmetric(
                     insertion: .scale(scale: 0.8, anchor: .top).combined(with: .opacity),
                     removal: .scale(scale: 0.9).combined(with: .opacity)
                 ))
-                .onAppear {
-                    print("弹窗显示 - section: \(sectionIndex), position: \(popupPosition)")
-                }
-                .onDisappear {
-                    print("弹窗消失 - section: \(sectionIndex)")
-                }
             }
         }
         .coordinateSpace(name: "markdownSectionView")
+    }
+    
+    // 处理 section 点击
+    private func handleSectionTap(index: Int, geometry: GeometryProxy) {
+        if selectedSection == index && showingPopupForSection == index {
+            // 如果点击的是当前选中的section，则取消选中
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                selectedSection = nil
+                showingPopupForSection = nil
+            }
+        } else {
+            // 选中新的section
+            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                selectedSection = index
+                
+                // 计算弹窗位置
+                let namedFrame = geometry.frame(in: .named("markdownSectionView"))
+                let globalFrame = geometry.frame(in: .global)
+                
+                let popupWidth: CGFloat = 108
+                let popupHeight: CGFloat = 44
+                
+                // 使用global坐标系进行计算，确保边界检查正确
+                let frame = globalFrame
+                
+                // 获取容器的实际可视区域
+                let containerWidth = UIScreen.main.bounds.width
+                let containerHeight = UIScreen.main.bounds.height
+                
+                // 计算X坐标，确保不超出容器边界
+                let preferredX = frame.midX
+                let minX = popupWidth / 2 + 20
+                let maxX = containerWidth - popupWidth / 2 - 20
+                let adjustedX = max(minX, min(maxX, preferredX))
+                
+                // 计算Y坐标，优先显示在段落上方，如果空间不够则显示在下方
+                var adjustedY: CGFloat
+                if frame.minY > popupHeight + 60 {
+                    // 上方有足够空间，显示在段落上方
+                    adjustedY = frame.minY - 30
+                } else {
+                    // 上方空间不够，显示在段落下方
+                    adjustedY = frame.maxY + 30
+                }
+                
+                // 确保Y坐标在屏幕可见区域内
+                let safeAreaTop: CGFloat = 100
+                let safeAreaBottom: CGFloat = 150
+                
+                let minY = safeAreaTop + popupHeight / 2
+                let maxY = containerHeight - safeAreaBottom - popupHeight / 2
+                adjustedY = max(minY, min(maxY, adjustedY))
+                
+                // 将global坐标转换为named坐标系
+                let globalToNamedOffsetY = namedFrame.minY - globalFrame.minY
+                let namedY = adjustedY + globalToNamedOffsetY
+                
+                popupPosition = CGPoint(x: adjustedX, y: namedY)
+                showingPopupForSection = index
+            }
+        }
+    }
+    
+    // 复制内容到剪贴板
+    private func copyToClipboard(_ content: String) {
+        UIPasteboard.general.string = content
+        
+        // 触觉反馈
+        let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+        impactFeedback.impactOccurred()
     }
     
     // 解析内容，按标题分段
@@ -254,13 +262,16 @@ struct MarkdownSection {
 // MARK: - 弹出菜单
 struct SectionPopupMenu: View {
     @Binding var isShowing: Int?
+    @Binding var selectedSection: Int?
     let sectionIndex: Int
     let position: CGPoint
     let isDarkMode: Bool
     let onEdit: (Int) -> Void
     let onDelete: (Int) -> Void
+    let onCopyBlock: (Int) -> Void
     
     @State private var showDeleteConfirmation = false
+    @State private var copyButtonShowsCheckmark = false
     
     var body: some View {
         HStack(spacing: 0) {
@@ -268,13 +279,44 @@ struct SectionPopupMenu: View {
             Button(action: {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                     isShowing = nil
+                    selectedSection = nil
                 }
                 onEdit(sectionIndex)
             }) {
                 Image(systemName: "pencil")
-                    .font(.system(size: 18, weight: .medium))
+                    .font(.system(size: 16, weight: .medium))
                     .foregroundColor(isDarkMode ? .white : .black)
-                    .frame(width: 44, height: 44)
+                    .frame(width: 36, height: 44)
+            }
+            
+            // 分割线
+            Rectangle()
+                .fill(isDarkMode ? Color.white.opacity(0.1) : Color.black.opacity(0.1))
+                .frame(width: 0.5, height: 24)
+            
+            // 复制按钮
+            Button(action: {
+                // 显示对勾状态
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    copyButtonShowsCheckmark = true
+                }
+                
+                // 执行复制操作
+                onCopyBlock(sectionIndex)
+                
+                // 1秒后恢复复制图标
+                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        copyButtonShowsCheckmark = false
+                    }
+                }
+            }) {
+                Image(systemName: copyButtonShowsCheckmark ? "checkmark" : "doc.on.doc")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(copyButtonShowsCheckmark ? .green : (isDarkMode ? .white : .black))
+                    .frame(width: 36, height: 44)
+                    .scaleEffect(copyButtonShowsCheckmark ? 1.1 : 1.0)
+                    .animation(.easeInOut(duration: 0.2), value: copyButtonShowsCheckmark)
             }
             
             // 分割线
@@ -287,9 +329,9 @@ struct SectionPopupMenu: View {
                 showDeleteConfirmation = true
             }) {
                 Image(systemName: "trash")
-                    .font(.system(size: 18, weight: .medium))
+                    .font(.system(size: 16, weight: .medium))
                     .foregroundColor(.red)
-                    .frame(width: 44, height: 44)
+                    .frame(width: 36, height: 44)
             }
         }
         .background(
@@ -309,13 +351,8 @@ struct SectionPopupMenu: View {
                     lineWidth: 0.5
                 )
         )
-        .frame(width: 88, height: 44)
+        .frame(width: 108, height: 44)
         .position(x: position.x, y: position.y)
-        .onAppear {
-            print("SectionPopupMenu显示 - section: \(sectionIndex)")
-            print("弹窗实际位置: x=\(position.x), y=\(position.y)")
-            print("在named坐标系中显示弹窗")
-        }
         .confirmationDialog(
             "确定要删除这个段落吗？",
             isPresented: $showDeleteConfirmation,
@@ -324,6 +361,7 @@ struct SectionPopupMenu: View {
             Button("删除", role: .destructive) {
                 withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
                     isShowing = nil
+                    selectedSection = nil
                 }
                 onDelete(sectionIndex)
             }
@@ -331,20 +369,5 @@ struct SectionPopupMenu: View {
         } message: {
             Text("此操作无法撤销")
         }
-        .onTapGesture {
-            // 点击菜单外部关闭
-        }
-        .background(
-            // 全屏透明背景，点击关闭菜单
-            Color.clear
-                .frame(width: UIScreen.main.bounds.width, height: UIScreen.main.bounds.height)
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                        isShowing = nil
-                    }
-                }
-                .position(x: UIScreen.main.bounds.width / 2, y: UIScreen.main.bounds.height / 2)
-        )
     }
 }

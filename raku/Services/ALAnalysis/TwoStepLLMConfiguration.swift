@@ -151,24 +151,22 @@ class TwoStepLLMService: NSObject, ObservableObject {
         let needsSummary = text.count > 150
         
         let systemPrompt = """
-        你是一个精准的闪念分类助手。请严格按照以下要求处理用户输入：
+        你是一个精准的闪念分类助手。请严格按照以下要求处理用户asr处理后的输入内容：
 
-        1. **ASR文本润色**：
+        1. **ASR文本矫正**：
            - 去掉语气词（如"呃"、"就是"、"然后"等）
            - 修正明显的识别错误，使其语义更通顺
-           - 保持原意，不要进行过度改写
+           - 保持原意，不要进行改写
 
         2. **类型判定**（必须选择其一）：
            - 思考(reflection)：深度思考、疑问探索、矛盾分析
 
         3. **生成标题**：
-           - 提取核心内容，生成10字以内的简洁标题
+           - 提取核心内容，生成20字以内的概括标题
            - 保持原意，不过度概括
 
         4. **标签生成**：
            - 生成1-2个相关标签，每个标签2-4个字
-
-        \(needsSummary ? "5. **一句话总结**：\n   - 因为输入超过150字，请提供一句话总结（30字以内）\n   - 保留核心信息，去除冗余内容" : "")
 
         输出格式要求（严格JSON）：
         {
@@ -190,7 +188,7 @@ class TwoStepLLMService: NSObject, ObservableObject {
                 ["role": "user", "content": text]
             ],
             "temperature": 0.3,
-            "max_tokens": 1000
+            "max_tokens": 3000
         ]
         
         do {
@@ -305,7 +303,7 @@ class TwoStepLLMService: NSObject, ObservableObject {
                 ["role": "user", "content": firstStepResult.polishedText]
             ],
             "temperature": 0.6,
-            "max_tokens": 1000
+            "max_tokens": 10000
         ]
         
         do {
