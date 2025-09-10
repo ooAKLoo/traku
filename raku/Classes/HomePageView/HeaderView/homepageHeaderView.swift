@@ -86,24 +86,14 @@ struct HomepageHeaderView: View {
                                 .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.7))
                         }
                         
-                        // 搜索输入框
-                        TextField("智能搜索内容、语义、标签...", text: $searchText)
-                            .font(.system(size: 16))
-                            .foregroundColor(isDarkMode ? .white : .black)
-                            .textFieldStyle(PlainTextFieldStyle())
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 10)
-                            .background(
-                                RoundedRectangle(cornerRadius: 20)
-                                    .fill(isDarkMode ? Color.gray.opacity(0.15) : Color.gray.opacity(0.1))
-                            )
-                            .onAppear {
-                                // 搜索框出现时自动聚焦
-                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                                    // iOS 中通过 UIKit 方式聚焦
-                                    UIApplication.shared.sendAction(#selector(UIResponder.becomeFirstResponder), to: nil, from: nil, for: nil)
-                                }
+                        // 智能搜索框
+                        SmartSearchBar(
+                            searchText: $searchText,
+                            isDarkMode: isDarkMode,
+                            onSearchAction: {
+                                // TODO: 实现AI搜索建议功能
                             }
+                        )
                         
                         // 清除按钮
                         if !searchText.isEmpty {
@@ -226,6 +216,7 @@ struct HomepageHeaderView: View {
             (isDarkMode ? Color.black : Color.white)
         )
     }
+    
 }
 
 #Preview("Light Mode") {
