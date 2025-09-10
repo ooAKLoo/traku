@@ -202,23 +202,30 @@ struct RecordingDetailView: View {
                                 }
                                 .padding(.horizontal, 18)
                                 .contentShape(Rectangle())
-                                .onTapGesture {
-                                    showingFullTranscription = true
-                                }
-                                // 添加滑动手势支持
-                                .gesture(
-                                    DragGesture()
+                                .simultaneousGesture(
+                                    // 组合手势：同时支持点击和滑动
+                                    DragGesture(minimumDistance: 0)
+                                        .onChanged { value in
+                                            // 不做任何处理，只是为了捕获手势开始
+                                        }
                                         .onEnded { value in
-                                            if hasPolishedText {
+                                            let horizontalDrag = abs(value.translation.width)
+                                            let verticalDrag = abs(value.translation.height)
+                                            
+                                            // 如果是明显的水平滑动且有润色文本
+                                            if horizontalDrag > 50 && horizontalDrag > verticalDrag && hasPolishedText {
                                                 withAnimation(.easeInOut(duration: 0.3)) {
-                                                    if value.translation.width > 50 {
+                                                    if value.translation.width > 0 {
                                                         // 向右滑动，切换到原文
                                                         currentTranscriptionPage = 0
-                                                    } else if value.translation.width < -50 {
+                                                    } else {
                                                         // 向左滑动，切换到润色版
                                                         currentTranscriptionPage = 1
                                                     }
                                                 }
+                                            } else if horizontalDrag < 10 && verticalDrag < 10 {
+                                                // 如果是轻微移动，视为点击
+                                                showingFullTranscription = true
                                             }
                                         }
                                 )
