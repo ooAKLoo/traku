@@ -164,7 +164,7 @@ struct RecordingDetailView: View {
                                                     )
                                                     .frame(maxWidth: .infinity, alignment: .leading)
                                                     .transition(.asymmetric(
-                                                        insertion: .move(edge: .trailing).combined(with: .opacity),
+                                                        insertion: .move(edge: .leading).combined(with: .opacity),
                                                         removal: .move(edge: .leading).combined(with: .opacity)
                                                     ))
                                                 } else {
@@ -177,7 +177,7 @@ struct RecordingDetailView: View {
                                                     )
                                                     .frame(maxWidth: .infinity, alignment: .leading)
                                                     .transition(.asymmetric(
-                                                        insertion: .move(edge: .leading).combined(with: .opacity),
+                                                        insertion: .move(edge: .trailing).combined(with: .opacity),
                                                         removal: .move(edge: .trailing).combined(with: .opacity)
                                                     ))
                                                 }

@@ -149,7 +149,7 @@ struct HomepageHeaderView: View {
                                 .fill(isDarkMode ? Color.gray.opacity(0.15) : Color.gray.opacity(0.1))
                                 .frame(width: 40, height: 40)
                                 .overlay(
-                                    Image(systemName: "gearshape")
+                                    Image(systemName: "line.3.horizontal.decrease")
                                         .font(.system(size: 16))
                                         .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.7))
                                 )
