@@ -213,7 +213,7 @@ struct HomepageHeaderView: View {
         .padding(.top, 20)
         .padding(.bottom, 16)
         .background(
-            (isDarkMode ? Color.black : Color.white)
+            (isDarkMode ? Color.black : Color.appBackground)
         )
     }
     

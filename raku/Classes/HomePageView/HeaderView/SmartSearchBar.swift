@@ -96,7 +96,7 @@ struct SmartSearchBar: View {
     
     private var searchBarBackground: some View {
         RoundedRectangle(cornerRadius: 20)
-            .fill(isDarkMode ? Color.gray.opacity(0.15) : Color.gray.opacity(0.1))
+            .fill(isDarkMode ? Color.gray.opacity(0.15) : Color.white)
             .overlay(
                 // 多层动态光晕效果
                 ZStack {

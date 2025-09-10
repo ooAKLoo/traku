@@ -58,7 +58,7 @@ struct TagFilterTabBar: View {
                 .padding(.vertical, 8)
             }
             .background(
-                (isDarkMode ? Color.black : Color.white)
+                (isDarkMode ? Color.black : Color.appBackground)
             )
         }
     }

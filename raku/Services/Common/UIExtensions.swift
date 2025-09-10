@@ -33,4 +33,7 @@ extension Color {
             opacity: Double(a) / 255
         )
     }
+    
+    /// 应用专用的背景颜色
+    static let appBackground = Color(hex: "F5F5F5")
 }

@@ -240,12 +240,12 @@ struct RecordingCardView: View {
                 .background(
                     RoundedRectangle(cornerRadius: 12)
                         .fill(isDarkMode ? Color.white.opacity(0.05) : Color.white)
-                        .shadow(
-                            color: Color.black.opacity(isDarkMode ? 0.3 : 0.05),
-                            radius: (isHovered && !isDragging) ? 8 : 4,
-                            x: 0,
-                            y: (isHovered && !isDragging) ? 4 : 2
-                        )
+//                        .shadow(
+//                            color: Color.black.opacity(isDarkMode ? 0.3 : 0.05),
+//                            radius: (isHovered && !isDragging) ? 8 : 4,
+//                            x: 0,
+//                            y: (isHovered && !isDragging) ? 4 : 2
+//                        )
                 )
                 .scaleEffect((isHovered && !isDragging) ? 1.01 : 1.0)
                 .animation(.easeInOut(duration: 0.2), value: isHovered && !isDragging)
