@@ -11,13 +11,25 @@ struct RecordingDetailTitleView: View {
     let recording: AudioRecording
     let onTagTap: () -> Void
     @AppStorage("isDarkMode") private var isDarkMode = false
+    @State private var editedTitle: String
+    @FocusState var isTitleFieldFocused: Bool
+    
+    init(recording: AudioRecording, onTagTap: @escaping () -> Void) {
+        self.recording = recording
+        self.onTagTap = onTagTap
+        self._editedTitle = State(initialValue: recording.title)
+    }
     
     var body: some View {
         VStack(alignment: .leading, spacing: 22) {
-            Text(recording.title)
+            TextField("标题", text: $editedTitle, axis: .vertical)
                 .font(.system(size: 26, weight: .semibold))
                 .foregroundColor(isDarkMode ? .white.opacity(0.95) : .black.opacity(0.95))
                 .lineLimit(2)
+                .focused($isTitleFieldFocused)
+                .onTapGesture {
+                    isTitleFieldFocused = true
+                }
             
             // 时间和标签在同一行
             HStack(spacing: 22) {

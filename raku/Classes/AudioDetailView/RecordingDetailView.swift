@@ -31,6 +31,7 @@ struct RecordingDetailView: View {
     @State private var polishedTranscription: String = ""
     @State private var hasPolishedText: Bool = false
     @State private var showingFullTranscription = false
+    @FocusState private var isAnyFieldFocused: Bool
     
     init(recording: AudioRecording) {
         self.recording = recording
@@ -135,9 +136,11 @@ struct RecordingDetailView: View {
                                     polishedText: recording.polishedText
                                 ),
                                 onTagTap: {
+                                    isAnyFieldFocused = false
                                     isTagEditModalPresented = true
                                 }
                             )
+                            .focused($isAnyFieldFocused)
                             
                             // 转写文本部分 - 引用样式
                             // 转写文本部分 - 引用样式
@@ -214,6 +217,7 @@ struct RecordingDetailView: View {
                                             
                                             // 如果是明显的水平滑动且有润色文本
                                             if horizontalDrag > 50 && horizontalDrag > verticalDrag && hasPolishedText {
+                                                isAnyFieldFocused = false
                                                 withAnimation(.easeInOut(duration: 0.3)) {
                                                     if value.translation.width > 0 {
                                                         // 向右滑动，切换到原文
@@ -225,6 +229,7 @@ struct RecordingDetailView: View {
                                                 }
                                             } else if horizontalDrag < 10 && verticalDrag < 10 {
                                                 // 如果是轻微移动，视为点击
+                                                isAnyFieldFocused = false
                                                 showingFullTranscription = true
                                             }
                                         }
@@ -250,6 +255,7 @@ struct RecordingDetailView: View {
                                                 .animation(.easeInOut(duration: 0.3), value: currentTranscriptionPage)
                                         }
                                         .onTapGesture {
+                                            isAnyFieldFocused = false
                                             withAnimation(.easeInOut(duration: 0.3)) {
                                                 currentTranscriptionPage = 0
                                             }
@@ -272,6 +278,7 @@ struct RecordingDetailView: View {
                                                 .animation(.easeInOut(duration: 0.3), value: currentTranscriptionPage)
                                         }
                                         .onTapGesture {
+                                            isAnyFieldFocused = false
                                             withAnimation(.easeInOut(duration: 0.3)) {
                                                 currentTranscriptionPage = 1
                                             }
@@ -294,11 +301,13 @@ struct RecordingDetailView: View {
                                         selectedHeadingId: $selectedHeadingId,
                                         scrollProxy: scrollProxy,
                                         onEditSection: { index, content in
+                                            isAnyFieldFocused = false
                                             editingSectionIndex = index
                                             editingSectionContent = content
                                             isEditingSectionPresented = true
                                         },
                                         onDeleteSection: { index in
+                                            isAnyFieldFocused = false
                                             deleteSection(at: index)
                                         }
                                     )
@@ -314,6 +323,12 @@ struct RecordingDetailView: View {
                     .onAppear {
                         scrollProxy = proxy
                     }
+                    .simultaneousGesture(
+                        DragGesture()
+                            .onChanged { _ in
+                                isAnyFieldFocused = false
+                            }
+                    )
                 }
             }
             
