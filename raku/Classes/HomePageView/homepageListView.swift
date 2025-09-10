@@ -13,36 +13,79 @@ struct HomepageListView: View {
     let isDarkMode: Bool
     let onDelete: (AudioRecording) -> Void
     
+    @State private var selectedRecording: AudioRecording? = nil
+    @State private var cardStates: [String: Bool] = [:] // 记录每个卡片的拖拽状态
+    @State private var isNavigating = false
+    
     var body: some View {
-        ScrollView {
+        let scrollContent = ScrollView {
             LazyVStack(spacing: 15) {
                 ForEach(filteredRecordings, id: \.id) { recording in
-                    NavigationLink(destination:
-                        RecordingDetailView(recording: recording)
-                            .navigationBarHidden(true)
-                    ) {
-                        RecordingCardView(
-                            recording: recording,
-                            isDarkMode: isDarkMode,
-                            onDelete: { onDelete(recording) }
-                        )
-                    }
-                    .buttonStyle(PlainButtonStyle())
-                    // 简化动画，移除延迟动画以提升性能
-                    .transition(.asymmetric(
-                        insertion: .opacity.combined(with: .move(edge: .trailing)),
-                        removal: .opacity
-                    ))
-                    // 移除基于 index 的延迟动画，直接使用简单动画
-                    .animation(.easeInOut(duration: 0.2), value: filteredRecordings.count)
+                    cardView(for: recording)
                 }
             }
             .padding(.horizontal, 20)
             .padding(.top, 10)
             .padding(.bottom, 120)
         }
-        // 优化滚动性能
         .scrollDismissesKeyboard(.immediately)
+        
+        return scrollContent
+            .background(navigationLink)
+            .onChange(of: isNavigating) { _ in
+                resetSelection()
+            }
+    }
+    
+    private func cardView(for recording: AudioRecording) -> some View {
+        RecordingCardView(
+            recording: recording,
+            isDarkMode: isDarkMode,
+            onDelete: { onDelete(recording) },
+            onDragStateChanged: { isDragging in
+                cardStates[recording.id.uuidString] = isDragging
+            }
+        )
+        .onTapGesture {
+            handleCardTap(recording: recording)
+        }
+        .transition(.asymmetric(
+            insertion: .opacity.combined(with: .move(edge: .trailing)),
+            removal: .opacity
+        ))
+        .animation(.easeInOut(duration: 0.2), value: filteredRecordings.count)
+    }
+    
+    private var navigationLink: some View {
+        Group {
+            if let recording = selectedRecording {
+                NavigationLink(
+                    destination: RecordingDetailView(recording: recording)
+                        .navigationBarHidden(true),
+                    isActive: $isNavigating
+                ) {
+                    EmptyView()
+                }
+                .hidden()
+                .navigationViewStyle(StackNavigationViewStyle()) // 确保使用堆栈导航样式
+            } else {
+                EmptyView()
+            }
+        }
+    }
+    
+    private func handleCardTap(recording: AudioRecording) {
+        if cardStates[recording.id.uuidString] != true {
+            selectedRecording = recording
+            isNavigating = true
+        }
+    }
+    
+    private func resetSelection() {
+        // 当导航状态变化时，清理选择状态
+        if !isNavigating {
+            selectedRecording = nil
+        }
     }
 }
 

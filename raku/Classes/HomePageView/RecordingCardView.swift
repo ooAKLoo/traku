@@ -97,6 +97,7 @@ struct RecordingCardView: View {
     let recording: AudioRecording
     let isDarkMode: Bool
     let onDelete: () -> Void
+    let onDragStateChanged: ((Bool) -> Void)?
     
     @State private var isHovered = false
     @State private var offset: CGFloat = 0
@@ -265,7 +266,10 @@ struct RecordingCardView: View {
                 DragGesture()
                     .onChanged { value in
                         withAnimation(.interactiveSpring(response: 0.3)) {
-                            isDragging = true
+                            if !isDragging {
+                                isDragging = true
+                                onDragStateChanged?(true)
+                            }
                             // 只允许向左滑动
                             if value.translation.width < 0 {
                                 offset = max(value.translation.width, maxSwipeDistance)
@@ -278,6 +282,7 @@ struct RecordingCardView: View {
                     .onEnded { _ in
                         withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
                             isDragging = false
+                            onDragStateChanged?(false)
                             
                             // 如果圆环闭合（progress == 1），执行删除
                             if progress >= 1.0 {
@@ -350,7 +355,8 @@ struct RecordingCardView_Previews: PreviewProvider {
             RecordingCardView(
                 recording: sampleRecording,
                 isDarkMode: false,
-                onDelete: {}
+                onDelete: {},
+                onDragStateChanged: nil
             )
             .padding()
             .background(Color(white: 0.95))
@@ -361,7 +367,8 @@ struct RecordingCardView_Previews: PreviewProvider {
             RecordingCardView(
                 recording: sampleRecording,
                 isDarkMode: true,
-                onDelete: {}
+                onDelete: {},
+                onDragStateChanged: nil
             )
             .padding()
             .background(Color.black)
@@ -380,7 +387,8 @@ struct RecordingCardView_Previews: PreviewProvider {
             RecordingCardView(
                 recording: sampleRecording,
                 isDarkMode: true,
-                onDelete: {}
+                onDelete: {},
+                onDragStateChanged: nil
             )
             .padding()
             .background(Color.black)
@@ -437,7 +445,8 @@ struct RecordingListPreview: View {
                             withAnimation(.spring()) {
                                 recordings.removeAll { $0.id == recording.id }
                             }
-                        }
+                        },
+                        onDragStateChanged: nil
                     )
                 }
             }

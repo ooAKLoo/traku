@@ -43,7 +43,7 @@ struct RecordingDetailView: View {
         self._audioManager = StateObject(wrappedValue: audioManager)
         self._editableTags = State(initialValue: recording.tags)
     }
-    
+    @State private var isPresented = false
     var body: some View {
         ZStack {
             // 极简背景
@@ -349,6 +349,12 @@ struct RecordingDetailView: View {
                 .animation(.spring(response: 0.5, dampingFraction: 0.8), value: headings.count)
             }
         }
+        .offset(x: isPresented ? 0 : UIScreen.main.bounds.width)
+                .onAppear {
+                    withAnimation(.easeOut(duration: 0.3)) {
+                        isPresented = true
+                    }
+                }
         .onAppear {
             // 初始化转写文本内容
             setupTranscriptionContent()
