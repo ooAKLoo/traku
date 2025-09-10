@@ -12,6 +12,7 @@ struct HomepageListView: View {
     let filteredRecordings: [AudioRecording]
     let isDarkMode: Bool
     let onDelete: (AudioRecording) -> Void
+    let audioManager: AudioManagerAdapter
     
     @State private var selectedRecording: AudioRecording? = nil
     @State private var cardStates: [String: Bool] = [:] // 记录每个卡片的拖拽状态
@@ -60,7 +61,7 @@ struct HomepageListView: View {
         Group {
             if let recording = selectedRecording {
                 NavigationLink(
-                    destination: RecordingDetailView(recording: recording)
+                    destination: RecordingDetailView(recording: recording, audioManager: audioManager)
                         .navigationBarHidden(true),
                     isActive: $isNavigating
                 ) {
@@ -130,7 +131,8 @@ struct HomepageListView_Previews: PreviewProvider {
             HomepageListView(
                 filteredRecordings: sampleRecordings,
                 isDarkMode: false,
-                onDelete: { _ in print("Delete recording") }
+                onDelete: { _ in print("Delete recording") },
+                audioManager: AudioManagerAdapter(skipDatabaseLoad: true)
             )
             .previewDisplayName("Light Mode")
             
@@ -138,7 +140,8 @@ struct HomepageListView_Previews: PreviewProvider {
             HomepageListView(
                 filteredRecordings: sampleRecordings,
                 isDarkMode: true,
-                onDelete: { _ in print("Delete recording") }
+                onDelete: { _ in print("Delete recording") },
+                audioManager: AudioManagerAdapter(skipDatabaseLoad: true)
             )
             .previewDisplayName("Dark Mode")
             .preferredColorScheme(.dark)
@@ -147,7 +150,8 @@ struct HomepageListView_Previews: PreviewProvider {
             HomepageListView(
                 filteredRecordings: [],
                 isDarkMode: false,
-                onDelete: { _ in print("Delete recording") }
+                onDelete: { _ in print("Delete recording") },
+                audioManager: AudioManagerAdapter(skipDatabaseLoad: true)
             )
             .previewDisplayName("Empty List")
         }

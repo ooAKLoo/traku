@@ -175,6 +175,22 @@ class AudioManagerAdapter: ObservableObject {
         esp32Service.deleteRecording(recording)
     }
     
+    /// 从数据库刷新单个录音记录（用于标签等信息更新后的UI刷新）
+    func refreshRecording(_ recording: AudioRecording) {
+        DispatchQueue.global(qos: .userInitiated).async {
+            // 重新从数据库加载该录音记录
+            let allRecordings = DatabaseManager.shared.loadRecordings()
+            if let updatedRecording = allRecordings.first(where: { $0.id == recording.id }) {
+                DispatchQueue.main.async {
+                    if let index = self.recordings.firstIndex(where: { $0.id == recording.id }) {
+                        print("🔄 AudioManagerAdapter: 刷新录音记录，ID: \(recording.id.uuidString.prefix(8))..., 标签: \(updatedRecording.tags)")
+                        self.recordings[index] = updatedRecording
+                    }
+                }
+            }
+        }
+    }
+    
     
     // MARK: - Private Methods
     

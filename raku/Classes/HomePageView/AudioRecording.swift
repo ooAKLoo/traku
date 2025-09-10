@@ -17,7 +17,7 @@ struct AudioRecording: Identifiable, Equatable {
     let transcription: String
     let title: String
     let summary: String
-    let tags: [String]
+    var tags: [String]
     let audioData: Data?
     var isPlaying: Bool = false
     var enrichedContent: String?
@@ -137,7 +137,8 @@ struct RecordingsListView: View {
                 HomepageListView(
                     filteredRecordings: filteredRecordings,
                     isDarkMode: isDarkMode,
-                    onDelete: deleteRecording
+                    onDelete: deleteRecording,
+                    audioManager: audioManager
                 )
             }
             

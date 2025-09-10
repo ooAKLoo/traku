@@ -395,7 +395,9 @@ struct RecordingDetailView: View {
         .sheet(isPresented: $isTagEditModalPresented) {
             TagEditModal(
                 isPresented: $isTagEditModalPresented,
-                tags: $editableTags
+                tags: $editableTags,
+                recording: recording,
+                audioManager: audioManager
             )
         }
         .sheet(isPresented: $isEditingSectionPresented) {

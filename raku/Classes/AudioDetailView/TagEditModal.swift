@@ -13,6 +13,14 @@ struct TagEditModal: View {
     @State private var newTagText = ""
     @AppStorage("isDarkMode") private var isDarkMode = true
     
+    // 添加录音记录参数用于数据库持久化
+    let recording: AudioRecording?
+    // 添加音频管理器引用用于刷新UI
+    let audioManager: AudioManagerAdapter?
+    @State private var isSaving = false
+    @State private var showingSaveError = false
+    @State private var saveErrorMessage = ""
+    
     // 预设常用标签
     private let suggestedTags = ["会议", "学习", "工作", "生活", "重要", "灵感", "待办", "笔记"]
     
@@ -139,14 +147,44 @@ struct TagEditModal: View {
                 
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("完成") {
-                        isPresented = false
+                        saveTagsToDatabase()
                     }
                     .foregroundColor(isDarkMode ? .white.opacity(0.9) : .black.opacity(0.9))
                     .fontWeight(.medium)
+                    .disabled(isSaving)
                 }
             }
         }
         .preferredColorScheme(isDarkMode ? .dark : .light)
+        .alert("保存失败", isPresented: $showingSaveError) {
+            Button("确定", role: .cancel) { }
+        } message: {
+            Text(saveErrorMessage)
+        }
+        .overlay(
+            // 保存状态指示器
+            Group {
+                if isSaving {
+                    Color.black.opacity(0.3)
+                        .ignoresSafeArea()
+                        .overlay(
+                            VStack(spacing: 12) {
+                                ProgressView()
+                                    .scaleEffect(1.2)
+                                Text("保存中...")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundColor(.primary)
+                            }
+                            .padding(24)
+                            .background(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .fill(isDarkMode ? Color.black.opacity(0.9) : Color.white.opacity(0.9))
+                                    .shadow(color: .black.opacity(0.2), radius: 8, x: 0, y: 4)
+                            )
+                        )
+                }
+            }
+        )
     }
     
     private func addNewTag() {
@@ -165,6 +203,45 @@ struct TagEditModal: View {
     private func removeTag(_ tag: String) {
         tags.removeAll { $0 == tag }
     }
+    
+    // MARK: - 数据库持久化
+    private func saveTagsToDatabase() {
+        guard let recording = recording else {
+            // 如果没有录音记录，直接关闭模态框
+            isPresented = false
+            return
+        }
+        
+        isSaving = true
+        
+        // 在后台队列执行数据库操作
+        DispatchQueue.global(qos: .userInitiated).async {
+            // 创建更新后的录音记录
+            var updatedRecording = recording
+            updatedRecording.tags = tags
+            
+            // 保存到数据库
+            let success = DatabaseManager.shared.updateRecording(updatedRecording)
+            
+            // 回到主线程更新UI
+            DispatchQueue.main.async {
+                isSaving = false
+                
+                if success {
+                    print("✅ 标签保存成功: \(tags)")
+                    // 刷新AudioManagerAdapter中的录音记录以更新UI
+                    if let audioManager = audioManager {
+                        audioManager.refreshRecording(recording)
+                    }
+                    isPresented = false
+                } else {
+                    print("❌ 标签保存失败")
+                    saveErrorMessage = "保存标签失败，请重试"
+                    showingSaveError = true
+                }
+            }
+        }
+    }
 }
 
 // MARK: - 预览
@@ -172,7 +249,9 @@ struct TagEditModal_Previews: PreviewProvider {
     static var previews: some View {
         TagEditModal(
             isPresented: .constant(true),
-            tags: .constant(["会议", "产品", "开发","sdfsdfwe","dfsds"])
+            tags: .constant(["会议", "产品", "开发","sdfsdfwe","dfsds"]),
+            recording: nil,
+            audioManager: nil
         )
     }
 }

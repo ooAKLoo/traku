@@ -1,0 +1,116 @@
+// WeatherType 配色方案 - 基于中国传统色
+// 每个配色都选用了具有文化底蕴的传统色彩，营造高级质感
+
+var colors: (primary: Color, secondary: Color) {
+    switch self {
+    case .sunny:
+        // 杏黄 + 金黄 - 取自故宫琉璃瓦的明黄色系
+        // 象征皇家气派与光明正大
+        return (Color(red: 250/255, green: 215/255, blue: 126/255),
+               Color(red: 255/255, green: 241/255, blue: 147/255))
+        
+    case .partlyCloudy:
+        // 月白 + 水色 - 取自青花瓷的淡雅色调
+        // 清新雅致，如瓷器般温润
+        return (Color(red: 214/255, green: 236/255, blue: 240/255),
+               Color(red: 136/255, green: 173/255, blue: 166/255))
+        
+    case .cloudy:
+        // 苍色 + 灰青 - 取自水墨画的远山色彩
+        // 沉稳内敛，富有禅意
+        return (Color(red: 117/255, green: 135/255, blue: 138/255),
+               Color(red: 115/255, green: 151/255, blue: 171/255))
+        
+    case .rainy:
+        // 群青 + 花青 - 取自青花瓷的主色调
+        // 深邃典雅，如江南烟雨
+        return (Color(red: 76/255, green: 141/255, blue: 174/255),
+               Color(red: 35/255, green: 118/255, blue: 183/255))
+        
+    case .stormy:
+        // 黛紫 + 墨色 - 取自宣纸水墨的浓重色彩
+        // 威严深沉，气势磅礴
+        return (Color(red: 87/255, green: 66/255, blue: 102/255),
+               Color(red: 80/255, green: 85/255, blue: 98/255))
+        
+    case .snowy:
+        // 雪白 + 霜色 - 取自寒梅傲雪的素雅色调
+        // 纯净高洁，如玉般温润
+        return (Color(red: 255/255, green: 252/255, blue: 250/255),
+               Color(red: 233/255, green: 241/255, blue: 246/255))
+        
+    case .foggy:
+        // 烟色 + 灰白 - 取自烟雨江南的朦胧意境
+        // 虚实相间，如梦似幻
+        return (Color(red: 195/255, green: 196/255, blue: 188/255).opacity(0.85),
+               Color(red: 245/255, green: 245/255, blue: 237/255).opacity(0.6))
+        
+    case .windy:
+        // 竹青 + 柳青 - 取自竹林清风的自然色彩
+        // 清爽灵动，生机盎然
+        return (Color(red: 120/255, green: 146/255, blue: 98/255),
+               Color(red: 124/255, green: 171/255, blue: 145/255))
+        
+    // 时间场景配色 - 更具诗意的传统色彩
+    case .sunrise:
+        // 朱砂 + 橙黄 - 取自敦煌壁画的暖色调
+        // 热烈辉煌，如旭日东升
+        return (Color(red: 255/255, green: 91/255, blue: 71/255),
+               Color(red: 255/255, green: 179/255, blue: 115/255))
+        
+    case .sunset:
+        // 赭红 + 茶色 - 取自夕阳西下的温暖色调
+        // 温暖沉静，余晖万丈
+        return (Color(red: 195/255, green: 39/255, blue: 43/255),
+               Color(red: 179/255, green: 92/255, blue: 68/255))
+        
+    case .moonrise:
+        // 月白蓝 + 藤紫 - 取自月下紫藤的幽雅色彩
+        // 清冷幽静，月华如水
+        return (Color(red: 192/255, green: 217/255, blue: 232/255).opacity(0.9),
+               Color(red: 162/255, green: 155/255, blue: 208/255).opacity(0.7))
+        
+    case .moonset:
+        // 紫檀 + 青莲 - 取自紫禁城的深宫色调
+        // 神秘尊贵，深邃悠远
+        return (Color(red: 76/255, green: 34/255, blue: 27/255).opacity(0.85),
+               Color(red: 128/255, green: 109/255, blue: 174/255).opacity(0.6))
+        
+    case .night:
+        // 玄青 + 靛青 - 取自夜空的深邃色彩
+        // 宁静深远，繁星点点
+        return (Color(red: 61/255, green: 59/255, blue: 79/255),
+               Color(red: 29/255, green: 53/255, blue: 87/255))
+        
+    case .dawn:
+        // 海棠红 + 藕色 - 取自晨曦初露的柔和色调
+        // 娇嫩清新，晨光熹微
+        return (Color(red: 219/255, green: 90/255, blue: 107/255).opacity(0.9),
+               Color(red: 237/255, green: 195/255, blue: 213/255).opacity(0.7))
+        
+    case .dusk:
+        // 胭脂 + 绯色 - 取自黄昏时分的绚丽色彩
+        // 浓艳华贵，暮色苍茫
+        return (Color(red: 157/255, green: 41/255, blue: 51/255).opacity(0.9),
+               Color(red: 232/255, green: 180/255, blue: 184/255).opacity(0.7))
+        
+    case .twilight:
+        // 黛蓝 + 钴蓝 - 取自暮色时分的过渡色彩
+        // 朦胧神秘，昼夜交替
+        return (Color(red: 67/255, green: 81/255, blue: 115/255).opacity(0.85),
+               Color(red: 44/255, green: 106/255, blue: 168/255).opacity(0.6))
+    }
+}
+
+// 配色设计理念：
+// 1. 晴天系列（sunny, partlyCloudy）- 使用明亮温暖的传统黄色系，取自故宫建筑和青花瓷
+// 2. 阴雨系列（cloudy, rainy, stormy）- 使用水墨画的青灰色系，营造江南烟雨意境
+// 3. 雪雾系列（snowy, foggy）- 使用素雅的白色系，如玉般温润纯净
+// 4. 自然系列（windy）- 使用竹林的青绿色系，清新自然
+// 5. 时间系列（sunrise, sunset等）- 使用敦煌壁画和宫廷色彩，富有诗意和文化底蕴
+
+// 质感提升技巧：
+// - 使用opacity创造层次感
+// - 选择饱和度适中的颜色，避免过于艳俗
+// - 主次色彩搭配和谐，形成自然过渡
+// - 参考传统艺术作品的配色美学
