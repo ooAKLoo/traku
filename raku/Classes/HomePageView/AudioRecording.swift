@@ -15,7 +15,7 @@ struct AudioRecording: Identifiable, Equatable {
     let timestamp: Date
     let duration: TimeInterval
     let transcription: String
-    let title: String
+    var title: String
     let summary: String
     var tags: [String]
     let audioData: Data?
@@ -138,7 +138,8 @@ struct RecordingsListView: View {
                     filteredRecordings: filteredRecordings,
                     isDarkMode: isDarkMode,
                     onDelete: deleteRecording,
-                    audioManager: audioManager
+                    audioManager: audioManager,
+                    onRecordingUpdated: updateRecording
                 )
             }
             
@@ -159,6 +160,10 @@ struct RecordingsListView: View {
     
     private func deleteRecording(_ recording: AudioRecording) {
         audioManager.deleteRecording(recording)
+    }
+    
+    private func updateRecording(_ updatedRecording: AudioRecording) {
+        audioManager.updateRecording(updatedRecording)
     }
     
 }

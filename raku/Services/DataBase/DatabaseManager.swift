@@ -69,6 +69,7 @@ class DatabaseManager {
                 timestamp REAL NOT NULL,
                 duration REAL NOT NULL,
                 transcription TEXT NOT NULL,
+                title TEXT,
                 summary TEXT NOT NULL,
                 tags TEXT NOT NULL,
                 audio_data BLOB,
@@ -78,9 +79,13 @@ class DatabaseManager {
             );
         """
         
+        // 检查并添加 title 列（兼容旧数据库）
+        let addTitleColumnSQL = "ALTER TABLE audio_recordings ADD COLUMN title TEXT;"
+        sqlite3_exec(db, addTitleColumnSQL, nil, nil, nil) // 忽略错误（列可能已存在）
+        
         // 检查并添加 polished_text 列（兼容旧数据库）
-        let addColumnSQL = "ALTER TABLE audio_recordings ADD COLUMN polished_text TEXT;"
-        sqlite3_exec(db, addColumnSQL, nil, nil, nil) // 忽略错误（列可能已存在）
+        let addPolishedTextColumnSQL = "ALTER TABLE audio_recordings ADD COLUMN polished_text TEXT;"
+        sqlite3_exec(db, addPolishedTextColumnSQL, nil, nil, nil) // 忽略错误（列可能已存在）
         
         if sqlite3_exec(db, createTableSQL, nil, nil, nil) == SQLITE_OK {
             print("✅ 录音表创建成功")
@@ -184,8 +189,8 @@ class DatabaseManager {
     private func saveRecordingInternal(_ recording: AudioRecording) -> Bool {
         // 使用 INSERT 确保每条记录都是新的，不覆盖现有记录
             let insertSQL = """
-                INSERT INTO audio_recordings (id, timestamp, duration, transcription, summary, tags, audio_data, enriched_content, polished_text, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO audio_recordings (id, timestamp, duration, transcription, title, summary, tags, audio_data, enriched_content, polished_text, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             """
             
             var statement: OpaquePointer?
@@ -202,28 +207,29 @@ class DatabaseManager {
             sqlite3_bind_double(statement, 2, recording.timestamp.timeIntervalSince1970)
             sqlite3_bind_double(statement, 3, recording.duration)
             sqlite3_bind_text(statement, 4, (recording.transcription as NSString).utf8String, -1, SQLITE_TRANSIENT)
-            sqlite3_bind_text(statement, 5, (recording.summary as NSString).utf8String, -1, SQLITE_TRANSIENT)
-            sqlite3_bind_text(statement, 6, (tagsString as NSString).utf8String, -1, SQLITE_TRANSIENT)
+            sqlite3_bind_text(statement, 5, (recording.title as NSString).utf8String, -1, SQLITE_TRANSIENT)
+            sqlite3_bind_text(statement, 6, (recording.summary as NSString).utf8String, -1, SQLITE_TRANSIENT)
+            sqlite3_bind_text(statement, 7, (tagsString as NSString).utf8String, -1, SQLITE_TRANSIENT)
             
             if let audioData = recording.audioData {
-                sqlite3_bind_blob(statement, 7, audioData.withUnsafeBytes { $0.bindMemory(to: Int8.self).baseAddress }, Int32(audioData.count), nil)
-            } else {
-                sqlite3_bind_null(statement, 7)
-            }
-            
-            if let enrichedContent = recording.enrichedContent {
-                sqlite3_bind_text(statement, 8, (enrichedContent as NSString).utf8String, -1, SQLITE_TRANSIENT)
+                sqlite3_bind_blob(statement, 8, audioData.withUnsafeBytes { $0.bindMemory(to: Int8.self).baseAddress }, Int32(audioData.count), nil)
             } else {
                 sqlite3_bind_null(statement, 8)
             }
             
-            if !recording.polishedText.isEmpty {
-                sqlite3_bind_text(statement, 9, (recording.polishedText as NSString).utf8String, -1, SQLITE_TRANSIENT)
+            if let enrichedContent = recording.enrichedContent {
+                sqlite3_bind_text(statement, 9, (enrichedContent as NSString).utf8String, -1, SQLITE_TRANSIENT)
             } else {
                 sqlite3_bind_null(statement, 9)
             }
             
-            sqlite3_bind_double(statement, 10, Date().timeIntervalSince1970)
+            if !recording.polishedText.isEmpty {
+                sqlite3_bind_text(statement, 10, (recording.polishedText as NSString).utf8String, -1, SQLITE_TRANSIENT)
+            } else {
+                sqlite3_bind_null(statement, 10)
+            }
+            
+            sqlite3_bind_double(statement, 11, Date().timeIntervalSince1970)
             
             if sqlite3_step(statement) == SQLITE_DONE {
                 print("✅ 录音保存成功，ID: \(recording.id.uuidString)")
@@ -279,7 +285,7 @@ class DatabaseManager {
     
     func loadRecordings() -> [AudioRecording] {
         return dbQueue.sync {
-            let querySQL = "SELECT id, timestamp, duration, transcription, summary, tags, audio_data, enriched_content, polished_text FROM audio_recordings ORDER BY timestamp DESC"
+            let querySQL = "SELECT id, timestamp, duration, transcription, title, summary, tags, audio_data, enriched_content, polished_text FROM audio_recordings ORDER BY timestamp DESC"
             
             var statement: OpaquePointer?
             var recordings: [AudioRecording] = []
@@ -300,8 +306,8 @@ class DatabaseManager {
                 
                 guard let idString = sqlite3_column_text(statement, 0),
                       let transcription = sqlite3_column_text(statement, 3),
-                      let summary = sqlite3_column_text(statement, 4),
-                      let tagsString = sqlite3_column_text(statement, 5) else {
+                      let summary = sqlite3_column_text(statement, 5),
+                      let tagsString = sqlite3_column_text(statement, 6) else {
                     print("❌ 第 \(rowIndex) 行数据格式错误，跳过")
                     continue
                 }
@@ -310,6 +316,16 @@ class DatabaseManager {
                 let timestamp = Date(timeIntervalSince1970: sqlite3_column_double(statement, 1))
                 let duration = sqlite3_column_double(statement, 2)
                 let transcriptionStr = String(cString: transcription)
+                
+                // 读取 title 字段（可能为空）
+                var titleStr = ""
+                if let titleText = sqlite3_column_text(statement, 4) {
+                    titleStr = String(cString: titleText)
+                } else {
+                    // 如果 title 为空，从 summary 中提取
+                    titleStr = extractTitleFromSummary(String(cString: summary))
+                }
+                
                 let summaryStr = String(cString: summary)
                 
                 print("🔍 第 \(rowIndex) 行基础数据: ID=\(String(cString: idString).prefix(8))..., 转录=\(transcriptionStr.prefix(30))...")
@@ -318,8 +334,8 @@ class DatabaseManager {
                 let tags = (try? JSONDecoder().decode([String].self, from: tagsData ?? Data())) ?? []
                 
                 var audioData: Data?
-                if let audioBlob = sqlite3_column_blob(statement, 6) {
-                    let audioSize = sqlite3_column_bytes(statement, 6)
+                if let audioBlob = sqlite3_column_blob(statement, 7) {
+                    let audioSize = sqlite3_column_bytes(statement, 7)
                     audioData = Data(bytes: audioBlob, count: Int(audioSize))
                     print("🔍 音频数据大小: \(audioSize) 字节")
                 } else {
@@ -327,24 +343,21 @@ class DatabaseManager {
                 }
                 
                 var enrichedContent: String?
-                if let enrichedText = sqlite3_column_text(statement, 7) {
+                if let enrichedText = sqlite3_column_text(statement, 8) {
                     enrichedContent = String(cString: enrichedText)
                 }
                 
                 var polishedText: String = ""
-                if let polishedTextData = sqlite3_column_text(statement, 8) {
+                if let polishedTextData = sqlite3_column_text(statement, 9) {
                     polishedText = String(cString: polishedTextData)
                 }
-                
-                // 从 summary 中提取 title，如果找不到则使用 summary 本身
-                let title = extractTitleFromSummary(summaryStr)
                 
                 let recording = AudioRecording(
                     id: id,
                     timestamp: timestamp,
                     duration: duration,
                     transcription: transcriptionStr,
-                    title: title,
+                    title: titleStr,
                     summary: summaryStr,
                     tags: tags,
                     audioData: audioData,
@@ -427,10 +440,11 @@ class DatabaseManager {
     
     private func updateRecordingInternal(_ recording: AudioRecording) -> Bool {
         print("🔄 DatabaseManager.updateRecordingInternal: 尝试更新录音，ID: \(recording.id.uuidString)")
+        print("🔄 更新标题为: '\(recording.title)'")
         
         let updateSQL = """
             UPDATE audio_recordings 
-            SET timestamp = ?, duration = ?, transcription = ?, summary = ?, tags = ?, audio_data = ?, enriched_content = ?, polished_text = ?
+            SET timestamp = ?, duration = ?, transcription = ?, title = ?, summary = ?, tags = ?, audio_data = ?, enriched_content = ?, polished_text = ?
             WHERE id = ?
         """
         
@@ -443,29 +457,30 @@ class DatabaseManager {
             sqlite3_bind_double(statement, 1, recording.timestamp.timeIntervalSince1970)
             sqlite3_bind_double(statement, 2, recording.duration)
             sqlite3_bind_text(statement, 3, (recording.transcription as NSString).utf8String, -1, SQLITE_TRANSIENT)
-            sqlite3_bind_text(statement, 4, (recording.summary as NSString).utf8String, -1, SQLITE_TRANSIENT)
-            sqlite3_bind_text(statement, 5, (tagsString as NSString).utf8String, -1, SQLITE_TRANSIENT)
+            sqlite3_bind_text(statement, 4, (recording.title as NSString).utf8String, -1, SQLITE_TRANSIENT)
+            sqlite3_bind_text(statement, 5, (recording.summary as NSString).utf8String, -1, SQLITE_TRANSIENT)
+            sqlite3_bind_text(statement, 6, (tagsString as NSString).utf8String, -1, SQLITE_TRANSIENT)
             
             if let audioData = recording.audioData {
-                sqlite3_bind_blob(statement, 6, audioData.withUnsafeBytes { $0.bindMemory(to: Int8.self).baseAddress }, Int32(audioData.count), nil)
-            } else {
-                sqlite3_bind_null(statement, 6)
-            }
-            
-            if let enrichedContent = recording.enrichedContent {
-                sqlite3_bind_text(statement, 7, (enrichedContent as NSString).utf8String, -1, SQLITE_TRANSIENT)
+                sqlite3_bind_blob(statement, 7, audioData.withUnsafeBytes { $0.bindMemory(to: Int8.self).baseAddress }, Int32(audioData.count), nil)
             } else {
                 sqlite3_bind_null(statement, 7)
             }
             
-            if !recording.polishedText.isEmpty {
-                sqlite3_bind_text(statement, 8, (recording.polishedText as NSString).utf8String, -1, SQLITE_TRANSIENT)
+            if let enrichedContent = recording.enrichedContent {
+                sqlite3_bind_text(statement, 8, (enrichedContent as NSString).utf8String, -1, SQLITE_TRANSIENT)
             } else {
                 sqlite3_bind_null(statement, 8)
             }
             
+            if !recording.polishedText.isEmpty {
+                sqlite3_bind_text(statement, 9, (recording.polishedText as NSString).utf8String, -1, SQLITE_TRANSIENT)
+            } else {
+                sqlite3_bind_null(statement, 9)
+            }
+            
             let idString = recording.id.uuidString
-            sqlite3_bind_text(statement, 9, (idString as NSString).utf8String, -1, SQLITE_TRANSIENT)
+            sqlite3_bind_text(statement, 10, (idString as NSString).utf8String, -1, SQLITE_TRANSIENT)
             
         if sqlite3_step(statement) == SQLITE_DONE {
             print("录音更新成功")

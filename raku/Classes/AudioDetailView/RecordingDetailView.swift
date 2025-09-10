@@ -12,7 +12,8 @@ import MarkdownUI
 
 // MARK: - 录音详情视图
 struct RecordingDetailView: View {
-    let recording: AudioRecording
+    @State private var recording: AudioRecording
+    var onRecordingUpdated: ((AudioRecording) -> Void)? = nil
     @State private var playProgress: Double = 0
     @State private var isTagEditModalPresented = false
     @State private var editableTags: [String]
@@ -33,14 +34,16 @@ struct RecordingDetailView: View {
     @State private var showingFullTranscription = false
     @FocusState private var isAnyFieldFocused: Bool
     
-    init(recording: AudioRecording) {
-        self.recording = recording
+    init(recording: AudioRecording, onRecordingUpdated: ((AudioRecording) -> Void)? = nil) {
+        self._recording = State(initialValue: recording)
+        self.onRecordingUpdated = onRecordingUpdated
         self._audioManager = StateObject(wrappedValue: AudioManagerAdapter())
         self._editableTags = State(initialValue: recording.tags)
     }
     
-    init(recording: AudioRecording, audioManager: AudioManagerAdapter) {
-        self.recording = recording
+    init(recording: AudioRecording, audioManager: AudioManagerAdapter, onRecordingUpdated: ((AudioRecording) -> Void)? = nil) {
+        self._recording = State(initialValue: recording)
+        self.onRecordingUpdated = onRecordingUpdated
         self._audioManager = StateObject(wrappedValue: audioManager)
         self._editableTags = State(initialValue: recording.tags)
     }
@@ -138,6 +141,13 @@ struct RecordingDetailView: View {
                                 onTagTap: {
                                     isAnyFieldFocused = false
                                     isTagEditModalPresented = true
+                                },
+                                onTitleChanged: { newTitle in
+                                    // 更新本地状态
+                                    recording.title = newTitle
+                                    // 通知父组件录音数据已更新
+                                    onRecordingUpdated?(recording)
+                                    print("标题已保存: \(newTitle)")
                                 }
                             )
                             .focused($isAnyFieldFocused)

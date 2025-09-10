@@ -191,6 +191,22 @@ class AudioManagerAdapter: ObservableObject {
         }
     }
     
+    /// 更新录音记录
+    func updateRecording(_ updatedRecording: AudioRecording) {
+        // 更新数据库
+        if DatabaseManager.shared.updateRecording(updatedRecording) {
+            DispatchQueue.main.async {
+                // 更新UI中的记录
+                if let index = self.recordings.firstIndex(where: { $0.id == updatedRecording.id }) {
+                    print("🔄 AudioManagerAdapter: 更新录音记录，ID: \(updatedRecording.id.uuidString.prefix(8))..., 标题: \(updatedRecording.title)")
+                    self.recordings[index] = updatedRecording
+                    // 强制触发UI更新
+                    self.objectWillChange.send()
+                }
+            }
+        }
+    }
+    
     
     // MARK: - Private Methods
     
@@ -443,6 +459,7 @@ extension AudioManagerAdapter {
     func createWAVFile(from audioData: Data) -> Data {
         return esp32Service.createWAVFile(from: audioData)
     }
+    
 }
 
 // MARK: - 迁移说明
