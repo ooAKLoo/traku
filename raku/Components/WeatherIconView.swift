@@ -59,7 +59,6 @@ struct WeatherIconView: View {
                         endPoint: .bottomTrailing
                     )
                 )
-                .rotationEffect(.degrees(weatherType.rotation))
                 .shadow(
                     color: weatherType.colors.primary.opacity(isDarkMode ? 0.15 : 0.1),
                     radius: 3,

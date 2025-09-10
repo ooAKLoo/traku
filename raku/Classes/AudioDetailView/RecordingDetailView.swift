@@ -31,25 +31,25 @@ struct RecordingDetailView: View {
     @State private var polishedTranscription: String = ""
     @State private var hasPolishedText: Bool = false
     @State private var showingFullTranscription = false
-
+    
     init(recording: AudioRecording) {
         self.recording = recording
         self._audioManager = StateObject(wrappedValue: AudioManagerAdapter())
         self._editableTags = State(initialValue: recording.tags)
     }
-
+    
     init(recording: AudioRecording, audioManager: AudioManagerAdapter) {
         self.recording = recording
         self._audioManager = StateObject(wrappedValue: audioManager)
         self._editableTags = State(initialValue: recording.tags)
     }
-
+    
     var body: some View {
         ZStack {
             // 极简背景
             (isDarkMode ? Color.black : Color.white)
                 .ignoresSafeArea()
-
+            
             VStack(spacing: 0) {
                 // 顶部导航栏 - 更加精简
                 HStack {
@@ -59,9 +59,9 @@ struct RecordingDetailView: View {
                             .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
                             .frame(width: 44, height: 44)
                     }
-
+                    
                     Spacer()
-
+                    
                     // 播放控件 - 更简洁
                     HStack(spacing: 12) {
                         Button(action: togglePlayback) {
@@ -81,7 +81,7 @@ struct RecordingDetailView: View {
                             )
                         }
                         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: audioManager.isPlaying)
-
+                        
                         // 下载按钮 - 只在播放时显示
                         if audioManager.isPlaying {
                             Button(action: downloadAudio) {
@@ -96,9 +96,9 @@ struct RecordingDetailView: View {
                         }
                     }
                     .animation(.easeInOut(duration: 0.25), value: audioManager.isPlaying)
-
+                    
                     Spacer()
-
+                    
                     Menu {
                         Button(action: shareRecording) {
                             Label("分享", systemImage: "square.and.arrow.up")
@@ -117,174 +117,191 @@ struct RecordingDetailView: View {
                     }
                 }
                 .padding(.horizontal, 8)
-
+                
                 ScrollViewReader { proxy in
                     ScrollView(.vertical, showsIndicators: false) {
                         VStack(alignment: .leading, spacing: 0) {
-                        // 标题区域 - 使用独立组件
-                        RecordingDetailTitleView(
-                            recording: AudioRecording(
-                                timestamp: recording.timestamp,
-                                duration: recording.duration,
-                                transcription: recording.transcription,
-                                title: recording.title,
-                                summary: recording.summary,
-                                tags: editableTags,
-                                audioData: recording.audioData,
-                                enrichedContent: recording.enrichedContent,
-                                polishedText: recording.polishedText
-                            ),
-                            onTagTap: {
-                                isTagEditModalPresented = true
-                            }
-                        )
-
-                        // 转写文本部分 - 引用样式
-                        VStack(alignment: .leading, spacing: 20) {
-                            HStack(alignment: .top, spacing: 10) {
-                                // 引用符号
-                                Text("“")
-                                    .font(.system(size: 48, weight: .semibold))
-                                    .foregroundColor(isDarkMode ? Color.white.opacity(0.15) : Color.gray.opacity(0.2))
-                                    .offset(y: -11)
-
-                                // 转写内容
-                                VStack {
-                                    if hasPolishedText {
-                                        // 有润色文本时显示TabView
-                                        TabView(selection: $currentTranscriptionPage) {
-                                            // 第一页：原始转写（截断版本）
-                                            Button(action: {
-                                                showingFullTranscription = true
-                                            }) {
-                                                Text(getTruncatedText(originalTranscription, maxLines: 4))
-                                                    .font(.system(size: 17, weight: .regular))
-                                                    .italic()
-                                                    .foregroundColor(isDarkMode ? .white.opacity(0.5) : .gray.opacity(0.6))
-                                                    .lineSpacing(12)
-                                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                                    .multilineTextAlignment(.leading)
-                                            }
-                                            .buttonStyle(PlainButtonStyle())
-                                            .frame(maxHeight: 120) // 约4行高度
-                                            .tag(0)
-
-                                            // 第二页：润色版本（截断版本）
-                                            Button(action: {
-                                                showingFullTranscription = true
-                                            }) {
-                                                Text(getTruncatedText(polishedTranscription, maxLines: 4))
-                                                    .font(.system(size: 17, weight: .regular))
-                                                    .italic()
-                                                    .foregroundColor(isDarkMode ? .white.opacity(0.65) : .gray.opacity(0.75))
-                                                    .lineSpacing(12)
-                                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                                    .multilineTextAlignment(.leading)
-                                            }
-                                            .buttonStyle(PlainButtonStyle())
-                                            .frame(maxHeight: 120) // 约4行高度
-                                            .tag(1)
-                                        }
-                                        .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
-                                        .frame(height: 120)
-                                    } else {
-                                        // 无润色文本时直接显示原始转写（截断版本）
-                                        Button(action: {
-                                            showingFullTranscription = true
-                                        }) {
-                                            Text(getTruncatedText(originalTranscription, maxLines: 4))
-                                                .font(.system(size: 17, weight: .regular))
-                                                .italic()
-                                                .foregroundColor(isDarkMode ? .white.opacity(0.6) : .gray.opacity(0.7))
-                                                .lineSpacing(12)
-                                                .frame(maxWidth: .infinity, alignment: .leading)
-                                                .multilineTextAlignment(.leading)
-                                        }
-                                        .buttonStyle(PlainButtonStyle())
-                                    }
+                            // 标题区域 - 使用独立组件
+                            RecordingDetailTitleView(
+                                recording: AudioRecording(
+                                    timestamp: recording.timestamp,
+                                    duration: recording.duration,
+                                    transcription: recording.transcription,
+                                    title: recording.title,
+                                    summary: recording.summary,
+                                    tags: editableTags,
+                                    audioData: recording.audioData,
+                                    enrichedContent: recording.enrichedContent,
+                                    polishedText: recording.polishedText
+                                ),
+                                onTagTap: {
+                                    isTagEditModalPresented = true
                                 }
-                            }
-                            .padding(.horizontal, 18)
-
-                            // 条形分页指示器 - 仅在有润色版时显示
-                            if hasPolishedText {
-                                HStack(spacing: 8) {
-                                    // 原文指示器
-                                    HStack(spacing: 4) {
-                                        Capsule()
-                                            .fill(currentTranscriptionPage == 0 ?
-                                                  (isDarkMode ? Color.white.opacity(0.8) : Color.black.opacity(0.8)) :
-                                                  (isDarkMode ? Color.white.opacity(0.2) : Color.black.opacity(0.2)))
-                                            .frame(width: currentTranscriptionPage == 0 ? 20 : 6, height: 4)
+                            )
+                            
+                            // 转写文本部分 - 引用样式
+                            // 转写文本部分 - 引用样式
+                            VStack(alignment: .leading, spacing: 20) {
+                                HStack(alignment: .top, spacing: 10) {
+                                    // 引用符号
+                                    Text("\"")
+                                        .font(.system(size: 48, weight: .semibold))
+                                        .foregroundColor(isDarkMode ? Color.white.opacity(0.15) : Color.gray.opacity(0.2))
+                                        .offset(y: -11)
+                                    
+                                    // 转写内容容器
+                                    VStack(alignment: .leading, spacing: 12) {
+                                        if hasPolishedText {
+                                            // 使用条件渲染替代 TabView
+                                            ZStack {
+                                                if currentTranscriptionPage == 0 {
+                                                    // 原始转写
+                                                    AdaptiveTextView(
+                                                        text: originalTranscription,
+                                                        maxLines: 4,
+                                                        font: .system(size: 17, weight: .regular),
+                                                        lineSpacing: 12
+                                                    )
+                                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                                    .transition(.asymmetric(
+                                                        insertion: .move(edge: .trailing).combined(with: .opacity),
+                                                        removal: .move(edge: .leading).combined(with: .opacity)
+                                                    ))
+                                                } else {
+                                                    // 润色版本
+                                                    AdaptiveTextView(
+                                                        text: polishedTranscription,
+                                                        maxLines: 4,
+                                                        font: .system(size: 17, weight: .regular),
+                                                        lineSpacing: 12
+                                                    )
+                                                    .frame(maxWidth: .infinity, alignment: .leading)
+                                                    .transition(.asymmetric(
+                                                        insertion: .move(edge: .leading).combined(with: .opacity),
+                                                        removal: .move(edge: .trailing).combined(with: .opacity)
+                                                    ))
+                                                }
+                                            }
                                             .animation(.easeInOut(duration: 0.3), value: currentTranscriptionPage)
-
-                                        Text("原文")
-                                            .font(.system(size: 10, weight: .medium))
-                                            .foregroundColor(currentTranscriptionPage == 0 ?
-                                                            (isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8)) :
-                                                            (isDarkMode ? .white.opacity(0.3) : .black.opacity(0.3)))
-                                            .animation(.easeInOut(duration: 0.3), value: currentTranscriptionPage)
-                                    }
-                                    .onTapGesture {
-                                        withAnimation(.easeInOut(duration: 0.3)) {
-                                            currentTranscriptionPage = 0
+                                        } else {
+                                            // 无润色文本时直接显示原始转写
+                                            AdaptiveTextView(
+                                                text: originalTranscription,
+                                                maxLines: 4,
+                                                font: .system(size: 17, weight: .regular),
+                                                lineSpacing: 12
+                                            )
+                                            .frame(maxWidth: .infinity, alignment: .leading)
                                         }
                                     }
-
-                                    // 润色版指示器
-                                    HStack(spacing: 4) {
-                                        Capsule()
-                                            .fill(currentTranscriptionPage == 1 ?
-                                                  (isDarkMode ? Color.white.opacity(0.8) : Color.black.opacity(0.8)) :
-                                                  (isDarkMode ? Color.white.opacity(0.2) : Color.black.opacity(0.2)))
-                                            .frame(width: currentTranscriptionPage == 1 ? 20 : 6, height: 4)
-                                            .animation(.easeInOut(duration: 0.3), value: currentTranscriptionPage)
-
-                                        Text("润色版")
-                                            .font(.system(size: 10, weight: .medium))
-                                            .foregroundColor(currentTranscriptionPage == 1 ?
-                                                            (isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8)) :
-                                                            (isDarkMode ? .white.opacity(0.3) : .black.opacity(0.3)))
-                                            .animation(.easeInOut(duration: 0.3), value: currentTranscriptionPage)
-                                    }
-                                    .onTapGesture {
-                                        withAnimation(.easeInOut(duration: 0.3)) {
-                                            currentTranscriptionPage = 1
-                                        }
-                                    }
+                                    .italic()
+                                    .foregroundColor(currentTranscriptionPage == 0 ?
+                                                    (isDarkMode ? .white.opacity(0.5) : .gray.opacity(0.6)) :
+                                                    (isDarkMode ? .white.opacity(0.65) : .gray.opacity(0.75)))
+                                    .animation(.easeInOut(duration: 0.3), value: currentTranscriptionPage)
                                 }
-                                .padding(.horizontal, 28)
-                                .padding(.top, 12)
-                            }
-                        }
-                        .padding(.bottom, 35)
-
-                        // AI总结部分 - 黑体强调，无标题
-                        VStack(alignment: .leading, spacing: 24) {
-
-                            // 增强内容 - 使用分段Markdown渲染
-                            if let enrichedContent = recording.enrichedContent, !enrichedContent.isEmpty {
-                                MarkdownSectionView(
-                                    content: modifiedEnrichedContent.isEmpty ? enrichedContent : modifiedEnrichedContent,
-                                    headings: headings,
-                                    selectedHeadingId: $selectedHeadingId,
-                                    scrollProxy: scrollProxy,
-                                    onEditSection: { index, content in
-                                        editingSectionIndex = index
-                                        editingSectionContent = content
-                                        isEditingSectionPresented = true
-                                    },
-                                    onDeleteSection: { index in
-                                        deleteSection(at: index)
-                                    }
+                                .padding(.horizontal, 18)
+                                .contentShape(Rectangle())
+                                .onTapGesture {
+                                    showingFullTranscription = true
+                                }
+                                // 添加滑动手势支持
+                                .gesture(
+                                    DragGesture()
+                                        .onEnded { value in
+                                            if hasPolishedText {
+                                                withAnimation(.easeInOut(duration: 0.3)) {
+                                                    if value.translation.width > 50 {
+                                                        // 向右滑动，切换到原文
+                                                        currentTranscriptionPage = 0
+                                                    } else if value.translation.width < -50 {
+                                                        // 向左滑动，切换到润色版
+                                                        currentTranscriptionPage = 1
+                                                    }
+                                                }
+                                            }
+                                        }
                                 )
-                                .padding(.horizontal, 24)
-                                .padding(.top, 12)
+                                
+                                // 条形分页指示器 - 仅在有润色版时显示
+                                if hasPolishedText {
+                                    HStack(spacing: 8) {
+                                        // 原文指示器
+                                        HStack(spacing: 4) {
+                                            Capsule()
+                                                .fill(currentTranscriptionPage == 0 ?
+                                                      (isDarkMode ? Color.white.opacity(0.8) : Color.black.opacity(0.8)) :
+                                                      (isDarkMode ? Color.white.opacity(0.2) : Color.black.opacity(0.2)))
+                                                .frame(width: currentTranscriptionPage == 0 ? 20 : 6, height: 4)
+                                                .animation(.easeInOut(duration: 0.3), value: currentTranscriptionPage)
+                                            
+                                            Text("原文")
+                                                .font(.system(size: 10, weight: .medium))
+                                                .foregroundColor(currentTranscriptionPage == 0 ?
+                                                                (isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8)) :
+                                                                (isDarkMode ? .white.opacity(0.3) : .black.opacity(0.3)))
+                                                .animation(.easeInOut(duration: 0.3), value: currentTranscriptionPage)
+                                        }
+                                        .onTapGesture {
+                                            withAnimation(.easeInOut(duration: 0.3)) {
+                                                currentTranscriptionPage = 0
+                                            }
+                                        }
+                                        
+                                        // 润色版指示器
+                                        HStack(spacing: 4) {
+                                            Capsule()
+                                                .fill(currentTranscriptionPage == 1 ?
+                                                      (isDarkMode ? Color.white.opacity(0.8) : Color.black.opacity(0.8)) :
+                                                      (isDarkMode ? Color.white.opacity(0.2) : Color.black.opacity(0.2)))
+                                                .frame(width: currentTranscriptionPage == 1 ? 20 : 6, height: 4)
+                                                .animation(.easeInOut(duration: 0.3), value: currentTranscriptionPage)
+                                            
+                                            Text("润色版")
+                                                .font(.system(size: 10, weight: .medium))
+                                                .foregroundColor(currentTranscriptionPage == 1 ?
+                                                                (isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8)) :
+                                                                (isDarkMode ? .white.opacity(0.3) : .black.opacity(0.3)))
+                                                .animation(.easeInOut(duration: 0.3), value: currentTranscriptionPage)
+                                        }
+                                        .onTapGesture {
+                                            withAnimation(.easeInOut(duration: 0.3)) {
+                                                currentTranscriptionPage = 1
+                                            }
+                                        }
+                                    }
+                                    .padding(.horizontal, 28)
+                                    .padding(.top, 12)
+                                }
                             }
-                        }
-
-                        // 底部留白（为章节标签栏预留空间）
-                        Color.clear.frame(height: headings.isEmpty ? 60 : 100)
+                            .padding(.bottom, 35)
+                            
+                            // AI总结部分 - 黑体强调，无标题
+                            VStack(alignment: .leading, spacing: 24) {
+                                
+                                // 增强内容 - 使用分段Markdown渲染
+                                if let enrichedContent = recording.enrichedContent, !enrichedContent.isEmpty {
+                                    MarkdownSectionView(
+                                        content: modifiedEnrichedContent.isEmpty ? enrichedContent : modifiedEnrichedContent,
+                                        headings: headings,
+                                        selectedHeadingId: $selectedHeadingId,
+                                        scrollProxy: scrollProxy,
+                                        onEditSection: { index, content in
+                                            editingSectionIndex = index
+                                            editingSectionContent = content
+                                            isEditingSectionPresented = true
+                                        },
+                                        onDeleteSection: { index in
+                                            deleteSection(at: index)
+                                        }
+                                    )
+                                    .padding(.horizontal, 24)
+                                    .padding(.top, 12)
+                                }
+                            }
+                            
+                            // 底部留白（为章节标签栏预留空间）
+                            Color.clear.frame(height: headings.isEmpty ? 60 : 100)
                         }
                     }
                     .onAppear {
@@ -292,7 +309,7 @@ struct RecordingDetailView: View {
                     }
                 }
             }
-
+            
             // 底部浮动章节标签栏
             if !headings.isEmpty {
                 VStack {
@@ -335,13 +352,13 @@ struct RecordingDetailView: View {
         .onAppear {
             // 初始化转写文本内容
             setupTranscriptionContent()
-
+            
             if let enrichedContent = recording.enrichedContent, !enrichedContent.isEmpty {
                 // 初始化修改后的内容
                 modifiedEnrichedContent = enrichedContent
-
+                
                 let headingTree = MarkdownHeadingParser.parseHeadings(from: enrichedContent)
-
+                
                 // 更新标题列表
                 withAnimation(.easeInOut(duration: 0.3)) {
                     self.headings = headingTree.flatList
@@ -350,7 +367,7 @@ struct RecordingDetailView: View {
                         self.selectedHeadingId = "0"
                     }
                 }
-
+                
                 // 打印调试信息
                 print("=== 标题层级结构 ===")
                 print("目录结构:")
@@ -386,9 +403,9 @@ struct RecordingDetailView: View {
             )
         }
     }
-
+    
     // 辅助函数
-
+    
     private func extractTitle(from summary: String) -> String {
         // 从总结中提取第一句作为标题
         let sentences = summary.components(separatedBy: CharacterSet(charactersIn: "。！？"))
@@ -401,72 +418,72 @@ struct RecordingDetailView: View {
         }
         return "录音记录"
     }
-
+    
     func shareRecording() {
         // 实现分享功能
         let text = """
         \(extractTitle(from: recording.summary))
-
+        
         转写内容：
         \(recording.transcription)
-
+        
         总结：
         \(recording.summary)
         """
-
+        
         let activityVC = UIActivityViewController(
             activityItems: [text],
             applicationActivities: nil
         )
-
+        
         if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
            let rootVC = windowScene.windows.first?.rootViewController {
             rootVC.present(activityVC, animated: true)
         }
     }
-
+    
     func exportRecording() {
         // 实现导出功能
         copySummary()
     }
-
+    
     func deleteRecording() {
         // 实现删除功能
         dismiss()
     }
-
+    
     func downloadAudio() {
         guard let audioData = recording.audioData else {
             print("没有音频数据可供下载")
             showErrorAlert(message: "没有可用的音频数据")
             return
         }
-
+        
         // 验证是否为模拟数据
         if MockDataService.shared.isMockAudioData(audioData) {
             print("检测到模拟音频数据，无法下载")
             showErrorAlert(message: MockDataService.shared.demoModeMessage + "，无法下载音频")
             return
         }
-
+        
         // 检查是否已经是WAV格式（WAV文件以"RIFF"开头）
         let wavHeaderBytes = [UInt8](audioData.prefix(4))
         let isWAV = wavHeaderBytes == [0x52, 0x49, 0x46, 0x46] // "RIFF"的ASCII值
-
+        
         // 如果不是WAV格式，说明数据可能有问题
         if !isWAV {
             print("音频数据格式无效，不是有效的WAV文件")
             showErrorAlert(message: "音频数据格式无效")
             return
         }
-
+        
         // 验证音频数据大小（WAV文件头至少44字节）
         if audioData.count < 44 {
             print("音频数据太小，无效的WAV文件: \(audioData.count) bytes")
             showErrorAlert(message: "音频数据无效")
             return
         }
-
+        
         // 生成安全的文件名
         let title = extractTitle(from: recording.summary)
             .replacingOccurrences(of: "/", with: "_")
@@ -478,23 +495,23 @@ struct RecordingDetailView: View {
             .replacingOccurrences(of: "*", with: "_")
             .replacingOccurrences(of: "\"", with: "_")
         let fileName = "\(title)_\(recording.timestamp.fileFormatted).wav"
-
+        
         // 使用临时目录避免权限问题
         let tempDirectory = FileManager.default.temporaryDirectory
         let fileURL = tempDirectory.appendingPathComponent(fileName)
-
+        
         do {
             // 直接写入WAV数据（数据已经是WAV格式）
             try audioData.write(to: fileURL)
             print("音频文件已保存到: \(fileURL)")
             print("文件大小: \(audioData.count) bytes")
-
+            
             // 创建分享界面
             let activityVC = UIActivityViewController(
                 activityItems: [fileURL],
                 applicationActivities: nil
             )
-
+            
             // 设置完成回调，清理临时文件
             activityVC.completionWithItemsHandler = { _, _, _, _ in
                 do {
@@ -504,7 +521,7 @@ struct RecordingDetailView: View {
                     print("清理临时文件失败: \(error)")
                 }
             }
-
+            
             // 展示分享界面
             if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
                let rootVC = windowScene.windows.first?.rootViewController {
@@ -521,18 +538,18 @@ struct RecordingDetailView: View {
             showErrorAlert(message: "保存音频文件失败: \(error.localizedDescription)")
         }
     }
-
+    
     func copySummary() {
         let fullContent = """
         \(recording.transcription)
-
+        
         ---
-
+        
         \(recording.summary)
         """
         UIPasteboard.general.string = fullContent
     }
-
+    
     func togglePlayback() {
         if audioManager.isPlaying {
             audioManager.stopPlaying()
@@ -546,7 +563,7 @@ struct RecordingDetailView: View {
             }
         }
     }
-
+    
     private func showMockDataAlert() {
         // 模拟播放状态，3秒后自动停止
         audioManager.isPlaying = true
@@ -554,151 +571,120 @@ struct RecordingDetailView: View {
             audioManager.isPlaying = false
         }
     }
-
-
-
+    
+    
+    
     private func showErrorAlert(message: String) {
         let alert = UIAlertController(
             title: "提示",
             message: message,
             preferredStyle: .alert
         )
-
+        
         alert.addAction(UIAlertAction(title: "确定", style: .default))
-
+        
         if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
            let rootVC = windowScene.windows.first?.rootViewController {
             rootVC.present(alert, animated: true)
         }
     }
-
+    
     // MARK: - 段落编辑功能
     private func updateSection(at index: Int, with newContent: String) {
         guard !modifiedEnrichedContent.isEmpty else { return }
-
+        
         // 解析当前内容的段落
         let parser = MarkdownSectionParser(content: modifiedEnrichedContent)
         var sections = parser.parseSections()
-
+        
         // 更新指定段落
         guard index < sections.count else { return }
         sections[index] = newContent
-
+        
         // 重新组合内容
         modifiedEnrichedContent = sections.joined(separator: "\n\n")
-
+        
         // 更新数据库
         saveModifiedContent()
-
+        
         // 重新解析标题
         updateHeadings()
-
+        
         // 显示成功提示
         ToastManager.shared.showSuccess("段落已更新")
     }
-
+    
     private func deleteSection(at index: Int) {
         guard !modifiedEnrichedContent.isEmpty else { return }
-
+        
         // 解析当前内容的段落
         let parser = MarkdownSectionParser(content: modifiedEnrichedContent)
         var sections = parser.parseSections()
-
+        
         // 删除指定段落
         guard index < sections.count else { return }
         sections.remove(at: index)
-
+        
         // 重新组合内容
         modifiedEnrichedContent = sections.joined(separator: "\n\n")
-
+        
         // 更新数据库
         saveModifiedContent()
-
+        
         // 重新解析标题
         updateHeadings()
-
+        
         // 显示成功提示
         ToastManager.shared.showSuccess("段落已删除")
     }
-
+    
     private func saveModifiedContent() {
         // 更新录音记录的增强内容
         var updatedRecording = recording
         updatedRecording.enrichedContent = modifiedEnrichedContent
-
+        
         // 保存到数据库
         DatabaseManager.shared.updateRecording(updatedRecording)
     }
-
+    
     private func updateHeadings() {
         let headingTree = MarkdownHeadingParser.parseHeadings(from: modifiedEnrichedContent)
         withAnimation(.easeInOut(duration: 0.3)) {
             self.headings = headingTree.flatList
         }
     }
-
+    
     // 设置转写文本内容
     private func setupTranscriptionContent() {
         // 原始转写内容
         originalTranscription = recording.transcription
-
+        
         // 检查是否有润色文本
         hasPolishedText = !recording.polishedText.isEmpty
-
+        
         // 润色版本
         if hasPolishedText {
             polishedTranscription = recording.polishedText
         }
     }
-
-    // 获取截断文本，限制行数并添加省略号
-    private func getTruncatedText(_ text: String, maxLines: Int) -> String {
-        // 估算每行字符数（基于17pt字体和屏幕宽度）
-        let screenWidth = UIScreen.main.bounds.width
-        let horizontalPadding: CGFloat = 56 // 左右边距 (18+18+20引用符号宽度)
-        let availableWidth = screenWidth - horizontalPadding
-        let fontSize: CGFloat = 17
-        
-        // 中文字符宽度约等于字体大小，英文约为字体大小的0.6倍
-        // 这里按中文字符估算，每行约能容纳的字符数
-        let approximateCharsPerLine = Int(availableWidth / fontSize)
-        let maxChars = maxLines * approximateCharsPerLine
-        
-        if text.count <= maxChars {
-            return text
-        } else {
-            // 截断到最大字符数，但要避免在单词中间截断
-            let truncatedText = String(text.prefix(maxChars))
-            
-            // 找到最后一个完整的句子或词语边界
-            var finalText = truncatedText
-            if let lastPunctuation = truncatedText.lastIndex(where: { "。！？，、；：".contains($0) }) {
-                finalText = String(truncatedText[...lastPunctuation])
-            } else if let lastSpace = truncatedText.lastIndex(of: " ") {
-                finalText = String(truncatedText[...lastSpace])
-            }
-            
-            // 使用更优雅的箭头符号代替省略号
-            return finalText.trimmingCharacters(in: .whitespacesAndNewlines) + " →"
-        }
-    }
-
+    
+    
 }
 
 
 // MARK: - Markdown段落解析器
 private class MarkdownSectionParser {
     let content: String
-
+    
     init(content: String) {
         self.content = content
     }
-
+    
     func parseSections() -> [String] {
         var sections: [String] = []
         let lines = content.split(separator: "\n", omittingEmptySubsequences: false).map { String($0) }
         var currentSection: [String] = []
-
+        
         for line in lines {
             // 检查是否是标题行（新段落开始）
             if isHeadingLine(line) && !currentSection.isEmpty {
@@ -709,7 +695,7 @@ private class MarkdownSectionParser {
                 currentSection.append(line)
             }
         }
-
+        
         // 保存最后一个段落
         if !currentSection.isEmpty {
             let sectionContent = currentSection.joined(separator: "\n").trimmingCharacters(in: .whitespacesAndNewlines)
@@ -717,10 +703,10 @@ private class MarkdownSectionParser {
                 sections.append(sectionContent)
             }
         }
-
+        
         return sections
     }
-
+    
     private func isHeadingLine(_ line: String) -> Bool {
         let pattern = "^#{1,6}\\s+.+$"
         guard let regex = try? NSRegularExpression(pattern: pattern, options: []) else { return false }
@@ -744,25 +730,25 @@ struct RecordingDetailView_Previews: PreviewProvider {
                 enrichedContent: """
                 ## 明确目标
                 > 3个月内完成1个科技艺术项目原型，实现AI生成艺术作品并线下展览
-
+                
                 ## 行动清单
                 - [ ] **优先级高**：调研科技艺术趋势与用户需求
                 - [ ] **优先级高**：确定技术实现方案与艺术形式
                 - [ ] **优先级中**：收集艺术素材与训练数据
                 - [ ] **优先级低**：寻找技术与艺术合作资源
-
+                
                 ## 📦 所需资源
                 | 资源类型 | 具体内容 |
                 |---------|---------|
                 | 时间 | 调研1周，方案设计1周，素材收集2周，技术开发4周，展览筹备2周 |
                 | 工具 | AI工具（Midjourney/Stable Diffusion）、设计软件（PS/Blender）、项目管理工具（Trello） |
                 | 支持 | 技术伙伴、艺术指导、线下展览场地资源 |
-
+                
                 ## 时间规划
                 **短期（1周内）**：每日2小时调研科技艺术案例，周末输出趋势报告与用户需求分析
                 **中期（1月内）**：前2周完成技术方案设计（含AI模型选型），后2周收集艺术素材与训练数据
                 **长期（3月内）**：第3-6周开发AI生成模型并测试优化，第7-8周筹备线下展览（布展/宣传）
-
+                
                 ## 潜在挑战
                 1. **挑战**：AI生成艺术效果未达预期 → **应对**：先小范围测试不同模型，参考艺术指导调整参数
                 2. **挑战**：缺乏技术/艺术合作资源 → **应对**：在艺术社群/高校发布招募信息，优先合作学生团队降低成本

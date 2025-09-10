@@ -141,8 +141,8 @@ struct FloatingRecordingControlCard: View {
     // MARK: - 待机状态内容
     private var standbyStateContent: some View {
         VStack(spacing: 4) {
-            Image(systemName: "mic.fill")
-                .font(.system(size: 24, weight: .medium))
+            Image(systemName: "mic")
+                .font(.system(size: 24, weight: .regular))
                 .foregroundColor(.black)
         }
         .frame(width: 70,height: 70)

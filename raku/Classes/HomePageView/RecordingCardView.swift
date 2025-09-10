@@ -90,28 +90,6 @@ enum WeatherType: String, CaseIterable {
         }
     }
     
-    var rotation: Double {
-        switch self {
-        case .sunny: return 15
-        case .partlyCloudy: return 12
-        case .cloudy: return 8
-        case .rainy: return -5
-        case .stormy: return -8
-        case .snowy: return 10
-        case .foggy: return 0
-        case .windy: return 20
-        
-        // 时间场景旋转
-        case .sunrise: return 18
-        case .sunset: return -18
-        case .moonrise: return 25
-        case .moonset: return -25
-        case .night: return 0
-        case .dawn: return 22
-        case .dusk: return -22
-        case .twilight: return 5
-        }
-    }
 }
 
 
