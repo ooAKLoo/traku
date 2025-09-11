@@ -379,11 +379,46 @@ class DatabaseManager {
         
             sqlite3_finalize(statement)
             print("✅ 成功加载 \(recordings.count) 条录音记录")
+            
+            // 打印所有录音的标题和标签（JSON格式）
+            printRecordingTitlesAndTags(recordings)
+            
             return recordings
         }
     }
     
     // MARK: - 辅助方法
+    
+    /// 打印所有录音的标题和标签（JSON格式）
+    private func printRecordingTitlesAndTags(_ recordings: [AudioRecording]) {
+        print("📋 ========== 录音标题和标签汇总 (JSON格式) ==========")
+        
+        var recordingsData: [[String: Any]] = []
+        
+        for (index, recording) in recordings.enumerated() {
+            let recordingData: [String: Any] = [
+                "index": index + 1,
+                "id": recording.id.uuidString,
+                "title": recording.title,
+                "tags": recording.tags,
+                "timestamp": ISO8601DateFormatter().string(from: recording.timestamp),
+                "duration": recording.duration
+            ]
+            recordingsData.append(recordingData)
+        }
+        
+        do {
+            let jsonData = try JSONSerialization.data(withJSONObject: recordingsData, options: [.prettyPrinted, .sortedKeys])
+            if let jsonString = String(data: jsonData, encoding: .utf8) {
+                print("📋 录音数据 JSON:")
+                print(jsonString)
+            }
+        } catch {
+            print("❌ 生成JSON失败: \(error)")
+        }
+        
+        print("📋 ========== 录音标题和标签汇总结束 ==========")
+    }
     
     /// 从 summary 中提取 title
     private func extractTitleFromSummary(_ summary: String) -> String {
