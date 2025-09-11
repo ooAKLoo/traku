@@ -99,7 +99,6 @@ struct RecordingDetailView: View {
                             .focused($isAnyFieldFocused)
                             
                             // 转写文本部分 - 引用样式
-                            // 转写文本部分 - 引用样式
                             VStack(alignment: .leading, spacing: 20) {
                                 HStack(alignment: .top, spacing: 10) {
                                     // 引用符号
@@ -111,36 +110,31 @@ struct RecordingDetailView: View {
                                     // 转写内容容器
                                     VStack(alignment: .leading, spacing: 12) {
                                         if hasPolishedText {
-                                            // 使用条件渲染替代 TabView
+                                            // 使用始终存在的视图和位移动画
                                             ZStack {
-                                                if currentTranscriptionPage == 0 {
-                                                    // 原始转写
-                                                    AdaptiveTextView(
-                                                        text: originalTranscription,
-                                                        maxLines: 4,
-                                                        font: .system(size: 17, weight: .regular),
-                                                        lineSpacing: 12
-                                                    )
-                                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                                    .transition(.asymmetric(
-                                                        insertion: .move(edge: .leading).combined(with: .opacity),
-                                                        removal: .move(edge: .leading).combined(with: .opacity)
-                                                    ))
-                                                } else {
-                                                    // 润色版本
-                                                    AdaptiveTextView(
-                                                        text: polishedTranscription,
-                                                        maxLines: 4,
-                                                        font: .system(size: 17, weight: .regular),
-                                                        lineSpacing: 12
-                                                    )
-                                                    .frame(maxWidth: .infinity, alignment: .leading)
-                                                    .transition(.asymmetric(
-                                                        insertion: .move(edge: .trailing).combined(with: .opacity),
-                                                        removal: .move(edge: .trailing).combined(with: .opacity)
-                                                    ))
-                                                }
+                                                // 原始转写
+                                                AdaptiveTextView(
+                                                    text: originalTranscription,
+                                                    maxLines: 4,
+                                                    font: .system(size: 17, weight: .regular),
+                                                    lineSpacing: 12
+                                                )
+                                                .frame(maxWidth: .infinity, alignment: .leading)
+                                                .offset(x: currentTranscriptionPage == 0 ? 0 : -UIScreen.main.bounds.width)
+                                                .opacity(currentTranscriptionPage == 0 ? 1 : 0)
+                                                
+                                                // 润色版本
+                                                AdaptiveTextView(
+                                                    text: polishedTranscription,
+                                                    maxLines: 4,
+                                                    font: .system(size: 17, weight: .regular),
+                                                    lineSpacing: 12
+                                                )
+                                                .frame(maxWidth: .infinity, alignment: .leading)
+                                                .offset(x: currentTranscriptionPage == 1 ? 0 : UIScreen.main.bounds.width)
+                                                .opacity(currentTranscriptionPage == 1 ? 1 : 0)
                                             }
+                                            .clipped()
                                             .animation(.easeInOut(duration: 0.3), value: currentTranscriptionPage)
                                         } else {
                                             // 无润色文本时直接显示原始转写
