@@ -8,15 +8,16 @@
 import SwiftUI
 
 struct RecordingDetailTitleView: View {
-    let recording: AudioRecording
+    @State private var recording: AudioRecording
     let onTagTap: () -> Void
     @AppStorage("isDarkMode") private var isDarkMode = false
     @State private var editedTitle: String
     @FocusState var isTitleFieldFocused: Bool
     let onTitleChanged: ((String) -> Void)?
+    @StateObject private var updateManager = RecordingUpdateManager.shared
     
     init(recording: AudioRecording, onTagTap: @escaping () -> Void, onTitleChanged: ((String) -> Void)? = nil) {
-        self.recording = recording
+        self._recording = State(initialValue: recording)
         self.onTagTap = onTagTap
         self.onTitleChanged = onTitleChanged
         self._editedTitle = State(initialValue: recording.title)
@@ -88,6 +89,20 @@ struct RecordingDetailTitleView: View {
         .padding(.horizontal, 24)
         .padding(.top, 20)
         .padding(.bottom, 40)
+        .onReceive(updateManager.$recordingUpdates) { recordingUpdates in
+            if let updatedRecording = recordingUpdates[recording.id] {
+                // 只有在用户没有在编辑标题时才更新标题
+                if !isTitleFieldFocused && updatedRecording.title != recording.title {
+                    recording = updatedRecording
+                    editedTitle = updatedRecording.title
+                } else {
+                    // 更新其他字段，但保持当前编辑的标题
+                    var tempRecording = updatedRecording
+                    tempRecording.title = recording.title
+                    recording = tempRecording
+                }
+            }
+        }
     }
     
     private func saveTitleChange() {

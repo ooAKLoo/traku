@@ -99,11 +99,26 @@ struct RecordingCardView: View {
     let onDelete: () -> Void
     let onDragStateChanged: ((Bool) -> Void)?
     
+    // 处理状态相关
+    @State private var processingStage: UIProcessingStage = .idle
+    @State private var processingProgress: Float = 0.0
+    @State private var currentRecording: AudioRecording
+    @StateObject private var updateManager = RecordingUpdateManager.shared
+    
+    init(recording: AudioRecording, isDarkMode: Bool, onDelete: @escaping () -> Void, onDragStateChanged: ((Bool) -> Void)? = nil) {
+        self.recording = recording
+        self.isDarkMode = isDarkMode
+        self.onDelete = onDelete
+        self.onDragStateChanged = onDragStateChanged
+        self._currentRecording = State(initialValue: recording)
+    }
+    
     @State private var isHovered = false
     @State private var offset: CGFloat = 0
     @State private var isDragging = false
     @State private var isDeleting = false
     @State private var hasTriggeredHaptic = false
+    
     
     // 随机天气类型（基于录音ID生成稳定的随机数）
     private var weatherType: WeatherType {
@@ -119,6 +134,19 @@ struct RecordingCardView: View {
     // 计算进度 (0 到 1)
     private var progress: CGFloat {
         min(abs(offset) / abs(deleteThreshold), 1.0)
+    }
+    
+    // 将字符串颜色转换为Color
+    private func colorFromString(_ colorString: String) -> Color {
+        switch colorString {
+        case "clear": return .clear
+        case "green": return .green
+        case "blue": return .blue
+        case "orange": return .orange
+        case "purple": return .purple
+        case "red": return .red
+        default: return .primary
+        }
     }
     
     // 根据进度计算颜色深度
@@ -183,13 +211,30 @@ struct RecordingCardView: View {
                     VStack(alignment: .leading, spacing: 16) {
                         // 第一行：时间戳和标题
                         VStack(alignment: .leading, spacing: 8) {
-                            // 时间戳
-                            Text(recording.timestamp.smartFormatted)
-                                .font(.system(size: 11, weight: .regular))
-                                .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
+                            // 时间戳和处理状态
+                            HStack(spacing: 8) {
+                                Text(recording.timestamp.smartFormatted)
+                                    .font(.system(size: 11, weight: .regular))
+                                    .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
+                                
+                                // 处理状态显示
+                                if processingStage != .idle {
+                                    HStack(spacing: 4) {
+                                        ProgressView()
+                                            .scaleEffect(0.7)
+                                            .progressViewStyle(CircularProgressViewStyle(tint: colorFromString(processingStage.color)))
+                                        
+                                        Text(processingStage.displayText)
+                                            .font(.system(size: 10, weight: .medium))
+                                            .foregroundColor(colorFromString(processingStage.color))
+                                    }
+                                }
+                                
+                                Spacer()
+                            }
                             
                             // 标题 - 主要视觉焦点
-                            Text(recording.title)
+                            Text(currentRecording.title)
                                 .font(.system(size: 20, weight: .semibold))
                                 .foregroundColor(isDarkMode ? .white : .black)
                                 .lineLimit(1)
@@ -201,11 +246,11 @@ struct RecordingCardView: View {
                         HStack(alignment: .center) {
                             // 标签组
                             HStack(spacing: 8) {
-                                ForEach(recording.tags.prefix(3), id: \.self) { tag in
+                                ForEach(currentRecording.tags.prefix(3), id: \.self) { tag in
                                     TagView(text: tag, isDarkMode: isDarkMode)
                                 }
-                                if recording.tags.count > 3 {
-                                    Text("+\(recording.tags.count - 3)")
+                                if currentRecording.tags.count > 3 {
+                                    Text("+\(currentRecording.tags.count - 3)")
                                         .font(.system(size: 10, weight: .medium))
                                         .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4))
                                         .padding(.horizontal, 6)
@@ -307,10 +352,30 @@ struct RecordingCardView: View {
                     isHovered = hovering
                 }
             }
+            .onReceive(updateManager.$processingRecordings) { processingRecordings in
+                if let status = processingRecordings[recording.id] {
+                    processingStage = status.stage
+                    processingProgress = status.progress
+                    print("📱 RecordingCardView: 更新状态 - \(recording.id): \(status.stage)")
+                } else {
+                    // 当处理状态被清除时，重置为 idle
+                    if processingStage != .idle {
+                        print("📱 RecordingCardView: 重置状态为idle - \(recording.id)")
+                    }
+                    processingStage = .idle
+                    processingProgress = 0.0
+                }
+            }
+            .onReceive(updateManager.$recordingUpdates) { recordingUpdates in
+                if let updatedRecording = recordingUpdates[recording.id] {
+                    currentRecording = updatedRecording
+                }
+            }
         }
         .padding(.horizontal, 4)
     }
 }
+
 
 // MARK: - Preview
 struct RecordingCardView_Previews: PreviewProvider {

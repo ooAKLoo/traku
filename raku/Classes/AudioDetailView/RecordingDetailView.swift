@@ -33,6 +33,7 @@ struct RecordingDetailView: View {
     @State private var hasPolishedText: Bool = false
     @State private var showingFullTranscription = false
     @FocusState private var isAnyFieldFocused: Bool
+    @StateObject private var updateManager = RecordingUpdateManager.shared
     
     init(recording: AudioRecording, onRecordingUpdated: ((AudioRecording) -> Void)? = nil) {
         self._recording = State(initialValue: recording)
@@ -73,17 +74,7 @@ struct RecordingDetailView: View {
                         VStack(alignment: .leading, spacing: 0) {
                             // 标题区域 - 使用独立组件
                             RecordingDetailTitleView(
-                                recording: AudioRecording(
-                                    timestamp: recording.timestamp,
-                                    duration: recording.duration,
-                                    transcription: recording.transcription,
-                                    title: recording.title,
-                                    summary: recording.summary,
-                                    tags: editableTags,
-                                    audioData: recording.audioData,
-                                    enrichedContent: recording.enrichedContent,
-                                    polishedText: recording.polishedText
-                                ),
+                                recording: recording,
                                 onTagTap: {
                                     isAnyFieldFocused = false
                                     isTagEditModalPresented = true
@@ -102,7 +93,7 @@ struct RecordingDetailView: View {
                             VStack(alignment: .leading, spacing: 20) {
                                 HStack(alignment: .top, spacing: 10) {
                                     // 引用符号
-                                    Text("\"")
+                                    Text("”")
                                         .font(.system(size: 48, weight: .semibold))
                                         .foregroundColor(isDarkMode ? Color.white.opacity(0.15) : Color.gray.opacity(0.2))
                                         .offset(y: -11)
@@ -381,6 +372,34 @@ struct RecordingDetailView: View {
                 polishedText: hasPolishedText ? polishedTranscription : nil,
                 isDarkMode: isDarkMode
             )
+        }
+        .onReceive(updateManager.$recordingUpdates) { recordingUpdates in
+            if let updatedRecording = recordingUpdates[recording.id] {
+                // 更新录音数据
+                recording = updatedRecording
+                
+                // 更新editableTags以反映最新的标签
+                editableTags = updatedRecording.tags
+                
+                // 重新设置转录内容
+                setupTranscriptionContent()
+                
+                // 如果有新的enrichedContent，更新相关状态
+                if let enrichedContent = updatedRecording.enrichedContent, !enrichedContent.isEmpty {
+                    modifiedEnrichedContent = enrichedContent
+                    let headingTree = MarkdownHeadingParser.parseHeadings(from: enrichedContent)
+                    
+                    withAnimation(.easeInOut(duration: 0.3)) {
+                        self.headings = headingTree.flatList
+                        if !headingTree.flatList.isEmpty && selectedHeadingId == nil {
+                            self.selectedHeadingId = "0"
+                        }
+                    }
+                }
+                
+                // 通知父组件录音数据已更新
+                onRecordingUpdated?(updatedRecording)
+            }
         }
     }
     

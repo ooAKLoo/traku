@@ -72,6 +72,20 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
     private var currentDuration: TimeInterval = 0
     private var recordingStartTime: Date?
     private var currentRecordingId: UUID?  // 当前录音的唯一ID，整个流程中保持不变
+    private let updateManager = RecordingUpdateManager.shared
+    
+    // 将Pipeline的ProcessingStage转换为UI的UIProcessingStage
+    private func convertToUIStage(_ stage: ProcessingStage) -> UIProcessingStage {
+        switch stage {
+        case .idle: return .idle
+        case .recording: return .recording
+        case .speechRecognition: return .speechRecognition
+        case .llmAnalysisFirstStep: return .llmAnalysisFirstStep
+        case .llmAnalysisSecondStep: return .llmAnalysisSecondStep
+        case .completed: return .completed
+        case .failed: return .failed
+        }
+    }
     
     // MARK: - Delegate
     weak var delegate: AudioProcessingPipelineDelegate?
@@ -173,6 +187,10 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
         // 立即创建初始录音记录
         let initialRecording = createInitialRecording(audioData: audioData, duration: duration)
         print("📝 创建初始录音记录，ID: \(initialRecording.id)")
+        
+        // 更新录音数据到实时管理器
+        updateManager.updateRecording(initialRecording)
+        
         delegate?.pipeline(self, didCreateInitialRecording: initialRecording)
         
         // 直接开始语音识别
@@ -243,12 +261,22 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
         currentStage = .speechRecognition
         progress = 0.3
         
+        // 更新实时状态
+        if let recordingId = currentRecordingId {
+            updateManager.updateProcessingStatus(for: recordingId, stage: convertToUIStage(.speechRecognition), progress: 0.3)
+        }
+        
         speechService.processRecordingAudio(audioData, duration: currentDuration)
     }
     
     private func startLLMAnalysis(recognitionText: String) {
         currentStage = .llmAnalysisFirstStep
         progress = 0.6
+        
+        // 更新实时状态
+        if let recordingId = currentRecordingId {
+            updateManager.updateProcessingStatus(for: recordingId, stage: convertToUIStage(.llmAnalysisFirstStep), progress: 0.6)
+        }
         
         if isLLMEnabled {
             // 使用真实LLM服务
@@ -335,6 +363,9 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
         progress = 1.0
         isProcessing = false
         
+        // 更新实时管理器的状态为完成
+        updateManager.updateProcessingStatus(for: recording.id, stage: .completed, progress: 1.0)
+        
         print("📢 通知代理：最终分析完成")
         delegate?.pipeline(self, didCompleteFinalAnalysis: recording)
     }
@@ -413,6 +444,12 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
             
             self.currentStage = .llmAnalysisSecondStep
             self.progress = 0.8
+            
+            // 更新处理状态到实时管理器
+            if let recordingId = self.currentRecordingId {
+                self.updateManager.updateProcessingStatus(for: recordingId, stage: self.convertToUIStage(.llmAnalysisSecondStep), progress: 0.8)
+            }
+            
             self.delegate?.pipeline(self, didCompleteFirstStep: firstStepResult)
             
             // 模拟第二步分析结果
@@ -431,6 +468,7 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
                 )
                 
                 let finalRecording = self.createFinalRecording(analysisResult: finalResult)
+                print("📝 模拟LLM: 即将调用completePipeline")
                 self.completePipeline(with: finalRecording)
             }
         }
@@ -444,6 +482,22 @@ extension AudioProcessingPipeline: VolcEngineSpeechServiceDelegate {
         guard isProcessing, currentStage == .speechRecognition else { 
             print("❌ 语音识别结果被忽略，当前状态不正确 - isProcessing: \(isProcessing), currentStage: \(currentStage)")
             return 
+        }
+        
+        // 立即更新转录文本到实时管理器
+        if let recordingId = currentRecordingId {
+            let updatedRecording = AudioRecording(
+                id: recordingId,
+                timestamp: recordingStartTime ?? Date(),
+                duration: currentDuration,
+                transcription: result.text,
+                title: "录音转录",
+                summary: "转录完成 - \(result.text.prefix(20))...",
+                tags: ["录音", "转录"],
+                audioData: currentRecordingData,
+                enrichedContent: nil
+            )
+            updateManager.updateRecording(updatedRecording)
         }
         
         delegate?.pipeline(self, didReceiveSpeechResult: result)
@@ -507,14 +561,41 @@ extension AudioProcessingPipeline: TwoStepLLMServiceDelegate {
         currentStage = .llmAnalysisSecondStep
         progress = 0.8
         
+        // 更新处理状态到实时管理器
+        if let recordingId = currentRecordingId {
+            updateManager.updateProcessingStatus(for: recordingId, stage: convertToUIStage(.llmAnalysisSecondStep), progress: 0.8)
+            
+            // 更新录音数据（包含润色文本）
+            let updatedRecording = AudioRecording(
+                id: recordingId,
+                timestamp: recordingStartTime ?? Date(),
+                duration: currentDuration,
+                transcription: result.originalText,
+                title: result.title,
+                summary: result.oneSentenceSummary ?? "处理中...",
+                tags: result.tags,
+                audioData: currentRecordingData,
+                enrichedContent: nil,
+                polishedText: result.polishedText ?? ""
+            )
+            updateManager.updateRecording(updatedRecording)
+        }
+        
         delegate?.pipeline(self, didCompleteFirstStep: result)
     }
     
     func twoStepLLMService(_ service: TwoStepLLMService, didCompleteFinalAnalysis result: TwoStepAnalysisResult) {
         guard isProcessing else { return }
         
+        print("🎯 LLM第二步完成，准备更新状态")
+        
         let finalRecording = createFinalRecording(analysisResult: result)
+        
+        // 先完成pipeline（这会清除处理状态）
         completePipeline(with: finalRecording)
+        
+        // 然后更新录音数据（但不会重新设置处理状态，因为already completed）
+        updateManager.updateRecording(finalRecording)
     }
     
     func twoStepLLMService(_ service: TwoStepLLMService, didFailWithError error: Error) {
