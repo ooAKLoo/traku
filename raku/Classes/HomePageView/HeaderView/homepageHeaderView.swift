@@ -140,7 +140,7 @@ struct HomepageHeaderView: View {
                                 .frame(width: 40, height: 40)
                                 .overlay(
                                     Image(systemName: "line.3.horizontal.decrease")
-                                        .font(.system(size: 16))
+                                        .font(.system(size: 16, weight: .medium))
                                         .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.7))
                                 )
                         }
