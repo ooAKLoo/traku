@@ -43,11 +43,8 @@ class RecordingUpdateManager: ObservableObject {
         DispatchQueue.main.async {
             self.recordingUpdates[recording.id] = recording
             
-            // 如果处理完成，清除处理状态（如果还存在的话）
-            if recording.enrichedContent != nil || recording.transcription != "处理中..." {
-                self.processingRecordings.removeValue(forKey: recording.id)
-                print("📝 RecordingUpdateManager: 因录音内容完整，清除处理状态 - ID: \(recording.id)")
-            }
+            // 不在这里清除处理状态，让AudioProcessingPipeline通过updateProcessingStatus来控制
+            // 这样可以确保只有在真正完成时才清除状态
         }
     }
     

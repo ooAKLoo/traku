@@ -23,7 +23,7 @@ struct TwoStepLLMConfiguration {
         liteModel: "doubao-1-5-lite-32k-250115",
 //        flashModel: "doubao-seed-1-6-flash-250715",
         flashModel: "doubao-seed-1-6-thinking-250715",
-        timeout: 30.0
+        timeout: 300.0
     )
 }
 
