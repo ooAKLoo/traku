@@ -93,7 +93,7 @@ struct RecordingDetailView: View {
                             VStack(alignment: .leading, spacing: 20) {
                                 HStack(alignment: .top, spacing: 10) {
                                     // 引用符号
-                                    Text("”")
+                                    Text("“")
                                         .font(.system(size: 48, weight: .semibold))
                                         .foregroundColor(isDarkMode ? Color.white.opacity(0.15) : Color.gray.opacity(0.2))
                                         .offset(y: -11)
@@ -616,34 +616,73 @@ struct RecordingDetailView: View {
     private func deleteSection(at index: Int) {
         guard !modifiedEnrichedContent.isEmpty else { return }
         
+        print("🗑️ deleteSection: 开始删除section \(index)")
+        
         // 解析当前内容的段落
         let parser = MarkdownSectionParser(content: modifiedEnrichedContent)
         var sections = parser.parseSections()
         
+        print("🗑️ deleteSection: 解析出 \(sections.count) 个段落")
+        
         // 删除指定段落
-        guard index < sections.count else { return }
+        guard index < sections.count else { 
+            print("❌ deleteSection: index \(index) 超出范围 (总共 \(sections.count) 个段落)")
+            return 
+        }
+        
+        let deletedContent = sections[index]
         sections.remove(at: index)
+        print("🗑️ deleteSection: 删除了段落: \(deletedContent.prefix(50))...")
         
         // 重新组合内容
         modifiedEnrichedContent = sections.joined(separator: "\n\n")
+        print("🗑️ deleteSection: 重新组合后的内容长度: \(modifiedEnrichedContent.count)")
         
-        // 更新数据库
-        saveModifiedContent()
-        
-        // 重新解析标题
-        updateHeadings()
-        
-        // 显示成功提示
-        ToastManager.shared.showSuccess("段落已删除")
+        // 更新数据库和本地状态
+        if saveModifiedContentWithResult() {
+            // 重新解析标题
+            updateHeadings()
+            
+            // 显示成功提示
+            ToastManager.shared.showSuccess("段落已删除")
+        } else {
+            // 数据库更新失败，恢复到删除前的状态（通过重新解析原始内容）
+            if let enrichedContent = recording.enrichedContent {
+                modifiedEnrichedContent = enrichedContent
+                updateHeadings()
+            }
+            ToastManager.shared.showError("删除失败，请重试")
+        }
     }
     
     private func saveModifiedContent() {
+        _ = saveModifiedContentWithResult()
+    }
+    
+    private func saveModifiedContentWithResult() -> Bool {
         // 更新录音记录的增强内容
         var updatedRecording = recording
         updatedRecording.enrichedContent = modifiedEnrichedContent
         
         // 保存到数据库
-        DatabaseManager.shared.updateRecording(updatedRecording)
+        let success = DatabaseManager.shared.updateRecording(updatedRecording)
+        
+        if success {
+            // 同步更新本地状态
+            recording = updatedRecording
+            
+            // 通知实时更新管理器
+            updateManager.updateRecording(updatedRecording)
+            
+            // 通知父组件录音数据已更新
+            onRecordingUpdated?(updatedRecording)
+            
+            print("✅ saveModifiedContent: 数据库和本地状态已同步更新")
+            return true
+        } else {
+            print("❌ saveModifiedContent: 数据库更新失败")
+            return false
+        }
     }
     
     private func updateHeadings() {
