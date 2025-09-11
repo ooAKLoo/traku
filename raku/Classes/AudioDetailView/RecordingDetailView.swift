@@ -55,72 +55,18 @@ struct RecordingDetailView: View {
                 .ignoresSafeArea()
             
             VStack(spacing: 0) {
-                // 顶部导航栏 - 更加精简
-                HStack {
-                    Button(action: { dismiss() }) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 20, weight: .regular))
-                            .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
-                            .frame(width: 44, height: 44)
-                    }
-                    
-                    Spacer()
-                    
-                    // 播放控件 - 更简洁
-                    HStack(spacing: 12) {
-                        Button(action: togglePlayback) {
-                            HStack(spacing: 8) {
-                                Image(systemName: audioManager.isPlaying ? "pause.fill" : "play.fill")
-                                    .font(.system(size: 14))
-                                    .contentTransition(.symbolEffect(.replace.downUp))
-                                Text(FormatHelper.formatDuration(recording.duration))
-                                    .font(.system(size: 13, weight: .medium, design: .monospaced))
-                            }
-                            .foregroundColor(isDarkMode ? .white.opacity(0.7) : .black.opacity(0.7))
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                            .background(
-                                Capsule()
-                                    .fill(isDarkMode ? Color.white.opacity(0.08) : Color.black.opacity(0.05))
-                            )
-                        }
-                        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: audioManager.isPlaying)
-                        
-                        // 下载按钮 - 只在播放时显示
-                        if audioManager.isPlaying {
-                            Button(action: downloadAudio) {
-                                Image(systemName: "arrow.down.circle.fill")
-                                    .font(.system(size: 20))
-                                    .foregroundColor(isDarkMode ? .white.opacity(0.7) : .black.opacity(0.7))
-                            }
-                            .transition(.asymmetric(
-                                insertion: .scale.combined(with: .opacity),
-                                removal: .scale(scale: 0.8).combined(with: .opacity)
-                            ))
-                        }
-                    }
-                    .animation(.easeInOut(duration: 0.25), value: audioManager.isPlaying)
-                    
-                    Spacer()
-                    
-                    Menu {
-                        Button(action: shareRecording) {
-                            Label("分享", systemImage: "square.and.arrow.up")
-                        }
-                        Button(action: exportRecording) {
-                            Label("导出", systemImage: "doc.on.doc")
-                        }
-                        Button(role: .destructive, action: deleteRecording) {
-                            Label("删除", systemImage: "trash")
-                        }
-                    } label: {
-                        Image(systemName: "ellipsis.circle")
-                            .font(.system(size: 20, weight: .regular))
-                            .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
-                            .frame(width: 44, height: 44)
-                    }
-                }
-                .padding(.horizontal, 8)
+                // 顶部导航栏 - 使用独立组件
+                RecordingDetailNavigationBar(
+                    audioManager: audioManager,
+                    recording: recording,
+                    isDarkMode: isDarkMode,
+                    onDismiss: { dismiss() },
+                    onShare: shareRecording,
+                    onExport: exportRecording,
+                    onDelete: deleteRecording,
+                    onTogglePlayback: togglePlayback,
+                    onDownload: downloadAudio
+                )
                 
                 ScrollViewReader { proxy in
                     ScrollView(.vertical, showsIndicators: false) {
