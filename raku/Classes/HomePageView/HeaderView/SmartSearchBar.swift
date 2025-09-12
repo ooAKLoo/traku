@@ -18,6 +18,7 @@ struct SmartSearchBar: View {
     @State private var searchTypingTimer: Timer?
     @State private var sparklesPulse = false
     @State private var flowingLightOffset: CGFloat = 0
+    @FocusState private var isTextFieldFocused: Bool
     
     var body: some View {
         HStack(spacing: 0) {
@@ -40,6 +41,7 @@ struct SmartSearchBar: View {
             .textFieldStyle(PlainTextFieldStyle())
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
+            .focused($isTextFieldFocused)
             .onChange(of: searchText) { newValue in
                 handleSearchTextChange(newValue)
                 onTextChange?(newValue)
@@ -47,9 +49,11 @@ struct SmartSearchBar: View {
         }
         .background(searchBarBackground)
         .onAppear {
-            // 搜索框出现时自动聚焦
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
-                UIApplication.shared.sendAction(#selector(UIResponder.becomeFirstResponder), to: nil, from: nil, for: nil)
+            // 确保UI完全渲染后再聚焦，避免卡顿
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    isTextFieldFocused = true
+                }
             }
         }
     }
