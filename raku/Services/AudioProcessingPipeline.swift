@@ -579,6 +579,24 @@ extension AudioProcessingPipeline: TwoStepLLMServiceDelegate {
                 polishedText: result.polishedText ?? ""
             )
             updateManager.updateRecording(updatedRecording)
+            
+            // 在第一步完成后异步执行词嵌入处理
+            DispatchQueue.global(qos: .background).async {
+                VolcEngineEmbeddingService.shared.generateEmbeddings(
+                    for: recordingId.uuidString,
+                    title: result.title,
+                    tags: result.tags,
+                    polishedText: result.polishedText
+                ) { embeddingResult in
+                    switch embeddingResult {
+                    case .success(let embeddings):
+                        DatabaseManager.shared.saveEmbeddings(embeddings)
+                        print("[Pipeline] Successfully generated embeddings for recording \(recordingId)")
+                    case .failure(let error):
+                        print("[Pipeline] Failed to generate embeddings: \(error)")
+                    }
+                }
+            }
         }
         
         delegate?.pipeline(self, didCompleteFirstStep: result)

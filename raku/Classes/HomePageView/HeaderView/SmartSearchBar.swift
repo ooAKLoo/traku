@@ -12,6 +12,7 @@ struct SmartSearchBar: View {
     @Binding var searchText: String
     let isDarkMode: Bool
     let onSearchAction: () -> Void
+    let onTextChange: ((String) -> Void)?
     
     @State private var searchGlowAnimation = false
     @State private var searchTypingTimer: Timer?
@@ -41,6 +42,7 @@ struct SmartSearchBar: View {
             .padding(.vertical, 10)
             .onChange(of: searchText) { newValue in
                 handleSearchTextChange(newValue)
+                onTextChange?(newValue)
             }
         }
         .background(searchBarBackground)
@@ -234,6 +236,9 @@ struct SmartSearchBar: View {
         isDarkMode: false,
         onSearchAction: {
             print("AI Search triggered")
+        },
+        onTextChange: { text in
+            print("Text changed: \(text)")
         }
     )
     .padding()
@@ -246,6 +251,9 @@ struct SmartSearchBar: View {
         isDarkMode: true,
         onSearchAction: {
             print("AI Search triggered")
+        },
+        onTextChange: { text in
+            print("Text changed: \(text)")
         }
     )
     .padding()

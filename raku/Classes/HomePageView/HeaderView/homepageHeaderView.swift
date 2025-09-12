@@ -92,7 +92,8 @@ struct HomepageHeaderView: View {
                             isDarkMode: isDarkMode,
                             onSearchAction: {
                                 // TODO: 实现AI搜索建议功能
-                            }
+                            },
+                            onTextChange: nil
                         )
                         
                         // 清除按钮

@@ -79,6 +79,22 @@ class DatabaseManager {
             );
         """
         
+        let createEmbeddingTableSQL = """
+            CREATE TABLE IF NOT EXISTS embeddings (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                recording_id TEXT NOT NULL,
+                embedding_type TEXT NOT NULL,
+                embedding_vector TEXT NOT NULL,
+                created_at REAL NOT NULL DEFAULT (julianday('now')),
+                FOREIGN KEY (recording_id) REFERENCES audio_recordings(id) ON DELETE CASCADE,
+                UNIQUE(recording_id, embedding_type)
+            );
+        """
+        
+        let createEmbeddingIndexSQL = """
+            CREATE INDEX IF NOT EXISTS idx_embeddings_recording_id ON embeddings(recording_id);
+        """
+        
         // 检查并添加 title 列（兼容旧数据库）
         let addTitleColumnSQL = "ALTER TABLE audio_recordings ADD COLUMN title TEXT;"
         sqlite3_exec(db, addTitleColumnSQL, nil, nil, nil) // 忽略错误（列可能已存在）
@@ -91,6 +107,26 @@ class DatabaseManager {
             print("✅ 录音表创建成功")
         } else {
             print("❌ 录音表创建失败")
+            if let errorPointer = sqlite3_errmsg(db) {
+                let message = String(cString: errorPointer)
+                print("错误信息: \(message)")
+            }
+        }
+        
+        if sqlite3_exec(db, createEmbeddingTableSQL, nil, nil, nil) == SQLITE_OK {
+            print("✅ Embedding表创建成功")
+        } else {
+            print("❌ Embedding表创建失败")
+            if let errorPointer = sqlite3_errmsg(db) {
+                let message = String(cString: errorPointer)
+                print("错误信息: \(message)")
+            }
+        }
+        
+        if sqlite3_exec(db, createEmbeddingIndexSQL, nil, nil, nil) == SQLITE_OK {
+            print("✅ Embedding索引创建成功")
+        } else {
+            print("❌ Embedding索引创建失败")
             if let errorPointer = sqlite3_errmsg(db) {
                 let message = String(cString: errorPointer)
                 print("错误信息: \(message)")
@@ -401,6 +437,7 @@ class DatabaseManager {
                 "id": recording.id.uuidString,
                 "title": recording.title,
                 "tags": recording.tags,
+                "polishedText": recording.polishedText,
                 "timestamp": ISO8601DateFormatter().string(from: recording.timestamp),
                 "duration": recording.duration
             ]
@@ -817,6 +854,226 @@ class DatabaseManager {
             }
             
             return debugFileName
+        }
+    }
+    
+    // MARK: - Embedding相关方法
+    
+    /// 保存向量化结果到数据库
+    func saveEmbeddings(_ embeddingResult: VolcEngineEmbeddingService.EmbeddingResult) {
+        dbQueue.async { [weak self] in
+            guard let self = self else { return }
+            
+            // 开始事务
+            sqlite3_exec(self.db, "BEGIN TRANSACTION", nil, nil, nil)
+            
+            var success = true
+            
+            // 保存标题向量
+            if let titleEmbedding = embeddingResult.titleEmbedding {
+                success = success && self.saveEmbeddingInternal(
+                    recordingId: embeddingResult.recordingId,
+                    type: "title",
+                    vector: titleEmbedding
+                )
+            }
+            
+            // 保存标签向量
+            for (index, tagEmbedding) in embeddingResult.tagsEmbeddings.enumerated() {
+                success = success && self.saveEmbeddingInternal(
+                    recordingId: embeddingResult.recordingId,
+                    type: "tag_\(index)",
+                    vector: tagEmbedding
+                )
+            }
+            
+            // 保存文本向量
+            if let textEmbedding = embeddingResult.polishedTextEmbedding {
+                success = success && self.saveEmbeddingInternal(
+                    recordingId: embeddingResult.recordingId,
+                    type: "polished_text",
+                    vector: textEmbedding
+                )
+            }
+            
+            // 提交或回滚事务
+            if success {
+                sqlite3_exec(self.db, "COMMIT", nil, nil, nil)
+                print("✅ 成功保存录音 \(embeddingResult.recordingId) 的向量数据")
+            } else {
+                sqlite3_exec(self.db, "ROLLBACK", nil, nil, nil)
+                print("❌ 保存录音 \(embeddingResult.recordingId) 的向量数据失败")
+            }
+        }
+    }
+    
+    /// 内部方法：保存单个向量
+    private func saveEmbeddingInternal(recordingId: String, type: String, vector: [Float]) -> Bool {
+        let insertSQL = """
+            INSERT OR REPLACE INTO embeddings (recording_id, embedding_type, embedding_vector)
+            VALUES (?, ?, ?)
+        """
+        
+        var statement: OpaquePointer?
+        defer { sqlite3_finalize(statement) }
+        
+        guard sqlite3_prepare_v2(db, insertSQL, -1, &statement, nil) == SQLITE_OK else {
+            print("❌ 准备保存向量SQL失败")
+            return false
+        }
+        
+        // 将向量转换为JSON字符串
+        guard let vectorData = try? JSONEncoder().encode(vector),
+              let vectorString = String(data: vectorData, encoding: .utf8) else {
+            print("❌ 向量序列化失败")
+            return false
+        }
+        
+        sqlite3_bind_text(statement, 1, (recordingId as NSString).utf8String, -1, SQLITE_TRANSIENT)
+        sqlite3_bind_text(statement, 2, (type as NSString).utf8String, -1, SQLITE_TRANSIENT)
+        sqlite3_bind_text(statement, 3, (vectorString as NSString).utf8String, -1, SQLITE_TRANSIENT)
+        
+        return sqlite3_step(statement) == SQLITE_DONE
+    }
+    
+    /// 获取未处理向量化的录音ID列表
+    func getRecordingsWithoutEmbeddings() -> [String] {
+        return dbQueue.sync {
+            let querySQL = """
+                SELECT DISTINCT r.id 
+                FROM audio_recordings r
+                LEFT JOIN embeddings e ON (r.id = e.recording_id AND e.embedding_type = 'title')
+                WHERE e.recording_id IS NULL
+                   AND (r.title IS NOT NULL AND r.title != '' OR r.tags IS NOT NULL)
+                ORDER BY r.created_at DESC
+            """
+            
+            var statement: OpaquePointer?
+            defer { sqlite3_finalize(statement) }
+            
+            var recordingIds: [String] = []
+            
+            if sqlite3_prepare_v2(db, querySQL, -1, &statement, nil) == SQLITE_OK {
+                while sqlite3_step(statement) == SQLITE_ROW {
+                    if let idString = sqlite3_column_text(statement, 0) {
+                        recordingIds.append(String(cString: idString))
+                    }
+                }
+            }
+            
+            return recordingIds
+        }
+    }
+    
+    /// 获取录音的向量数据
+    func getEmbeddings(for recordingId: String) -> [String: [Float]] {
+        return dbQueue.sync {
+            let querySQL = """
+                SELECT embedding_type, embedding_vector
+                FROM embeddings
+                WHERE recording_id = ?
+            """
+            
+            var statement: OpaquePointer?
+            defer { sqlite3_finalize(statement) }
+            
+            var embeddings: [String: [Float]] = [:]
+            
+            if sqlite3_prepare_v2(db, querySQL, -1, &statement, nil) == SQLITE_OK {
+                sqlite3_bind_text(statement, 1, (recordingId as NSString).utf8String, -1, SQLITE_TRANSIENT)
+                
+                while sqlite3_step(statement) == SQLITE_ROW {
+                    if let typeString = sqlite3_column_text(statement, 0),
+                       let vectorString = sqlite3_column_text(statement, 1) {
+                        let type = String(cString: typeString)
+                        let vectorStr = String(cString: vectorString)
+                        
+                        if let vectorData = vectorStr.data(using: .utf8),
+                           let vector = try? JSONDecoder().decode([Float].self, from: vectorData) {
+                            embeddings[type] = vector
+                        }
+                    }
+                }
+            }
+            
+            return embeddings
+        }
+    }
+    
+    /// 根据ID获取单条录音记录
+    func getRecording(by id: String) -> AudioRecording? {
+        return dbQueue.sync {
+            let querySQL = """
+                SELECT id, timestamp, duration, transcription, title, summary, tags, 
+                       audio_data, enriched_content, polished_text
+                FROM audio_recordings
+                WHERE id = ?
+            """
+            
+            var statement: OpaquePointer?
+            defer { sqlite3_finalize(statement) }
+            
+            guard sqlite3_prepare_v2(db, querySQL, -1, &statement, nil) == SQLITE_OK else {
+                return nil
+            }
+            
+            sqlite3_bind_text(statement, 1, (id as NSString).utf8String, -1, SQLITE_TRANSIENT)
+            
+            guard sqlite3_step(statement) == SQLITE_ROW else {
+                return nil
+            }
+            
+            // 解析数据
+            guard let idString = sqlite3_column_text(statement, 0),
+                  let transcription = sqlite3_column_text(statement, 3),
+                  let summary = sqlite3_column_text(statement, 5),
+                  let tagsString = sqlite3_column_text(statement, 6),
+                  let uuid = UUID(uuidString: String(cString: idString)) else {
+                return nil
+            }
+            
+            let timestamp = Date(timeIntervalSince1970: sqlite3_column_double(statement, 1))
+            let duration = sqlite3_column_double(statement, 2)
+            let transcriptionStr = String(cString: transcription)
+            
+            var titleStr = ""
+            if let titleText = sqlite3_column_text(statement, 4) {
+                titleStr = String(cString: titleText)
+            }
+            
+            let summaryStr = String(cString: summary)
+            
+            let tagsData = String(cString: tagsString).data(using: .utf8)
+            let tags = (try? JSONDecoder().decode([String].self, from: tagsData ?? Data())) ?? []
+            
+            var audioData: Data?
+            if let audioBlob = sqlite3_column_blob(statement, 7) {
+                let audioSize = sqlite3_column_bytes(statement, 7)
+                audioData = Data(bytes: audioBlob, count: Int(audioSize))
+            }
+            
+            var enrichedContent: String?
+            if let enrichedText = sqlite3_column_text(statement, 8) {
+                enrichedContent = String(cString: enrichedText)
+            }
+            
+            var polishedText = ""
+            if let polishedTextData = sqlite3_column_text(statement, 9) {
+                polishedText = String(cString: polishedTextData)
+            }
+            
+            return AudioRecording(
+                id: uuid,
+                timestamp: timestamp,
+                duration: duration,
+                transcription: transcriptionStr,
+                title: titleStr,
+                summary: summaryStr,
+                tags: tags,
+                audioData: audioData,
+                enrichedContent: enrichedContent,
+                polishedText: polishedText
+            )
         }
     }
 }
