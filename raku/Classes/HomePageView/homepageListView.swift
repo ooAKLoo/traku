@@ -20,23 +20,42 @@ struct HomepageListView: View {
     @State private var isNavigating = false
     
     var body: some View {
-        let scrollContent = ScrollView {
-            LazyVStack(spacing: 15) {
-                ForEach(filteredRecordings, id: \.id) { recording in
-                    cardView(for: recording)
+        if filteredRecordings.isEmpty {
+            // 空状态视图
+            emptyStateView
+                .background(navigationLink)
+                .onChange(of: isNavigating) { _ in
+                    resetSelection()
                 }
+        } else {
+            // 录音列表
+            let scrollContent = ScrollView {
+                LazyVStack(spacing: 15) {
+                    ForEach(filteredRecordings, id: \.id) { recording in
+                        cardView(for: recording)
+                    }
+                }
+                .padding(.horizontal, 20)
+                .padding(.top, 10)
+                .padding(.bottom, 120)
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 10)
-            .padding(.bottom, 120)
+            .scrollDismissesKeyboard(.immediately)
+            
+            scrollContent
+                .background(navigationLink)
+                .onChange(of: isNavigating) { _ in
+                    resetSelection()
+                }
         }
-        .scrollDismissesKeyboard(.immediately)
-        
-        return scrollContent
-            .background(navigationLink)
-            .onChange(of: isNavigating) { _ in
-                resetSelection()
-            }
+    }
+    
+    // MARK: - 空状态视图
+    private var emptyStateView: some View {
+        EmptyStateView(
+            config: .noRecordings,
+            isDarkMode: isDarkMode
+        )
+        .animation(.easeInOut(duration: 0.6), value: filteredRecordings.isEmpty)
     }
     
     private func cardView(for recording: AudioRecording) -> some View {
