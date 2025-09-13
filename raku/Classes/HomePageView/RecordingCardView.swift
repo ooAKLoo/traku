@@ -184,7 +184,7 @@ struct RecordingCardView: View {
                             HStack(spacing: 4) {
                                 Image(systemName: "waveform")
                                     .font(.system(size: 11, weight: .medium))
-                                Text("\(Int(recording.duration))秒")
+                                Text(L("recording_duration_format", Int(recording.duration)))
                                     .font(.system(size: 11, weight: .medium))
                             }
                             .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4))

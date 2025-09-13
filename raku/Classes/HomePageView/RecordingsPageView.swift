@@ -42,7 +42,7 @@ struct RecordingsPageView: View {
                 }
                 
                 // 标签过滤 TabBar（当选择"标签"时显示在 header 下面）
-                if viewModel.selectedFilter == "标签" {
+                if viewModel.selectedFilter == L("homepage_filter_tag") {
                     RecordingTagFilter(
                         allRecordings: audioManager.recordings,
                         selectedTag: $viewModel.selectedTag

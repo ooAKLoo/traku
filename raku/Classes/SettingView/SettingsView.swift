@@ -11,8 +11,11 @@ import WebKit
 struct SettingsView: View {
     @Environment(\.dismiss) var dismiss
     @AppStorage("isDarkMode") private var isDarkMode = true
+    @AppStorage("appLanguage") private var appLanguage = "zh-CN"
     @State private var showingDatabaseDebug = false
     @State private var showingAboutView = false
+    @State private var showingLanguageSelector = false
+    @ObservedObject private var localizationManager = LocalizationManager.shared
     
     var body: some View {
         NavigationView {
@@ -31,15 +34,15 @@ struct SettingsView: View {
                                 .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8))
                                 .frame(width: 30)
                             
-                            Text("外观")
+                            Text(L("settings_appearance_title"))
                                 .font(.system(size: 16))
                                 .foregroundColor(isDarkMode ? .white : .black)
                             
                             Spacer()
                             
                             Picker("", selection: $isDarkMode) {
-                                Text("深色").tag(true)
-                                Text("浅色").tag(false)
+                                Text(L("settings_theme_dark")).tag(true)
+                                Text(L("settings_theme_light")).tag(false)
                             }
                             .pickerStyle(SegmentedPickerStyle())
                             .frame(width: 120)
@@ -50,14 +53,45 @@ struct SettingsView: View {
                                 .fill(isDarkMode ? Color.white.opacity(0.05) : Color.white)
                         )
                         
-                        SettingsRowView(icon: "person.circle", title: "账户", isDarkMode: isDarkMode, action: {})
-                        SettingsRowView(icon: "bell", title: "通知", isDarkMode: isDarkMode, action: {})
-                        SettingsRowView(icon: "lock", title: "隐私", isDarkMode: isDarkMode, action: {})
-                        SettingsRowView(icon: "questionmark.circle", title: "帮助", isDarkMode: isDarkMode, action: {})
-                        SettingsRowView(icon: "info.circle", title: "关于", isDarkMode: isDarkMode, action: {
+                        // 语言设置
+                        Button(action: {
+                            showingLanguageSelector = true
+                        }) {
+                            HStack {
+                                Image(systemName: "globe")
+                                    .font(.system(size: 20))
+                                    .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8))
+                                    .frame(width: 30)
+                                
+                                Text(L("settings_language"))
+                                    .font(.system(size: 16))
+                                    .foregroundColor(isDarkMode ? .white : .black)
+                                
+                                Spacer()
+                                
+                                Text(getLanguageDisplayName(appLanguage))
+                                    .font(.system(size: 14))
+                                    .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
+                                
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(isDarkMode ? .white.opacity(0.3) : .black.opacity(0.3))
+                            }
+                            .padding()
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(isDarkMode ? Color.white.opacity(0.05) : Color.white)
+                            )
+                        }
+                        
+                        SettingsRowView(icon: "person.circle", title: L("settings_account"), isDarkMode: isDarkMode, action: {})
+                        SettingsRowView(icon: "bell", title: L("settings_notifications"), isDarkMode: isDarkMode, action: {})
+                        SettingsRowView(icon: "lock", title: L("settings_privacy_title"), isDarkMode: isDarkMode, action: {})
+                        SettingsRowView(icon: "questionmark.circle", title: L("common_help"), isDarkMode: isDarkMode, action: {})
+                        SettingsRowView(icon: "info.circle", title: L("settings_about_title"), isDarkMode: isDarkMode, action: {
                             showingAboutView = true
                         })
-                        SettingsRowView(icon: "cylinder", title: "数据库调试", isDarkMode: isDarkMode, action: {
+                        SettingsRowView(icon: "cylinder", title: L("settings_database_debug"), isDarkMode: isDarkMode, action: {
                             showingDatabaseDebug = true
                         })
                     }
@@ -67,11 +101,11 @@ struct SettingsView: View {
                 }
                 .padding(.top, 20)
             }
-            .navigationTitle("设置")
+            .navigationTitle(L("settings_title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("完成") {
+                    Button(L("common_done")) {
                         dismiss()
                     }
                     .foregroundColor(isDarkMode ? .white : .black)
@@ -85,6 +119,116 @@ struct SettingsView: View {
         .sheet(isPresented: $showingAboutView) {
             AboutWebView(isDarkMode: isDarkMode)
         }
+        .sheet(isPresented: $showingLanguageSelector) {
+            LanguageSelectorView(
+                isPresented: $showingLanguageSelector,
+                currentLanguage: $appLanguage,
+                isDarkMode: isDarkMode
+            )
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .languageDidChange)) { _ in
+            // 当语言变更时，强制刷新视图
+        }
+        .onChange(of: appLanguage) { newLanguage in
+            LocalizationManager.shared.switchLanguage(to: newLanguage)
+        }
+    }
+    
+    // MARK: - Helper Methods
+    private func getLanguageDisplayName(_ languageCode: String) -> String {
+        switch languageCode {
+        case "zh-CN":
+            return "简体中文"
+        case "en-US":
+            return "English"
+        default:
+            return languageCode
+        }
+    }
+}
+
+// MARK: - 语言选择器视图
+struct LanguageSelectorView: View {
+    @Binding var isPresented: Bool
+    @Binding var currentLanguage: String
+    let isDarkMode: Bool
+    
+    private let availableLanguages = [
+        ("zh-CN", "简体中文", "🇨🇳"),
+        ("en-US", "English", "🇺🇸")
+    ]
+    
+    var body: some View {
+        NavigationView {
+            ZStack {
+                (isDarkMode ? Color.black : Color(white: 0.95))
+                    .ignoresSafeArea()
+                
+                VStack(spacing: 20) {
+                    VStack(spacing: 12) {
+                        ForEach(availableLanguages, id: \.0) { (code, name, flag) in
+                            Button(action: {
+                                currentLanguage = code
+                                isPresented = false
+                            }) {
+                                HStack {
+                                    Text(flag)
+                                        .font(.system(size: 24))
+                                        .frame(width: 40)
+                                    
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(name)
+                                            .font(.system(size: 16, weight: .medium))
+                                            .foregroundColor(isDarkMode ? .white : .black)
+                                        
+                                        Text(code)
+                                            .font(.system(size: 14))
+                                            .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
+                                    }
+                                    
+                                    Spacer()
+                                    
+                                    if currentLanguage == code {
+                                        Image(systemName: "checkmark")
+                                            .font(.system(size: 16, weight: .semibold))
+                                            .foregroundColor(.blue)
+                                    }
+                                }
+                                .padding(.horizontal, 20)
+                                .padding(.vertical, 16)
+                                .background(
+                                    RoundedRectangle(cornerRadius: 12)
+                                        .fill(isDarkMode ? Color.white.opacity(0.05) : Color.white)
+                                        .overlay(
+                                            RoundedRectangle(cornerRadius: 12)
+                                                .stroke(
+                                                    currentLanguage == code ? Color.blue.opacity(0.3) : Color.clear,
+                                                    lineWidth: 1
+                                                )
+                                        )
+                                )
+                            }
+                            .animation(.easeInOut(duration: 0.2), value: currentLanguage)
+                        }
+                    }
+                    .padding(.horizontal, 20)
+                    
+                    Spacer()
+                }
+                .padding(.top, 20)
+            }
+            .navigationTitle(L("settings_language"))
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(L("common_done")) {
+                        isPresented = false
+                    }
+                    .foregroundColor(isDarkMode ? .white : .black)
+                }
+            }
+        }
+        .preferredColorScheme(isDarkMode ? .dark : .light)
     }
 }
 
@@ -96,11 +240,11 @@ struct AboutWebView: View {
     var body: some View {
         NavigationView {
             WebView(url: URL(string: "https://ooakloo.top/en/about")!)
-                .navigationTitle("关于")
+                .navigationTitle(L("settings_about_title"))
                 .navigationBarTitleDisplayMode(.inline)
                 .toolbar {
                     ToolbarItem(placement: .navigationBarTrailing) {
-                        Button("完成") {
+                        Button(L("common_done")) {
                             dismiss()
                         }
                         .foregroundColor(isDarkMode ? .white : .black)

@@ -18,7 +18,7 @@ struct HomepageHeaderView: View {
     @Binding var showingConnectionConfig: Bool
     
     @State private var showingSearchBar = false
-    let filters = ["标签", "空间"]
+    let filters = [L("homepage_filter_tag"), L("homepage_filter_space")]
     
     var body: some View {
         VStack(spacing: 20) {
@@ -45,7 +45,7 @@ struct HomepageHeaderView: View {
                         
                         // 产品信息（纯展示，不可点击）
                         VStack(alignment: .leading, spacing: 4) {
-                            Text("Echo o1")
+                            Text(L("homepage_product_name"))
                                 .font(.system(size: 16, weight: .medium))
                                 .foregroundColor(isDarkMode ? .white : .black)
                             
@@ -57,7 +57,7 @@ struct HomepageHeaderView: View {
                                                      (isDarkMode ? Color.green.opacity(0.8) : Color.green) :
                                                         (isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4)))
                                 
-                                Text(audioManager.isConnected ? "已连接" : "未连接")
+                                Text(audioManager.isConnected ? L("homepage_device_connected") : L("homepage_device_disconnected"))
                                     .font(.system(size: 12, weight: .regular))
                                     .foregroundColor(audioManager.isConnected ?
                                                      (isDarkMode ? Color.green.opacity(0.8) : Color.green) :

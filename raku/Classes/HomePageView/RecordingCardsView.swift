@@ -33,7 +33,7 @@ struct RecordingCardsView: View {
                 }
         } else {
             // 根据筛选类型显示不同内容
-            if selectedFilter == "空间" {
+            if selectedFilter == L("homepage_filter_space") {
                 // 显示空间分类网格
                 spaceGridView
             } else {

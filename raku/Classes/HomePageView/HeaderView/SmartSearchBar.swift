@@ -32,7 +32,7 @@ struct SmartSearchBar: View {
             
             // 搜索输入框
             TextField("", text: $searchText, prompt: 
-                Text("智能搜索内容、语义、标签...")
+                Text(L("search_smart_placeholder"))
                     .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
                     .font(.system(size: 16))
             )

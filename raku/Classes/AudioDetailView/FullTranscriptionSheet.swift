@@ -41,7 +41,7 @@ struct FullTranscriptionSheet: View {
                     Spacer()
                     
                     // 标题 - 细字体
-                    Text("转写内容")
+                    Text(L("detail_transcript_full_view"))
                         .font(.system(size: 15, weight: .regular))
                         .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
                         .tracking(0.5)
@@ -73,7 +73,7 @@ struct FullTranscriptionSheet: View {
                     // 极简Tab切换器
                     HStack(spacing: 32) {
                         TabButton(
-                            title: "原文",
+                            title: L("detail_transcript_original"),
                             isSelected: currentPage == 0,
                             isDarkMode: isDarkMode
                         ) {
@@ -88,7 +88,7 @@ struct FullTranscriptionSheet: View {
                             .frame(width: 3, height: 3)
                         
                         TabButton(
-                            title: "润色版",
+                            title: L("detail_transcript_polished"),
                             isSelected: currentPage == 1,
                             isDarkMode: isDarkMode
                         ) {

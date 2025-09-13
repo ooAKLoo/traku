@@ -9,7 +9,7 @@ import Foundation
 import Combine
 
 class RecordingsListViewModel: ObservableObject {
-    @Published var selectedFilter = "标签"
+    @Published var selectedFilter = L("homepage_filter_tag")
     @Published var showingSettings = false
     @Published var hoveredFilter: String? = nil
     @Published var searchText = ""
@@ -45,7 +45,7 @@ class RecordingsListViewModel: ObservableObject {
     
     func onFilterChanged(_ newFilter: String) {
         // 当切换到非标签过滤器时，清除选中的标签
-        if newFilter != "标签" {
+        if newFilter != L("homepage_filter_tag") {
             selectedTag = nil
         }
     }

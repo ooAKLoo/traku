@@ -170,7 +170,7 @@ struct RecordingDetailView: View {
                                                 .frame(width: viewModel.currentTranscriptionPage == 0 ? 20 : 6, height: 4)
                                                 .animation(.easeInOut(duration: 0.3), value: viewModel.currentTranscriptionPage)
                                             
-                                            Text("原文")
+                                            Text(L("detail_transcript_original"))
                                                 .font(.system(size: 10, weight: .medium))
                                                 .foregroundColor(viewModel.currentTranscriptionPage == 0 ?
                                                                 (isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8)) :
@@ -193,7 +193,7 @@ struct RecordingDetailView: View {
                                                 .frame(width: viewModel.currentTranscriptionPage == 1 ? 20 : 6, height: 4)
                                                 .animation(.easeInOut(duration: 0.3), value: viewModel.currentTranscriptionPage)
                                             
-                                            Text("润色版")
+                                            Text(L("detail_transcript_polished"))
                                                 .font(.system(size: 10, weight: .medium))
                                                 .foregroundColor(viewModel.currentTranscriptionPage == 1 ?
                                                                 (isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8)) :

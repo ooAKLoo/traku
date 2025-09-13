@@ -38,16 +38,20 @@ struct FormatHelper {
         let formatter = DateFormatter()
         
         if Calendar.current.isDateInToday(date) {
-            formatter.dateFormat = "今天 HH:mm"
+            let timeString = formatTime(date)
+            return "\(L("common_today")) \(timeString)"
         } else if Calendar.current.isDateInYesterday(date) {
-            formatter.dateFormat = "昨天 HH:mm"
+            let timeString = formatTime(date)
+            return "\(L("common_yesterday")) \(timeString)"
         } else if let days = Calendar.current.dateComponents([.day], from: date, to: Date()).day, days < 7 {
             formatter.dateFormat = "EEEE HH:mm"
+            return formatter.string(from: date)
         } else {
-            formatter.dateFormat = "MM月dd日 HH:mm"
+            formatter.dateFormat = L("time_format_date")
+            let dateString = formatter.string(from: date)
+            let timeString = formatTime(date)
+            return "\(dateString) \(timeString)"
         }
-        
-        return formatter.string(from: date)
     }
     
     /// 格式化时间为 HH:mm 格式
@@ -55,7 +59,7 @@ struct FormatHelper {
     /// - Returns: 时间字符串，如 "14:30"
     static func formatTime(_ date: Date) -> String {
         let formatter = DateFormatter()
-        formatter.dateFormat = "HH:mm"
+        formatter.dateFormat = L("time_format_time")
         return formatter.string(from: date)
     }
     
@@ -73,7 +77,7 @@ struct FormatHelper {
     /// - Returns: 完整的日期时间字符串，如 "2024年12月1日 14:30"
     static func formatFullDateTime(_ date: Date) -> String {
         let formatter = DateFormatter()
-        formatter.dateFormat = "yyyy年MM月dd日 HH:mm"
+        formatter.dateFormat = L("time_format_datetime")
         return formatter.string(from: date)
     }
     
