@@ -11,6 +11,7 @@ import SwiftUI
 struct HomepageListView: View {
     let filteredRecordings: [AudioRecording]
     let isDarkMode: Bool
+    let selectedFilter: String  // 新增：当前选择的筛选类型
     let onDelete: (AudioRecording) -> Void
     let audioManager: AudioManagerAdapter
     let onRecordingUpdated: ((AudioRecording) -> Void)?
@@ -18,6 +19,9 @@ struct HomepageListView: View {
     @State private var selectedRecording: AudioRecording? = nil
     @State private var cardStates: [String: Bool] = [:] // 记录每个卡片的拖拽状态
     @State private var isNavigating = false
+    @State private var selectedSpace: SpaceCategory? = nil
+    @State private var isNavigatingToSpace = false
+    @State private var spaces = SpaceCategory.mockSpaces // 用于管理空间列表
     
     var body: some View {
         if filteredRecordings.isEmpty {
@@ -28,25 +32,80 @@ struct HomepageListView: View {
                     resetSelection()
                 }
         } else {
-            // 录音列表
-            let scrollContent = ScrollView {
-                LazyVStack(spacing: 15) {
-                    ForEach(filteredRecordings, id: \.id) { recording in
-                        cardView(for: recording)
+            // 根据筛选类型显示不同内容
+            if selectedFilter == "空间" {
+                // 显示空间分类网格
+                spaceGridView
+            } else {
+                // 显示录音列表
+                recordingListView
+            }
+        }
+    }
+    
+    // MARK: - 录音列表视图
+    private var recordingListView: some View {
+        let scrollContent = ScrollView {
+            LazyVStack(spacing: 15) {
+                ForEach(filteredRecordings, id: \.id) { recording in
+                    cardView(for: recording)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, 10)
+            .padding(.bottom, 120)
+        }
+        .scrollDismissesKeyboard(.immediately)
+        
+        return scrollContent
+            .background(navigationLink)
+            .onChange(of: isNavigating) { _ in
+                resetSelection()
+            }
+    }
+    
+    // MARK: - 空间分类网格视图
+    private var spaceGridView: some View {
+        ScrollView {
+            LazyVGrid(columns: [
+                GridItem(.flexible(), spacing: 16),
+                GridItem(.flexible(), spacing: 16)
+            ], spacing: 16) {
+                ForEach(spaces) { space in
+                    SpaceInspirationCard(
+                        space: space,
+                        isDarkMode: isDarkMode,
+                        onTap: {
+                            // 导航到详情页
+                            selectedSpace = space
+                            isNavigatingToSpace = true
+                        },
+                        onDelete: {
+                            // 处理删除逻辑
+                            withAnimation(.spring()) {
+                                spaces.removeAll { $0.id == space.id }
+                            }
+                        },
+                        onDragStateChanged: { isDragging in
+                            // 可以在这里处理拖动状态变化
+                            cardStates[space.id.uuidString] = isDragging
+                        }
+                    )
+                    .onTapGesture {
+                        // 只有在没有拖动时才导航
+                        if cardStates[space.id.uuidString] != true {
+                            selectedSpace = space
+                            isNavigatingToSpace = true
+                        }
                     }
                 }
-                .padding(.horizontal, 20)
-                .padding(.top, 10)
-                .padding(.bottom, 120)
             }
-            .scrollDismissesKeyboard(.immediately)
-            
-            scrollContent
-                .background(navigationLink)
-                .onChange(of: isNavigating) { _ in
-                    resetSelection()
-                }
+            .padding(.horizontal, 20)
+            .padding(.top, 10)
+            .padding(.bottom, 120)
         }
+        .scrollDismissesKeyboard(.immediately)
+        .background(spaceNavigationLink)
     }
     
     // MARK: - 空状态视图
@@ -89,6 +148,23 @@ struct HomepageListView: View {
                 }
                 .hidden()
                 .navigationViewStyle(StackNavigationViewStyle()) // 确保使用堆栈导航样式
+            } else {
+                EmptyView()
+            }
+        }
+    }
+    
+    private var spaceNavigationLink: some View {
+        Group {
+            if let space = selectedSpace {
+                NavigationLink(
+                    destination: SpaceDetailView(space: space)
+                        .navigationBarHidden(true),
+                    isActive: $isNavigatingToSpace
+                ) {
+                    EmptyView()
+                }
+                .hidden()
             } else {
                 EmptyView()
             }
@@ -151,6 +227,7 @@ struct HomepageListView_Previews: PreviewProvider {
             HomepageListView(
                 filteredRecordings: sampleRecordings,
                 isDarkMode: false,
+                selectedFilter: "全部",
                 onDelete: { _ in print("Delete recording") },
                 audioManager: AudioManagerAdapter(skipDatabaseLoad: true),
                 onRecordingUpdated: nil
@@ -161,6 +238,7 @@ struct HomepageListView_Previews: PreviewProvider {
             HomepageListView(
                 filteredRecordings: sampleRecordings,
                 isDarkMode: true,
+                selectedFilter: "标签",
                 onDelete: { _ in print("Delete recording") },
                 audioManager: AudioManagerAdapter(skipDatabaseLoad: true),
                 onRecordingUpdated: nil
@@ -168,10 +246,23 @@ struct HomepageListView_Previews: PreviewProvider {
             .previewDisplayName("Dark Mode")
             .preferredColorScheme(.dark)
             
+            // 空间主题预览
+            HomepageListView(
+                filteredRecordings: sampleRecordings,
+                isDarkMode: true,
+                selectedFilter: "空间",
+                onDelete: { _ in print("Delete recording") },
+                audioManager: AudioManagerAdapter(skipDatabaseLoad: true),
+                onRecordingUpdated: nil
+            )
+            .previewDisplayName("Space Theme")
+            .preferredColorScheme(.dark)
+            
             // 空列表预览
             HomepageListView(
                 filteredRecordings: [],
                 isDarkMode: false,
+                selectedFilter: "全部",
                 onDelete: { _ in print("Delete recording") },
                 audioManager: AudioManagerAdapter(skipDatabaseLoad: true),
                 onRecordingUpdated: nil

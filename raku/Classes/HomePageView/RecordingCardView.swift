@@ -235,7 +235,7 @@ struct RecordingCardView: View {
                             
                             // 标题 - 主要视觉焦点
                             Text(currentRecording.title)
-                                .font(.system(size: 20, weight: .semibold))
+                                .font(.system(size: 18, weight: .medium))
                                 .foregroundColor(isDarkMode ? .white : .black)
                                 .lineLimit(1)
                                 .truncationMode(.tail)

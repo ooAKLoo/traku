@@ -188,7 +188,7 @@ struct SearchOptions {
         enableVectorSearch: Bool = true,
         enableTextSearch: Bool = true,
         searchFields: Set<SearchField> = [.title, .tags, .transcription, .summary],
-        maxResults: Int = 20,
+        maxResults: Int = 10,
         vectorWeight: Float = 0.7,
         textWeight: Float = 0.3,
         minScore: Float = 0.1

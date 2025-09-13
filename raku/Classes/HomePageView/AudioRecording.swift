@@ -176,6 +176,7 @@ struct RecordingsListView: View {
                     HomepageListView(
                         filteredRecordings: filteredRecordings,
                         isDarkMode: isDarkMode,
+                        selectedFilter: selectedFilter,
                         onDelete: deleteRecording,
                         audioManager: audioManager,
                         onRecordingUpdated: updateRecording

@@ -18,7 +18,7 @@ struct HomepageHeaderView: View {
     @Binding var showingConnectionConfig: Bool
     
     @State private var showingSearchBar = false
-    let filters = ["全部", "标签"]
+    let filters = ["全部", "标签", "空间"]
     
     var body: some View {
         VStack(spacing: 20) {
