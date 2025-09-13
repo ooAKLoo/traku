@@ -108,9 +108,10 @@ struct SpaceDetailView: View {
                                 .tracking(0.3)
                             
                             // 极简指示线
-                            Circle()
+                            Rectangle()
                                 .fill(isDarkMode ? Color.white : Color.black)
-                                .frame(width: 4, height: 4)
+                                .frame(width: 16, height: 2)
+                                .cornerRadius(1)
                                 .opacity(selectedCategory == category ? 1 : 0)
                                 .animation(.easeInOut(duration: 0.25), value: selectedCategory)
                         }

@@ -227,7 +227,7 @@ struct HomepageListView_Previews: PreviewProvider {
             HomepageListView(
                 filteredRecordings: sampleRecordings,
                 isDarkMode: false,
-                selectedFilter: "全部",
+                selectedFilter: "标签",
                 onDelete: { _ in print("Delete recording") },
                 audioManager: AudioManagerAdapter(skipDatabaseLoad: true),
                 onRecordingUpdated: nil
@@ -262,7 +262,7 @@ struct HomepageListView_Previews: PreviewProvider {
             HomepageListView(
                 filteredRecordings: [],
                 isDarkMode: false,
-                selectedFilter: "全部",
+                selectedFilter: "标签",
                 onDelete: { _ in print("Delete recording") },
                 audioManager: AudioManagerAdapter(skipDatabaseLoad: true),
                 onRecordingUpdated: nil

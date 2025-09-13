@@ -73,7 +73,7 @@ struct ContentView: View {
 struct RecordingsListView: View {
     @ObservedObject var audioManager: AudioManagerAdapter
     let isDarkMode: Bool
-    @State private var selectedFilter = "全部"
+    @State private var selectedFilter = "标签"
     @State private var showingSettings = false
     @State private var hoveredFilter: String? = nil
     @State private var searchText = ""

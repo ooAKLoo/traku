@@ -18,7 +18,7 @@ struct HomepageHeaderView: View {
     @Binding var showingConnectionConfig: Bool
     
     @State private var showingSearchBar = false
-    let filters = ["全部", "标签", "空间"]
+    let filters = ["标签", "空间"]
     
     var body: some View {
         VStack(spacing: 20) {
@@ -224,7 +224,7 @@ struct HomepageHeaderView: View {
     HomepageHeaderView(
         audioManager: AudioManagerAdapter(skipDatabaseLoad: true),
         isDarkMode: false,
-        selectedFilter: .constant("全部"),
+        selectedFilter: .constant("标签"),
         showingSettings: .constant(false),
         hoveredFilter: .constant(nil),
         searchText: .constant(""),
