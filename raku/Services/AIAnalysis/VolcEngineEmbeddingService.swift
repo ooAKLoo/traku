@@ -13,7 +13,7 @@ final class VolcEngineEmbeddingService {
     private let maxTokensPerElement = 4096
     private let maxBatchSize = 4
     
-    private let session: URLSession
+    private let networkService: NetworkService
     private let processingQueue = DispatchQueue(label: "com.raku.embeddingService", qos: .background)
     
     // MARK: - Models
@@ -57,10 +57,13 @@ final class VolcEngineEmbeddingService {
         // 直接使用硬编码的API Key
         self.apiKey = "7dda38f8-2383-434c-9d8d-a26263d4b5d1"
         
-        let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 30
-        config.timeoutIntervalForResource = 60
-        self.session = URLSession(configuration: config)
+        let networkConfig = NetworkConfiguration(
+            timeout: 30.0,
+            defaultHeaders: [
+                "Authorization": "Bearer \(apiKey)"
+            ]
+        )
+        self.networkService = NetworkService(configuration: networkConfig)
     }
     
     // MARK: - Public Methods
@@ -241,46 +244,41 @@ final class VolcEngineEmbeddingService {
         inputs: [String],
         completion: @escaping (Result<EmbeddingResponse, Error>) -> Void
     ) {
-        guard let url = URL(string: apiEndpoint) else {
-            completion(.failure(EmbeddingError.invalidURL))
-            return
-        }
-        
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-        
         let requestBody = EmbeddingRequest(
             model: model,
             input: inputs
         )
         
+        guard let jsonData = try? JSONEncoder().encode(requestBody) else {
+            completion(.failure(EmbeddingError.invalidRequest))
+            return
+        }
+        
+        let parameters: [String: Any]
         do {
-            request.httpBody = try JSONEncoder().encode(requestBody)
+            parameters = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any] ?? [:]
         } catch {
             completion(.failure(error))
             return
         }
         
-        session.dataTask(with: request) { data, response, error in
-            if let error = error {
-                completion(.failure(error))
-                return
+        networkService.performJSONRequest(
+            url: apiEndpoint,
+            method: .POST,
+            parameters: parameters
+        ) { result in
+            switch result {
+            case .success(let data):
+                do {
+                    let embeddingResponse = try JSONDecoder().decode(EmbeddingResponse.self, from: data)
+                    completion(.success(embeddingResponse))
+                } catch {
+                    completion(.failure(EmbeddingError.invalidResponse))
+                }
+            case .failure(let networkError):
+                completion(.failure(self.convertNetworkError(networkError)))
             }
-            
-            guard let data = data else {
-                completion(.failure(EmbeddingError.noData))
-                return
-            }
-            
-            do {
-                let embeddingResponse = try JSONDecoder().decode(EmbeddingResponse.self, from: data)
-                completion(.success(embeddingResponse))
-            } catch {
-                completion(.failure(error))
-            }
-        }.resume()
+        }
     }
     
     // MARK: - Error Types
@@ -289,6 +287,8 @@ final class VolcEngineEmbeddingService {
         case invalidURL
         case noData
         case invalidResponse
+        case invalidRequest
+        case networkError
         
         var errorDescription: String? {
             switch self {
@@ -298,7 +298,24 @@ final class VolcEngineEmbeddingService {
                 return "No data received from API"
             case .invalidResponse:
                 return "Invalid response format"
+            case .invalidRequest:
+                return "Invalid request format"
+            case .networkError:
+                return "Network error occurred"
             }
+        }
+    }
+    
+    // MARK: - Error Conversion
+    
+    private func convertNetworkError(_ networkError: NetworkError) -> EmbeddingError {
+        switch networkError {
+        case .invalidURL:
+            return .invalidURL
+        case .requestError, .networkError, .httpError, .timeout:
+            return .networkError
+        case .emptyResponse:
+            return .noData
         }
     }
 }

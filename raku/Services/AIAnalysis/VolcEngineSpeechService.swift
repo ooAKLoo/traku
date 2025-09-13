@@ -57,8 +57,7 @@ class VolcEngineSpeechService: NSObject, ObservableObject {
     
     // MARK: - Private Properties
     private let configuration: SenseVoiceConfiguration
-    private var urlSession: URLSession
-    private let queue = DispatchQueue(label: "com.raku.sensevoice.speech", qos: .userInitiated)
+    private let networkService: NetworkService
     private var currentTask: URLSessionDataTask?
     
     
@@ -69,11 +68,10 @@ class VolcEngineSpeechService: NSObject, ObservableObject {
     init(configuration: SenseVoiceConfiguration = .default) {
         self.configuration = configuration
         
-        // 配置URLSession
-        let sessionConfig = URLSessionConfiguration.default
-        sessionConfig.timeoutIntervalForRequest = configuration.timeout
-        sessionConfig.timeoutIntervalForResource = configuration.timeout * 2
-        self.urlSession = URLSession(configuration: sessionConfig)
+        let networkConfig = NetworkConfiguration(
+            timeout: configuration.timeout
+        )
+        self.networkService = NetworkService(configuration: networkConfig)
         
         super.init()
     }
@@ -110,9 +108,7 @@ class VolcEngineSpeechService: NSObject, ObservableObject {
             return
         }
         
-        queue.async { [weak self] in
-            self?.recognizeAudioWithSenseVoice(audioData)
-        }
+        recognizeAudioWithSenseVoice(audioData)
     }
     
     /// 处理录音音频数据
@@ -162,90 +158,37 @@ class VolcEngineSpeechService: NSObject, ObservableObject {
     
     /// 使用SenseVoice API识别音频文件
     private func recognizeAudioWithSenseVoice(_ audioData: Data) {
-        // 构建URL
-        guard let url = URL(string: "\(configuration.serverURL)\(configuration.endpoint)") else {
-            print("无效的URL配置")
-            DispatchQueue.main.async {
-                self.delegate?.speechService(self, didCompleteWithError: SenseVoiceError.invalidURL)
-            }
-            return
-        }
+        // 构建multipart表单数据
+        let formBuilder = MultipartFormDataBuilder()
+        formBuilder.addFile(name: "file", filename: "audio.wav", data: audioData, mimeType: "audio/wav")
+        formBuilder.addField(name: "language", value: "auto")
+        formBuilder.addField(name: "use_itn", value: "true")
         
-        // 创建multipart/form-data请求
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
+        let formData = formBuilder.build()
+        let boundary = formBuilder.boundaryString
         
-        let boundary = UUID().uuidString
-        request.setValue("multipart/form-data; boundary=\(boundary)", forHTTPHeaderField: "Content-Type")
-        
-        // 构建请求体
-        var body = Data()
-        
-        // 添加音频文件
-        body.append("--\(boundary)\r\n".data(using: .utf8)!)
-        body.append("Content-Disposition: form-data; name=\"file\"; filename=\"audio.wav\"\r\n".data(using: .utf8)!)
-        body.append("Content-Type: audio/wav\r\n\r\n".data(using: .utf8)!)
-        body.append(audioData)
-        body.append("\r\n".data(using: .utf8)!)
-        
-        // 添加语言参数
-        body.append("--\(boundary)\r\n".data(using: .utf8)!)
-        body.append("Content-Disposition: form-data; name=\"language\"\r\n\r\n".data(using: .utf8)!)
-        body.append("auto\r\n".data(using: .utf8)!)
-        
-        // 添加ITN参数
-        body.append("--\(boundary)\r\n".data(using: .utf8)!)
-        body.append("Content-Disposition: form-data; name=\"use_itn\"\r\n\r\n".data(using: .utf8)!)
-        body.append("true\r\n".data(using: .utf8)!)
-        
-        // 结束boundary
-        body.append("--\(boundary)--\r\n".data(using: .utf8)!)
-        
-        request.httpBody = body
-        
+        let fullURL = "\(configuration.serverURL)\(configuration.endpoint)"
         
         // 发送请求
-        currentTask = urlSession.dataTask(with: request) { [weak self] data, response, error in
+        currentTask = networkService.performMultipartRequest(
+            url: fullURL,
+            method: .POST,
+            formData: formData,
+            boundary: boundary
+        ) { [weak self] result in
             guard let self = self else { return }
             
-            // 检查网络错误
-            if let error = error {
+            switch result {
+            case .success(let data):
+                self.handleSenseVoiceResponse(data)
+            case .failure(let error):
                 print("网络请求失败: \(error.localizedDescription)")
                 DispatchQueue.main.async {
-                    self.delegate?.speechService(self, didCompleteWithError: SenseVoiceError.networkError(error))
-                }
-                return
-            }
-            
-            // 检查HTTP响应状态
-            if let httpResponse = response as? HTTPURLResponse {
-                if httpResponse.statusCode != 200 {
-                    let errorMessage = "HTTP错误: \(httpResponse.statusCode)"
-                    
-                    DispatchQueue.main.async {
-                        let error = SenseVoiceError.apiError(
-                            code: httpResponse.statusCode,
-                            message: errorMessage
-                        )
-                        self.delegate?.speechService(self, didCompleteWithError: error)
-                    }
-                    return
+                    let speechError = self.convertNetworkError(error)
+                    self.delegate?.speechService(self, didCompleteWithError: speechError)
                 }
             }
-            
-            // 处理响应数据
-            guard let data = data else {
-                print("响应数据为空")
-                DispatchQueue.main.async {
-                    self.delegate?.speechService(self, didCompleteWithError: SenseVoiceError.audioProcessingError)
-                }
-                return
-            }
-            
-            self.handleSenseVoiceResponse(data)
         }
-        
-        currentTask?.resume()
     }
     
     /// 处理SenseVoice响应
@@ -337,6 +280,24 @@ class VolcEngineSpeechService: NSObject, ObservableObject {
     /// 检查是否有识别结果
     var hasResults: Bool {
         return !allResults.isEmpty
+    }
+    
+    // MARK: - 错误转换
+    private func convertNetworkError(_ networkError: NetworkError) -> SenseVoiceError {
+        switch networkError {
+        case .invalidURL:
+            return .invalidURL
+        case .requestError(let error):
+            return .networkError(error)
+        case .networkError(let error):
+            return .networkError(error)
+        case .httpError(let code):
+            return .apiError(code: code, message: "HTTP错误")
+        case .emptyResponse:
+            return .audioProcessingError
+        case .timeout:
+            return .timeout
+        }
     }
 }
 
