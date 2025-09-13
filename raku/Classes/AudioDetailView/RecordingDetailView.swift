@@ -12,43 +12,28 @@ import MarkdownUI
 
 // MARK: - 录音详情视图
 struct RecordingDetailView: View {
-    @State private var recording: AudioRecording
-    var onRecordingUpdated: ((AudioRecording) -> Void)? = nil
-    @State private var playProgress: Double = 0
-    @State private var isTagEditModalPresented = false
-    @State private var editableTags: [String]
     @Environment(\.dismiss) private var dismiss
     @AppStorage("isDarkMode") private var isDarkMode = true
-    @StateObject private var audioManager: AudioManagerAdapter
-    @State private var headings: [HeadingNode] = []
-    @State private var selectedHeadingId: String? = nil
+    @StateObject private var viewModel: RecordingDetailViewModel
     @State private var scrollProxy: ScrollViewProxy? = nil
-    @State private var isEditingSectionPresented = false
-    @State private var editingSectionIndex: Int = 0
-    @State private var editingSectionContent: String = ""
-    @State private var modifiedEnrichedContent: String = ""
-    @State private var currentTranscriptionPage: Int = 0
-    @State private var originalTranscription: String = ""
-    @State private var polishedTranscription: String = ""
-    @State private var hasPolishedText: Bool = false
-    @State private var showingFullTranscription = false
     @FocusState private var isAnyFieldFocused: Bool
-    @StateObject private var updateManager = RecordingUpdateManager.shared
     
     init(recording: AudioRecording, onRecordingUpdated: ((AudioRecording) -> Void)? = nil) {
-        self._recording = State(initialValue: recording)
-        self.onRecordingUpdated = onRecordingUpdated
-        self._audioManager = StateObject(wrappedValue: AudioManagerAdapter())
-        self._editableTags = State(initialValue: recording.tags)
+        let audioManager = AudioManagerAdapter()
+        self._viewModel = StateObject(wrappedValue: RecordingDetailViewModel(
+            recording: recording,
+            audioManager: audioManager,
+            onRecordingUpdated: onRecordingUpdated
+        ))
     }
     
     init(recording: AudioRecording, audioManager: AudioManagerAdapter, onRecordingUpdated: ((AudioRecording) -> Void)? = nil) {
-        self._recording = State(initialValue: recording)
-        self.onRecordingUpdated = onRecordingUpdated
-        self._audioManager = StateObject(wrappedValue: audioManager)
-        self._editableTags = State(initialValue: recording.tags)
+        self._viewModel = StateObject(wrappedValue: RecordingDetailViewModel(
+            recording: recording,
+            audioManager: audioManager,
+            onRecordingUpdated: onRecordingUpdated
+        ))
     }
-    @State private var isPresented = false
     var body: some View {
         ZStack {
             // 极简背景
@@ -58,15 +43,18 @@ struct RecordingDetailView: View {
             VStack(spacing: 0) {
                 // 顶部导航栏 - 使用独立组件
                 RecordingDetailNavigationBar(
-                    audioManager: audioManager,
-                    recording: recording,
+                    audioManager: viewModel.audioManager,
+                    recording: viewModel.recording,
                     isDarkMode: isDarkMode,
-                    onDismiss: { dismiss() },
-                    onShare: shareRecording,
-                    onExport: exportRecording,
-                    onDelete: deleteRecording,
-                    onTogglePlayback: togglePlayback,
-                    onDownload: downloadAudio
+                    onDismiss: { 
+                        viewModel.onDismiss = { dismiss() }
+                        viewModel.deleteRecording()
+                    },
+                    onShare: viewModel.shareRecording,
+                    onExport: viewModel.exportRecording,
+                    onDelete: viewModel.deleteRecording,
+                    onTogglePlayback: viewModel.togglePlayback,
+                    onDownload: viewModel.downloadAudio
                 )
                 
                 ScrollViewReader { proxy in
@@ -74,18 +62,12 @@ struct RecordingDetailView: View {
                         VStack(alignment: .leading, spacing: 0) {
                             // 标题区域 - 使用独立组件
                             RecordingDetailTitleView(
-                                recording: recording,
+                                recording: viewModel.recording,
                                 onTagTap: {
                                     isAnyFieldFocused = false
-                                    isTagEditModalPresented = true
+                                    viewModel.isTagEditModalPresented = true
                                 },
-                                onTitleChanged: { newTitle in
-                                    // 更新本地状态
-                                    recording.title = newTitle
-                                    // 通知父组件录音数据已更新
-                                    onRecordingUpdated?(recording)
-                                    print("标题已保存: \(newTitle)")
-                                }
+                                onTitleChanged: viewModel.updateTitle
                             )
                             .focused($isAnyFieldFocused)
                             
@@ -100,37 +82,37 @@ struct RecordingDetailView: View {
                                     
                                     // 转写内容容器
                                     VStack(alignment: .leading, spacing: 12) {
-                                        if hasPolishedText {
+                                        if viewModel.hasPolishedText {
                                             // 使用始终存在的视图和位移动画
                                             ZStack {
                                                 // 原始转写
                                                 AdaptiveTextView(
-                                                    text: originalTranscription,
+                                                    text: viewModel.originalTranscription,
                                                     maxLines: 4,
                                                     font: .system(size: 17, weight: .regular),
                                                     lineSpacing: 12
                                                 )
                                                 .frame(maxWidth: .infinity, alignment: .leading)
-                                                .offset(x: currentTranscriptionPage == 0 ? 0 : -UIScreen.main.bounds.width)
-                                                .opacity(currentTranscriptionPage == 0 ? 1 : 0)
+                                                .offset(x: viewModel.currentTranscriptionPage == 0 ? 0 : -UIScreen.main.bounds.width)
+                                                .opacity(viewModel.currentTranscriptionPage == 0 ? 1 : 0)
                                                 
                                                 // 润色版本
                                                 AdaptiveTextView(
-                                                    text: polishedTranscription,
+                                                    text: viewModel.polishedTranscription,
                                                     maxLines: 4,
                                                     font: .system(size: 17, weight: .regular),
                                                     lineSpacing: 12
                                                 )
                                                 .frame(maxWidth: .infinity, alignment: .leading)
-                                                .offset(x: currentTranscriptionPage == 1 ? 0 : UIScreen.main.bounds.width)
-                                                .opacity(currentTranscriptionPage == 1 ? 1 : 0)
+                                                .offset(x: viewModel.currentTranscriptionPage == 1 ? 0 : UIScreen.main.bounds.width)
+                                                .opacity(viewModel.currentTranscriptionPage == 1 ? 1 : 0)
                                             }
                                             .clipped()
-                                            .animation(.easeInOut(duration: 0.3), value: currentTranscriptionPage)
+                                            .animation(.easeInOut(duration: 0.3), value: viewModel.currentTranscriptionPage)
                                         } else {
                                             // 无润色文本时直接显示原始转写
                                             AdaptiveTextView(
-                                                text: originalTranscription,
+                                                text: viewModel.originalTranscription,
                                                 maxLines: 4,
                                                 font: .system(size: 17, weight: .regular),
                                                 lineSpacing: 12
@@ -139,10 +121,10 @@ struct RecordingDetailView: View {
                                         }
                                     }
                                     .italic()
-                                    .foregroundColor(currentTranscriptionPage == 0 ?
+                                    .foregroundColor(viewModel.currentTranscriptionPage == 0 ?
                                                     (isDarkMode ? .white.opacity(0.5) : .gray.opacity(0.6)) :
                                                     (isDarkMode ? .white.opacity(0.65) : .gray.opacity(0.75)))
-                                    .animation(.easeInOut(duration: 0.3), value: currentTranscriptionPage)
+                                    .animation(.easeInOut(duration: 0.3), value: viewModel.currentTranscriptionPage)
                                 }
                                 .padding(.horizontal, 18)
                                 .contentShape(Rectangle())
@@ -157,71 +139,71 @@ struct RecordingDetailView: View {
                                             let verticalDrag = abs(value.translation.height)
                                             
                                             // 如果是明显的水平滑动且有润色文本
-                                            if horizontalDrag > 50 && horizontalDrag > verticalDrag && hasPolishedText {
+                                            if horizontalDrag > 50 && horizontalDrag > verticalDrag && viewModel.hasPolishedText {
                                                 isAnyFieldFocused = false
                                                 withAnimation(.easeInOut(duration: 0.3)) {
                                                     if value.translation.width > 0 {
                                                         // 向右滑动，切换到原文
-                                                        currentTranscriptionPage = 0
+                                                        viewModel.currentTranscriptionPage = 0
                                                     } else {
                                                         // 向左滑动，切换到润色版
-                                                        currentTranscriptionPage = 1
+                                                        viewModel.currentTranscriptionPage = 1
                                                     }
                                                 }
                                             } else if horizontalDrag < 10 && verticalDrag < 10 {
                                                 // 如果是轻微移动，视为点击
                                                 isAnyFieldFocused = false
-                                                showingFullTranscription = true
+                                                viewModel.showingFullTranscription = true
                                             }
                                         }
                                 )
                                 
                                 // 条形分页指示器 - 仅在有润色版时显示
-                                if hasPolishedText {
+                                if viewModel.hasPolishedText {
                                     HStack(spacing: 8) {
                                         // 原文指示器
                                         HStack(spacing: 4) {
                                             Capsule()
-                                                .fill(currentTranscriptionPage == 0 ?
+                                                .fill(viewModel.currentTranscriptionPage == 0 ?
                                                       (isDarkMode ? Color.white.opacity(0.8) : Color.black.opacity(0.8)) :
                                                       (isDarkMode ? Color.white.opacity(0.2) : Color.black.opacity(0.2)))
-                                                .frame(width: currentTranscriptionPage == 0 ? 20 : 6, height: 4)
-                                                .animation(.easeInOut(duration: 0.3), value: currentTranscriptionPage)
+                                                .frame(width: viewModel.currentTranscriptionPage == 0 ? 20 : 6, height: 4)
+                                                .animation(.easeInOut(duration: 0.3), value: viewModel.currentTranscriptionPage)
                                             
                                             Text("原文")
                                                 .font(.system(size: 10, weight: .medium))
-                                                .foregroundColor(currentTranscriptionPage == 0 ?
+                                                .foregroundColor(viewModel.currentTranscriptionPage == 0 ?
                                                                 (isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8)) :
                                                                 (isDarkMode ? .white.opacity(0.3) : .black.opacity(0.3)))
-                                                .animation(.easeInOut(duration: 0.3), value: currentTranscriptionPage)
+                                                .animation(.easeInOut(duration: 0.3), value: viewModel.currentTranscriptionPage)
                                         }
                                         .onTapGesture {
                                             isAnyFieldFocused = false
                                             withAnimation(.easeInOut(duration: 0.3)) {
-                                                currentTranscriptionPage = 0
+                                                viewModel.currentTranscriptionPage = 0
                                             }
                                         }
                                         
                                         // 润色版指示器
                                         HStack(spacing: 4) {
                                             Capsule()
-                                                .fill(currentTranscriptionPage == 1 ?
+                                                .fill(viewModel.currentTranscriptionPage == 1 ?
                                                       (isDarkMode ? Color.white.opacity(0.8) : Color.black.opacity(0.8)) :
                                                       (isDarkMode ? Color.white.opacity(0.2) : Color.black.opacity(0.2)))
-                                                .frame(width: currentTranscriptionPage == 1 ? 20 : 6, height: 4)
-                                                .animation(.easeInOut(duration: 0.3), value: currentTranscriptionPage)
+                                                .frame(width: viewModel.currentTranscriptionPage == 1 ? 20 : 6, height: 4)
+                                                .animation(.easeInOut(duration: 0.3), value: viewModel.currentTranscriptionPage)
                                             
                                             Text("润色版")
                                                 .font(.system(size: 10, weight: .medium))
-                                                .foregroundColor(currentTranscriptionPage == 1 ?
+                                                .foregroundColor(viewModel.currentTranscriptionPage == 1 ?
                                                                 (isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8)) :
                                                                 (isDarkMode ? .white.opacity(0.3) : .black.opacity(0.3)))
-                                                .animation(.easeInOut(duration: 0.3), value: currentTranscriptionPage)
+                                                .animation(.easeInOut(duration: 0.3), value: viewModel.currentTranscriptionPage)
                                         }
                                         .onTapGesture {
                                             isAnyFieldFocused = false
                                             withAnimation(.easeInOut(duration: 0.3)) {
-                                                currentTranscriptionPage = 1
+                                                viewModel.currentTranscriptionPage = 1
                                             }
                                         }
                                     }
@@ -235,21 +217,19 @@ struct RecordingDetailView: View {
                             VStack(alignment: .leading, spacing: 24) {
                                 
                                 // 增强内容 - 使用分段Markdown渲染
-                                if let enrichedContent = recording.enrichedContent, !enrichedContent.isEmpty {
+                                if let enrichedContent = viewModel.recording.enrichedContent, !enrichedContent.isEmpty {
                                     MarkdownSectionView(
-                                        content: modifiedEnrichedContent.isEmpty ? enrichedContent : modifiedEnrichedContent,
-                                        headings: headings,
-                                        selectedHeadingId: $selectedHeadingId,
+                                        content: viewModel.modifiedEnrichedContent.isEmpty ? enrichedContent : viewModel.modifiedEnrichedContent,
+                                        headings: viewModel.headings,
+                                        selectedHeadingId: $viewModel.selectedHeadingId,
                                         scrollProxy: scrollProxy,
                                         onEditSection: { index, content in
                                             isAnyFieldFocused = false
-                                            editingSectionIndex = index
-                                            editingSectionContent = content
-                                            isEditingSectionPresented = true
+                                            viewModel.editSection(at: index, content: content)
                                         },
                                         onDeleteSection: { index in
                                             isAnyFieldFocused = false
-                                            deleteSection(at: index)
+                                            viewModel.deleteSection(at: index)
                                         }
                                     )
                                     .padding(.horizontal, 24)
@@ -258,7 +238,7 @@ struct RecordingDetailView: View {
                             }
                             
                             // 底部留白（为章节标签栏预留空间）
-                            Color.clear.frame(height: headings.isEmpty ? 60 : 100)
+                            Color.clear.frame(height: viewModel.headings.isEmpty ? 60 : 100)
                         }
                     }
                     .onAppear {
@@ -274,12 +254,12 @@ struct RecordingDetailView: View {
             }
             
             // 底部浮动章节标签栏
-            if !headings.isEmpty {
+            if !viewModel.headings.isEmpty {
                 VStack {
                     Spacer()
                     ChapterTabBar(
-                        headings: headings,
-                        selectedHeadingId: $selectedHeadingId,
+                        headings: viewModel.headings,
+                        selectedHeadingId: $viewModel.selectedHeadingId,
                         onHeadingSelected: { index in
                             // 跳转到对应章节
                             withAnimation(.easeInOut(duration: 0.4)) {
@@ -309,400 +289,35 @@ struct RecordingDetailView: View {
                     )
                     .offset(y:20)
                 }
-                .animation(.spring(response: 0.5, dampingFraction: 0.8), value: headings.count)
+                .animation(.spring(response: 0.5, dampingFraction: 0.8), value: viewModel.headings.count)
             }
         }
-        .offset(x: isPresented ? 0 : UIScreen.main.bounds.width)
+        .offset(x: viewModel.isPresented ? 0 : UIScreen.main.bounds.width)
                 .onAppear {
-                    withAnimation(.easeOut(duration: 0.3)) {
-                        isPresented = true
-                    }
+                    viewModel.onViewAppear()
                 }
-        .onAppear {
-            // 初始化转写文本内容
-            setupTranscriptionContent()
-            
-            if let enrichedContent = recording.enrichedContent, !enrichedContent.isEmpty {
-                // 初始化修改后的内容
-                modifiedEnrichedContent = enrichedContent
-                
-                let headingTree = MarkdownHeadingParser.parseHeadings(from: enrichedContent)
-                
-                // 更新标题列表
-                withAnimation(.easeInOut(duration: 0.3)) {
-                    self.headings = headingTree.flatList
-                    // 默认选中第一个标题
-                    if !headingTree.flatList.isEmpty {
-                        self.selectedHeadingId = "0"
-                    }
-                }
-                
-                // 打印调试信息
-                print("=== 标题层级结构 ===")
-                print("目录结构:")
-                print(headingTree.getTableOfContents())
-                print("\n层级映射:")
-                for heading in headingTree.flatList {
-                    print("- '\(heading.text)': 原始\(heading.originalLevel)级 → 正则化\(heading.normalizedLevel)级")
-                }
-                print("==================")
-            }
-        }
-        .sheet(isPresented: $isTagEditModalPresented) {
+        .sheet(isPresented: $viewModel.isTagEditModalPresented) {
             TagEditModal(
-                isPresented: $isTagEditModalPresented,
-                tags: $editableTags,
-                recording: recording,
-                audioManager: audioManager
+                isPresented: $viewModel.isTagEditModalPresented,
+                tags: $viewModel.editableTags,
+                recording: viewModel.recording,
+                audioManager: viewModel.audioManager
             )
         }
-        .sheet(isPresented: $isEditingSectionPresented) {
+        .sheet(isPresented: $viewModel.isEditingSectionPresented) {
             SectionEditModal(
-                isPresented: $isEditingSectionPresented,
-                sectionContent: editingSectionContent,
-                sectionIndex: editingSectionIndex,
-                onSave: { index, newContent in
-                    updateSection(at: index, with: newContent)
-                }
+                isPresented: $viewModel.isEditingSectionPresented,
+                sectionContent: viewModel.editingSectionContent,
+                sectionIndex: viewModel.editingSectionIndex,
+                onSave: viewModel.updateSection
             )
         }
-        .sheet(isPresented: $showingFullTranscription) {
+        .sheet(isPresented: $viewModel.showingFullTranscription) {
             FullTranscriptionSheet(
-                originalText: originalTranscription,
-                polishedText: hasPolishedText ? polishedTranscription : nil,
+                originalText: viewModel.originalTranscription,
+                polishedText: viewModel.hasPolishedText ? viewModel.polishedTranscription : nil,
                 isDarkMode: isDarkMode
             )
-        }
-        .onReceive(updateManager.$recordingUpdates) { recordingUpdates in
-            if let updatedRecording = recordingUpdates[recording.id] {
-                // 更新录音数据
-                recording = updatedRecording
-                
-                // 更新editableTags以反映最新的标签
-                editableTags = updatedRecording.tags
-                
-                // 重新设置转录内容
-                setupTranscriptionContent()
-                
-                // 如果有新的enrichedContent，更新相关状态
-                if let enrichedContent = updatedRecording.enrichedContent, !enrichedContent.isEmpty {
-                    modifiedEnrichedContent = enrichedContent
-                    let headingTree = MarkdownHeadingParser.parseHeadings(from: enrichedContent)
-                    
-                    withAnimation(.easeInOut(duration: 0.3)) {
-                        self.headings = headingTree.flatList
-                        if !headingTree.flatList.isEmpty && selectedHeadingId == nil {
-                            self.selectedHeadingId = "0"
-                        }
-                    }
-                }
-                
-                // 通知父组件录音数据已更新
-                onRecordingUpdated?(updatedRecording)
-            }
-        }
-    }
-    
-    // 辅助函数
-    
-    private func extractTitle(from summary: String) -> String {
-        // 从总结中提取第一句作为标题
-        let sentences = summary.components(separatedBy: CharacterSet(charactersIn: "。！？"))
-        if let firstSentence = sentences.first, !firstSentence.isEmpty {
-            // 限制标题长度
-            if firstSentence.count > 30 {
-                return String(firstSentence.prefix(30)) + "..."
-            }
-            return firstSentence
-        }
-        return "录音记录"
-    }
-    
-    func shareRecording() {
-        // 实现分享功能
-        let text = """
-        \(extractTitle(from: recording.summary))
-        
-        转写内容：
-        \(recording.transcription)
-        
-        总结：
-        \(recording.summary)
-        """
-        
-        let activityVC = UIActivityViewController(
-            activityItems: [text],
-            applicationActivities: nil
-        )
-        
-        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let rootVC = windowScene.windows.first?.rootViewController {
-            rootVC.present(activityVC, animated: true)
-        }
-    }
-    
-    func exportRecording() {
-        // 实现导出功能
-        copySummary()
-    }
-    
-    func deleteRecording() {
-        // 实现删除功能
-        dismiss()
-    }
-    
-    func downloadAudio() {
-        guard let audioData = recording.audioData else {
-            print("没有音频数据可供下载")
-            showErrorAlert(message: "没有可用的音频数据")
-            return
-        }
-        
-        // 验证是否为模拟数据
-        if MockDataService.shared.isMockAudioData(audioData) {
-            print("检测到模拟音频数据，无法下载")
-            showErrorAlert(message: MockDataService.shared.demoModeMessage + "，无法下载音频")
-            return
-        }
-        
-        // 检查是否已经是WAV格式（WAV文件以"RIFF"开头）
-        let wavHeaderBytes = [UInt8](audioData.prefix(4))
-        let isWAV = wavHeaderBytes == [0x52, 0x49, 0x46, 0x46] // "RIFF"的ASCII值
-        
-        // 如果不是WAV格式，说明数据可能有问题
-        if !isWAV {
-            print("音频数据格式无效，不是有效的WAV文件")
-            showErrorAlert(message: "音频数据格式无效")
-            return
-        }
-        
-        // 验证音频数据大小（WAV文件头至少44字节）
-        if audioData.count < 44 {
-            print("音频数据太小，无效的WAV文件: \(audioData.count) bytes")
-            showErrorAlert(message: "音频数据无效")
-            return
-        }
-        
-        // 生成安全的文件名
-        let title = extractTitle(from: recording.summary)
-            .replacingOccurrences(of: "/", with: "_")
-            .replacingOccurrences(of: ":", with: "_")
-            .replacingOccurrences(of: "<", with: "_")
-            .replacingOccurrences(of: ">", with: "_")
-            .replacingOccurrences(of: "|", with: "_")
-            .replacingOccurrences(of: "?", with: "_")
-            .replacingOccurrences(of: "*", with: "_")
-            .replacingOccurrences(of: "\"", with: "_")
-        let fileName = "\(title)_\(recording.timestamp.fileFormatted).wav"
-        
-        // 使用临时目录避免权限问题
-        let tempDirectory = FileManager.default.temporaryDirectory
-        let fileURL = tempDirectory.appendingPathComponent(fileName)
-        
-        do {
-            // 直接写入WAV数据（数据已经是WAV格式）
-            try audioData.write(to: fileURL)
-            print("音频文件已保存到: \(fileURL)")
-            print("文件大小: \(audioData.count) bytes")
-            
-            // 创建分享界面
-            let activityVC = UIActivityViewController(
-                activityItems: [fileURL],
-                applicationActivities: nil
-            )
-            
-            // 设置完成回调，清理临时文件
-            activityVC.completionWithItemsHandler = { _, _, _, _ in
-                do {
-                    try FileManager.default.removeItem(at: fileURL)
-                    print("临时文件已清理")
-                } catch {
-                    print("清理临时文件失败: \(error)")
-                }
-            }
-            
-            // 展示分享界面
-            if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-               let rootVC = windowScene.windows.first?.rootViewController {
-                // iPad需要设置popover
-                if let popover = activityVC.popoverPresentationController {
-                    popover.sourceView = rootVC.view
-                    popover.sourceRect = CGRect(x: rootVC.view.bounds.midX, y: rootVC.view.bounds.midY, width: 0, height: 0)
-                    popover.permittedArrowDirections = []
-                }
-                rootVC.present(activityVC, animated: true)
-            }
-        } catch {
-            print("保存音频文件失败: \(error)")
-            showErrorAlert(message: "保存音频文件失败: \(error.localizedDescription)")
-        }
-    }
-    
-    func copySummary() {
-        let fullContent = """
-        \(recording.transcription)
-        
-        ---
-        
-        \(recording.summary)
-        """
-        UIPasteboard.general.string = fullContent
-    }
-    
-    func togglePlayback() {
-        if audioManager.isPlaying {
-            audioManager.stopPlaying()
-        } else {
-            if let audioData = recording.audioData {
-                if MockDataService.shared.isMockAudioData(audioData) {
-                    showMockDataAlert()
-                } else {
-                    audioManager.playRecording(recording)
-                }
-            }
-        }
-    }
-    
-    private func showMockDataAlert() {
-        // 模拟播放状态，3秒后自动停止
-        audioManager.isPlaying = true
-        DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-            audioManager.isPlaying = false
-        }
-    }
-    
-    
-    
-    private func showErrorAlert(message: String) {
-        let alert = UIAlertController(
-            title: "提示",
-            message: message,
-            preferredStyle: .alert
-        )
-        
-        alert.addAction(UIAlertAction(title: "确定", style: .default))
-        
-        if let windowScene = UIApplication.shared.connectedScenes.first as? UIWindowScene,
-           let rootVC = windowScene.windows.first?.rootViewController {
-            rootVC.present(alert, animated: true)
-        }
-    }
-    
-    // MARK: - 段落编辑功能
-    private func updateSection(at index: Int, with newContent: String) {
-        guard !modifiedEnrichedContent.isEmpty else { return }
-        
-        // 解析当前内容的段落
-        let parser = MarkdownSectionParser(content: modifiedEnrichedContent)
-        var sections = parser.parseSections()
-        
-        // 更新指定段落
-        guard index < sections.count else { return }
-        sections[index] = newContent
-        
-        // 重新组合内容
-        modifiedEnrichedContent = sections.joined(separator: "\n\n")
-        
-        // 更新数据库
-        saveModifiedContent()
-        
-        // 重新解析标题
-        updateHeadings()
-        
-        // 显示成功提示
-        ToastManager.shared.showSuccess("段落已更新")
-    }
-    
-    private func deleteSection(at index: Int) {
-        guard !modifiedEnrichedContent.isEmpty else { return }
-        
-        print("🗑️ deleteSection: 开始删除section \(index)")
-        
-        // 解析当前内容的段落
-        let parser = MarkdownSectionParser(content: modifiedEnrichedContent)
-        var sections = parser.parseSections()
-        
-        print("🗑️ deleteSection: 解析出 \(sections.count) 个段落")
-        
-        // 删除指定段落
-        guard index < sections.count else { 
-            print("❌ deleteSection: index \(index) 超出范围 (总共 \(sections.count) 个段落)")
-            return 
-        }
-        
-        let deletedContent = sections[index]
-        sections.remove(at: index)
-        print("🗑️ deleteSection: 删除了段落: \(deletedContent.prefix(50))...")
-        
-        // 重新组合内容
-        modifiedEnrichedContent = sections.joined(separator: "\n\n")
-        print("🗑️ deleteSection: 重新组合后的内容长度: \(modifiedEnrichedContent.count)")
-        
-        // 更新数据库和本地状态
-        if saveModifiedContentWithResult() {
-            // 重新解析标题
-            updateHeadings()
-            
-            // 显示成功提示
-            ToastManager.shared.showSuccess("段落已删除")
-        } else {
-            // 数据库更新失败，恢复到删除前的状态（通过重新解析原始内容）
-            if let enrichedContent = recording.enrichedContent {
-                modifiedEnrichedContent = enrichedContent
-                updateHeadings()
-            }
-            ToastManager.shared.showError("删除失败，请重试")
-        }
-    }
-    
-    private func saveModifiedContent() {
-        _ = saveModifiedContentWithResult()
-    }
-    
-    private func saveModifiedContentWithResult() -> Bool {
-        // 更新录音记录的增强内容
-        var updatedRecording = recording
-        updatedRecording.enrichedContent = modifiedEnrichedContent
-        
-        // 保存到数据库
-        let success = DatabaseManager.shared.updateRecording(updatedRecording)
-        
-        if success {
-            // 同步更新本地状态
-            recording = updatedRecording
-            
-            // 通知实时更新管理器
-            updateManager.updateRecording(updatedRecording)
-            
-            // 通知父组件录音数据已更新
-            onRecordingUpdated?(updatedRecording)
-            
-            print("✅ saveModifiedContent: 数据库和本地状态已同步更新")
-            return true
-        } else {
-            print("❌ saveModifiedContent: 数据库更新失败")
-            return false
-        }
-    }
-    
-    private func updateHeadings() {
-        let headingTree = MarkdownHeadingParser.parseHeadings(from: modifiedEnrichedContent)
-        withAnimation(.easeInOut(duration: 0.3)) {
-            self.headings = headingTree.flatList
-        }
-    }
-    
-    // 设置转写文本内容
-    private func setupTranscriptionContent() {
-        // 原始转写内容
-        originalTranscription = recording.transcription
-        
-        // 检查是否有润色文本
-        hasPolishedText = !recording.polishedText.isEmpty
-        
-        // 润色版本
-        if hasPolishedText {
-            polishedTranscription = recording.polishedText
         }
     }
     

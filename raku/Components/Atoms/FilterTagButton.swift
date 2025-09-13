@@ -1,71 +1,14 @@
 //
-//  TagFilterTabBar.swift
+//  FilterTagButton.swift
 //  raku
 //
-//  Created by Claude on 2025/1/7.
+//  Created by 杨东举 on 2025/8/26.
 //
 
 import SwiftUI
 
-// MARK: - 标签过滤 TabBar
-struct TagFilterTabBar: View {
-    let allRecordings: [AudioRecording]
-    @Binding var selectedTag: String?
-    @AppStorage("isDarkMode") private var isDarkMode = false
-    
-    // 获取所有唯一标签
-    private var allTags: [String] {
-        let tags = Set(allRecordings.flatMap { $0.tags })
-        return Array(tags).sorted()
-    }
-    
-    // 获取标签统计
-    private func getTagCount(_ tag: String) -> Int {
-        return allRecordings.filter { $0.tags.contains(tag) }.count
-    }
-    
-    var body: some View {
-        if !allTags.isEmpty {
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: 10) {
-                    // "全部" 选项
-                    TagFilterItem(
-                        title: "全部",
-                        count: allRecordings.count,
-                        isSelected: selectedTag == nil,
-                        isDarkMode: isDarkMode
-                    ) {
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-                            selectedTag = nil
-                        }
-                    }
-                    
-                    // 各个标签选项
-                    ForEach(allTags, id: \.self) { tag in
-                        TagFilterItem(
-                            title: tag,
-                            count: getTagCount(tag),
-                            isSelected: selectedTag == tag,
-                            isDarkMode: isDarkMode
-                        ) {
-                            withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-                                selectedTag = selectedTag == tag ? nil : tag
-                            }
-                        }
-                    }
-                }
-                .padding(.horizontal, 20)
-                .padding(.vertical, 8)
-            }
-            .background(
-                (isDarkMode ? Color.black : Color.appBackground)
-            )
-        }
-    }
-}
-
-// MARK: - 标签过滤项
-struct TagFilterItem: View {
+// MARK: - 过滤标签按钮基础组件
+struct FilterTagButton: View {
     let title: String
     let count: Int
     let isSelected: Bool
@@ -157,5 +100,77 @@ struct TagFilterItem: View {
             .scaleEffect(isSelected ? 1.02 : 1.0)
         }
         .animation(.spring(response: 0.3, dampingFraction: 0.85), value: isSelected)
+    }
+}
+
+// MARK: - 预览
+struct FilterTagButton_Previews: PreviewProvider {
+    static var previews: some View {
+        VStack(spacing: 20) {
+            Text("过滤标签按钮组件")
+                .font(.headline)
+            
+            VStack(spacing: 16) {
+                // 浅色模式
+                HStack(spacing: 10) {
+                    FilterTagButton(
+                        title: "全部",
+                        count: 25,
+                        isSelected: true,
+                        isDarkMode: false,
+                        onTap: { print("Selected All") }
+                    )
+                    
+                    FilterTagButton(
+                        title: "工作",
+                        count: 8,
+                        isSelected: false,
+                        isDarkMode: false,
+                        onTap: { print("Selected Work") }
+                    )
+                    
+                    FilterTagButton(
+                        title: "学习",
+                        count: 12,
+                        isSelected: false,
+                        isDarkMode: false,
+                        onTap: { print("Selected Study") }
+                    )
+                }
+                .padding()
+                .background(Color.appBackground)
+                
+                // 深色模式
+                HStack(spacing: 10) {
+                    FilterTagButton(
+                        title: "全部",
+                        count: 25,
+                        isSelected: false,
+                        isDarkMode: true,
+                        onTap: { print("Selected All") }
+                    )
+                    
+                    FilterTagButton(
+                        title: "工作",
+                        count: 8,
+                        isSelected: true,
+                        isDarkMode: true,
+                        onTap: { print("Selected Work") }
+                    )
+                    
+                    FilterTagButton(
+                        title: "学习",
+                        count: 12,
+                        isSelected: false,
+                        isDarkMode: true,
+                        onTap: { print("Selected Study") }
+                    )
+                }
+                .padding()
+                .background(Color.black)
+            }
+        }
+        .padding()
+        .previewLayout(.sizeThatFits)
     }
 }

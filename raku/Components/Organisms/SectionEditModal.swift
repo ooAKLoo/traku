@@ -8,6 +8,7 @@
 import SwiftUI
 import MarkdownUI
 
+// MARK: - 段落编辑模态组件
 struct SectionEditModal: View {
     @Binding var isPresented: Bool
     @State var sectionContent: String
@@ -164,7 +165,7 @@ struct SectionEditModal: View {
     }
 }
 
-// MARK: - Markdown 工具按钮
+// MARK: - Markdown 工具按钮原子组件
 struct MarkdownToolButton: View {
     let symbol: String
     let label: String

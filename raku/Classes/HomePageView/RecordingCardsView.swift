@@ -1,5 +1,5 @@
 //
-//  homepageListView.swift
+//  RecordingCardsView.swift
 //  raku
 //
 //  Created by 杨东举 on 2025/8/26.
@@ -7,8 +7,8 @@
 
 import SwiftUI
 
-// MARK: - 录音列表内容视图
-struct HomepageListView: View {
+// MARK: - 录音卡片列表视图
+struct RecordingCardsView: View {
     let filteredRecordings: [AudioRecording]
     let isDarkMode: Bool
     let selectedFilter: String  // 新增：当前选择的筛选类型
@@ -187,7 +187,7 @@ struct HomepageListView: View {
 }
 
 // MARK: - Preview
-struct HomepageListView_Previews: PreviewProvider {
+struct RecordingCardsView_Previews: PreviewProvider {
     static var previews: some View {
         let sampleRecordings = [
             AudioRecording(
@@ -224,7 +224,7 @@ struct HomepageListView_Previews: PreviewProvider {
         
         Group {
             // 浅色模式预览
-            HomepageListView(
+            RecordingCardsView(
                 filteredRecordings: sampleRecordings,
                 isDarkMode: false,
                 selectedFilter: "标签",
@@ -235,7 +235,7 @@ struct HomepageListView_Previews: PreviewProvider {
             .previewDisplayName("Light Mode")
             
             // 深色模式预览
-            HomepageListView(
+            RecordingCardsView(
                 filteredRecordings: sampleRecordings,
                 isDarkMode: true,
                 selectedFilter: "标签",
@@ -247,7 +247,7 @@ struct HomepageListView_Previews: PreviewProvider {
             .preferredColorScheme(.dark)
             
             // 空间主题预览
-            HomepageListView(
+            RecordingCardsView(
                 filteredRecordings: sampleRecordings,
                 isDarkMode: true,
                 selectedFilter: "空间",
@@ -259,7 +259,7 @@ struct HomepageListView_Previews: PreviewProvider {
             .preferredColorScheme(.dark)
             
             // 空列表预览
-            HomepageListView(
+            RecordingCardsView(
                 filteredRecordings: [],
                 isDarkMode: false,
                 selectedFilter: "标签",
