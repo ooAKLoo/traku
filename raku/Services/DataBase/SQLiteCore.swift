@@ -152,16 +152,21 @@ class SQLiteCore: SQLiteOperations {
     /// 执行事务
     func transaction<T>(_ operation: () throws -> T) throws -> T {
         return try dbQueue.sync {
-            try executeInternal("BEGIN TRANSACTION")
-            
-            do {
-                let result = try operation()
-                try executeInternal("COMMIT")
-                return result
-            } catch {
-                try executeInternal("ROLLBACK")
-                throw error
-            }
+            try transactionInternal(operation)
+        }
+    }
+    
+    /// 内部事务方法，不使用队列同步（已在队列中时使用）
+    internal func transactionInternal<T>(_ operation: () throws -> T) throws -> T {
+        try executeInternal("BEGIN TRANSACTION")
+        
+        do {
+            let result = try operation()
+            try executeInternal("COMMIT")
+            return result
+        } catch {
+            try executeInternal("ROLLBACK")
+            throw error
         }
     }
     

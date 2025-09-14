@@ -18,6 +18,7 @@ class DatabaseManager {
     internal let recordingRepository: RecordingRepository
     internal let inspirationRepository: InspirationRepository
     internal let embeddingRepository: EmbeddingRepository
+    internal let recordingDataRepository: RecordingDataRepository
     
     // MARK: - Initialization
     
@@ -33,6 +34,7 @@ class DatabaseManager {
         self.recordingRepository = RecordingRepository(sqliteCore: sqliteCore)
         self.inspirationRepository = InspirationRepository(sqliteCore: sqliteCore)
         self.embeddingRepository = EmbeddingRepository(sqliteCore: sqliteCore)
+        self.recordingDataRepository = RecordingDataRepository(sqliteCore: sqliteCore)
         
         // 初始化数据库
         Task {
@@ -52,17 +54,20 @@ class DatabaseManager {
             try sqliteCore.open()
             
             // 创建所有表
+            try await recordingDataRepository.createTable()  // 先创建录音数据表
             try await recordingRepository.createTable()
             try await inspirationRepository.createTable()
             try await embeddingRepository.createTable()
             
             // 初始统计
+            let recordingDataCount = try await recordingDataRepository.count()
             let recordingCount = try await recordingRepository.count()
             let inspirationCount = try await inspirationRepository.count()
             let embeddingCount = try await embeddingRepository.count()
             
             print("📊 数据库初始化完成:")
-            print("  - 录音记录: \(recordingCount)")
+            print("  - 原始录音数据: \(recordingDataCount)")
+            print("  - 录音分析记录: \(recordingCount)")
             print("  - 灵感记录: \(inspirationCount)")
             print("  - 向量记录: \(embeddingCount)")
             
@@ -76,7 +81,41 @@ class DatabaseManager {
         }
     }
     
-    // MARK: - Recording Operations
+    // MARK: - Recording Data Operations (原始录音表)
+    
+    /// 保存原始录音数据
+    func saveRecordingData(_ recordingData: RawRecordingData) -> Bool {
+        return performSync {
+            try await self.recordingDataRepository.create(recordingData)
+        }
+    }
+    
+    /// 获取录音的音频数据
+    func getAudioData(for recordingId: UUID) -> Data? {
+        return performSyncOptional {
+            try await self.recordingDataRepository.getAudioData(for: recordingId)
+        }
+    }
+    
+    /// 获取完整的录音记录（包含音频数据）
+    func getCompleteRecording(by id: String) -> AudioRecording? {
+        guard let uuid = UUID(uuidString: id) else { return nil }
+        
+        return performSyncOptional {
+            // 先获取录音分析数据
+            var recording = try await self.recordingRepository.read(id: uuid)
+            if recording != nil {
+                // 然后获取音频数据
+                let audioData = try await self.recordingDataRepository.getAudioData(for: uuid)
+                recording?.audioData = audioData
+            }
+            
+            return recording
+        }
+    }
+    
+    
+    // MARK: - Recording Operations (分析结果表)
     
     /// 保存录音记录
     func saveRecording(_ recording: AudioRecording) -> Bool {

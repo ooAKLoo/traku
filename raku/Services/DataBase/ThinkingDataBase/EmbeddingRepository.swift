@@ -262,7 +262,7 @@ class EmbeddingRepository: Repository {
     /// 批量保存向量数据
     func saveEmbeddings(_ embeddingResult: EmbeddingResult) async throws -> Bool {
         return try await sqliteCore.performAsync {
-            return try self.sqliteCore.transaction {
+            return try self.sqliteCore.transactionInternal {
                 // 保存标题向量
                 if let titleEmbedding = embeddingResult.titleEmbedding {
                     let titleData = EmbeddingData(

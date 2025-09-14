@@ -173,12 +173,20 @@ class RecordingDetailViewModel: ObservableObject {
         if audioManager.isPlaying {
             audioManager.stopPlaying()
         } else {
+            // 如果audioData为空，先从数据库加载
+            if recording.audioData == nil {
+                recording.audioData = DatabaseManager.shared.getAudioData(for: recording.audioDataId)
+            }
+            
             if let audioData = recording.audioData {
                 if MockDataService.shared.isMockAudioData(audioData) {
                     showMockDataAlert()
                 } else {
                     audioManager.playRecording(recording)
                 }
+            } else {
+                print("⚠️ 无法获取音频数据，录音ID: \(recording.audioDataId)")
+                showErrorAlert(message: "无法获取音频数据，请重试")
             }
         }
     }
@@ -219,6 +227,11 @@ class RecordingDetailViewModel: ObservableObject {
     }
     
     func downloadAudio() {
+        // 如果audioData为空，先从数据库加载
+        if recording.audioData == nil {
+            recording.audioData = DatabaseManager.shared.getAudioData(for: recording.audioDataId)
+        }
+        
         guard let audioData = recording.audioData else {
             print("没有音频数据可供下载")
             showErrorAlert(message: "没有可用的音频数据")

@@ -53,7 +53,7 @@ class TwoStepLLMService: NSObject, ObservableObject {
     private let configuration: TwoStepLLMConfiguration
     private let networkService: NetworkService
     private var currentTask: URLSessionDataTask?
-    private var currentAudioData: Data? // 存储当前音频数据
+    private var currentRecordingId: UUID? // 存储当前录音ID
     
     // MARK: - Delegate
     weak var delegate: TwoStepLLMServiceDelegate?
@@ -76,14 +76,14 @@ class TwoStepLLMService: NSObject, ObservableObject {
     // MARK: - Public Methods
     
     /// 分析文本（两步处理）
-    func analyzeText(_ text: String, audioData: Data? = nil) {
+    func analyzeText(_ text: String, recordingId: UUID? = nil) {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             print("分析文本为空")
             return
         }
         
-        // 存储音频数据
-        self.currentAudioData = audioData
+        // 存储录音ID
+        self.currentRecordingId = recordingId
         
         DispatchQueue.main.async {
             self.isAnalyzing = true
@@ -101,7 +101,7 @@ class TwoStepLLMService: NSObject, ObservableObject {
         DispatchQueue.main.async {
             self.isAnalyzing = false
             self.currentStep = 0
-            self.currentAudioData = nil // 清理音频数据
+            self.currentRecordingId = nil // 清理录音ID
         }
     }
     
@@ -309,10 +309,13 @@ class TwoStepLLMService: NSObject, ObservableObject {
     // MARK: - Insight Embedding处理
     
     private func performInsightEmbedding(_ firstStepResult: FirstStepAnalysis) {
+        // 使用当前录音ID，如果没有则生成新的
+        let inspirationId = currentRecordingId?.uuidString ?? UUID().uuidString
+        
         // 生成embedding
         let embeddingService = VolcEngineEmbeddingService.shared
         embeddingService.generateEmbeddings(
-            for: UUID().uuidString, // 新的ID
+            for: inspirationId,
             title: firstStepResult.title,
             tags: firstStepResult.tags,
             polishedText: firstStepResult.polishedText
@@ -331,7 +334,7 @@ class TwoStepLLMService: NSObject, ObservableObject {
                     let databaseManager = (DatabaseManager.shared as! DatabaseManager)
                 let success = databaseManager.saveInspiration(
                         id: embeddingResult.recordingId,
-                        audioData: self.currentAudioData, // 使用存储的音频数据
+                        audioData: nil, // 不再传递音频数据，通过recording_id关联
                         originalText: firstStepResult.originalText,
                         polishedText: firstStepResult.polishedText,
                         tags: firstStepResult.tags,

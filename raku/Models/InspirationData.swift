@@ -40,7 +40,7 @@ struct InspirationData: Identifiable, Codable, DatabaseModel {
         case polishedText = "polished_text"
         case tags
         case createdAt = "created_at"
-        case audioData = "audio_data"
+        case audioData = "audioData"
         case embeddingVector = "embedding_vector"
     }
     
@@ -51,7 +51,7 @@ struct InspirationData: Identifiable, Codable, DatabaseModel {
         dict["id"] = id
         dict["original_text"] = originalText
         dict["polished_text"] = polishedText
-        dict["audio_data"] = audioData
+        dict["audioData"] = audioData
         dict["created_at"] = createdAt.timeIntervalSince1970
         
         // 序列化 tags 和 embeddingVector 为 JSON 字符串
@@ -79,7 +79,7 @@ struct InspirationData: Identifiable, Codable, DatabaseModel {
             return nil
         }
         
-        let audioData = dict["audio_data"] as? Data
+        let audioData = dict["audioData"] as? Data
         
         let createdAtInterval = dict["created_at"] as? Double ?? Date().timeIntervalSince1970
         let createdAt = Date(timeIntervalSince1970: createdAtInterval)

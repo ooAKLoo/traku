@@ -26,17 +26,20 @@ class RecordingRepository: Repository {
         let createTableSQL = """
             CREATE TABLE IF NOT EXISTS \(tableName) (
                 id TEXT PRIMARY KEY,
+                recording_id TEXT,
                 timestamp REAL NOT NULL,
                 duration REAL NOT NULL,
                 transcription TEXT NOT NULL,
                 title TEXT,
                 summary TEXT NOT NULL,
                 tags TEXT NOT NULL,
-                audio_data BLOB,
                 enriched_content TEXT,
                 polished_text TEXT,
-                created_at REAL NOT NULL DEFAULT (julianday('now'))
+                created_at REAL NOT NULL DEFAULT (julianday('now')),
+                FOREIGN KEY (recording_id) REFERENCES recordings(id)
             );
+            
+            CREATE INDEX IF NOT EXISTS idx_audio_recordings_recording_id ON \(tableName) (recording_id);
         """
         
         try await sqliteCore.performAsync {
@@ -46,13 +49,16 @@ class RecordingRepository: Repository {
         
         // 兼容性：添加可能缺失的列
         await addMissingColumns()
+        // 数据库结构迁移：处理旧数据库的audio_data列
+        await migrateOldSchema()
     }
     
     /// 添加缺失的列（兼容旧数据库）
     private func addMissingColumns() async {
         let columnsToAdd = [
             "ALTER TABLE \(tableName) ADD COLUMN title TEXT;",
-            "ALTER TABLE \(tableName) ADD COLUMN polished_text TEXT;"
+            "ALTER TABLE \(tableName) ADD COLUMN polished_text TEXT;",
+            "ALTER TABLE \(tableName) ADD COLUMN recording_id TEXT;"
         ]
         
         for sql in columnsToAdd {
@@ -66,11 +72,88 @@ class RecordingRepository: Repository {
         }
     }
     
+    /// 迁移旧数据库结构（移除audio_data列）
+    private func migrateOldSchema() async {
+        do {
+            // 检查是否存在audio_data列
+            let checkColumnSQL = "PRAGMA table_info(\(tableName))"
+            
+            try await sqliteCore.performAsync {
+                let statement = try self.sqliteCore.prepare(checkColumnSQL)
+                defer { self.sqliteCore.finalize(statement) }
+                
+                var hasAudioDataColumn = false
+                while try self.sqliteCore.step(statement) == SQLITE_ROW {
+                    if let columnName = sqlite3_column_text(statement, 1) {
+                        let name = String(cString: columnName)
+                        if name == "audio_data" {
+                            hasAudioDataColumn = true
+                            break
+                        }
+                    }
+                }
+                
+                if hasAudioDataColumn {
+                    print("🔄 检测到旧数据库结构，开始迁移（移除audio_data列）...")
+                    try self.migrateTableWithoutAudioData()
+                }
+            }
+        } catch {
+            print("❌ 数据库迁移检查失败: \(error)")
+        }
+    }
+    
+    /// 迁移表结构，移除audio_data列
+    private func migrateTableWithoutAudioData() throws {
+        // 创建新表结构
+        let tempTableSQL = """
+            CREATE TABLE IF NOT EXISTS \(tableName)_new (
+                id TEXT PRIMARY KEY,
+                recording_id TEXT,
+                timestamp REAL NOT NULL,
+                duration REAL NOT NULL,
+                transcription TEXT NOT NULL,
+                title TEXT,
+                summary TEXT NOT NULL,
+                tags TEXT NOT NULL,
+                enriched_content TEXT,
+                polished_text TEXT,
+                created_at REAL NOT NULL DEFAULT (julianday('now')),
+                FOREIGN KEY (recording_id) REFERENCES recordings(id)
+            );
+        """
+        
+        // 复制数据（排除audio_data列）
+        let copyDataSQL = """
+            INSERT INTO \(tableName)_new (id, recording_id, timestamp, duration, transcription, title, summary, tags, enriched_content, polished_text, created_at)
+            SELECT id, 
+                   CASE WHEN recording_id IS NOT NULL THEN recording_id ELSE id END as recording_id,
+                   timestamp, duration, transcription, title, summary, tags, enriched_content, polished_text, 
+                   CASE WHEN created_at IS NOT NULL THEN created_at ELSE julianday('now') END as created_at
+            FROM \(tableName)
+        """
+        
+        // 删除旧表并重命名新表
+        let dropOldTableSQL = "DROP TABLE \(tableName)"
+        let renameTableSQL = "ALTER TABLE \(tableName)_new RENAME TO \(tableName)"
+        
+        try sqliteCore.executeInternal(tempTableSQL)
+        try sqliteCore.executeInternal(copyDataSQL)
+        try sqliteCore.executeInternal(dropOldTableSQL)
+        try sqliteCore.executeInternal(renameTableSQL)
+        
+        // 重建索引
+        let createIndexSQL = "CREATE INDEX IF NOT EXISTS idx_audio_recordings_recording_id ON \(tableName) (recording_id);"
+        try sqliteCore.executeInternal(createIndexSQL)
+        
+        print("✅ 数据库结构迁移完成，已移除audio_data列")
+    }
+    
     // MARK: - Repository Protocol Implementation
     
     func create(_ model: AudioRecording) async throws -> Bool {
         let insertSQL = """
-            INSERT INTO \(tableName) (id, timestamp, duration, transcription, title, summary, tags, audio_data, enriched_content, polished_text, created_at)
+            INSERT INTO \(tableName) (id, recording_id, timestamp, duration, transcription, title, summary, tags, enriched_content, polished_text, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         
@@ -81,13 +164,13 @@ class RecordingRepository: Repository {
             let modelDict = model.toDict()
             let parameters: [Any] = [
                 modelDict["id"] as Any,
+                modelDict["id"] as Any,  // recording_id 暂时与 id 相同
                 modelDict["timestamp"] as Any,
                 modelDict["duration"] as Any,
                 modelDict["transcription"] as Any,
                 modelDict["title"] as Any,
                 modelDict["summary"] as Any,
                 modelDict["tags"] as Any,
-                modelDict["audio_data"] ?? NSNull(),
                 modelDict["enriched_content"] ?? NSNull(),
                 modelDict["polished_text"] ?? NSNull(),
                 Date().timeIntervalSince1970
@@ -107,8 +190,8 @@ class RecordingRepository: Repository {
     
     func read(id: UUID) async throws -> AudioRecording? {
         let querySQL = """
-            SELECT id, timestamp, duration, transcription, title, summary, tags, 
-                   audio_data, enriched_content, polished_text
+            SELECT id, recording_id, timestamp, duration, transcription, title, summary, tags, 
+                   enriched_content, polished_text
             FROM \(tableName)
             WHERE id = ?
         """
@@ -129,8 +212,8 @@ class RecordingRepository: Repository {
     func update(_ model: AudioRecording) async throws -> Bool {
         let updateSQL = """
             UPDATE \(tableName) 
-            SET timestamp = ?, duration = ?, transcription = ?, title = ?, summary = ?, 
-                tags = ?, audio_data = ?, enriched_content = ?, polished_text = ?
+            SET recording_id = ?, timestamp = ?, duration = ?, transcription = ?, title = ?, summary = ?, 
+                tags = ?, enriched_content = ?, polished_text = ?
             WHERE id = ?
         """
         
@@ -140,13 +223,13 @@ class RecordingRepository: Repository {
             
             let modelDict = model.toDict()
             let parameters: [Any] = [
+                modelDict["id"] as Any,  // recording_id 暂时与 id 相同
                 modelDict["timestamp"] as Any,
                 modelDict["duration"] as Any,
                 modelDict["transcription"] as Any,
                 modelDict["title"] as Any,
                 modelDict["summary"] as Any,
                 modelDict["tags"] as Any,
-                modelDict["audio_data"] ?? NSNull(),
                 modelDict["enriched_content"] ?? NSNull(),
                 modelDict["polished_text"] ?? NSNull(),
                 modelDict["id"] as Any
@@ -211,8 +294,8 @@ class RecordingRepository: Repository {
     
     func list(filter: FilterCriteria? = nil) async throws -> [AudioRecording] {
         var querySQL = """
-            SELECT id, timestamp, duration, transcription, title, summary, tags, 
-                   audio_data, enriched_content, polished_text
+            SELECT id, recording_id, timestamp, duration, transcription, title, summary, tags, 
+                   enriched_content, polished_text
             FROM \(tableName)
         """
         
@@ -318,19 +401,20 @@ class RecordingRepository: Repository {
         guard let statement = statement else { return nil }
         
         guard let idString = sqlite3_column_text(statement, 0),
-              let transcription = sqlite3_column_text(statement, 3),
-              let summary = sqlite3_column_text(statement, 5),
-              let tagsString = sqlite3_column_text(statement, 6),
+              let transcription = sqlite3_column_text(statement, 4),
+              let summary = sqlite3_column_text(statement, 6),
+              let tagsString = sqlite3_column_text(statement, 7),
               let uuid = UUID(uuidString: String(cString: idString)) else {
             return nil
         }
         
-        let timestamp = Date(timeIntervalSince1970: sqlite3_column_double(statement, 1))
-        let duration = sqlite3_column_double(statement, 2)
+        // recording_id 在索引1位置，但目前不需要读取
+        let timestamp = Date(timeIntervalSince1970: sqlite3_column_double(statement, 2))
+        let duration = sqlite3_column_double(statement, 3)
         let transcriptionStr = String(cString: transcription)
         
         var titleStr = ""
-        if let titleText = sqlite3_column_text(statement, 4) {
+        if let titleText = sqlite3_column_text(statement, 5) {
             titleStr = String(cString: titleText)
         } else {
             // 如果 title 为空，从 summary 中提取
@@ -342,11 +426,8 @@ class RecordingRepository: Repository {
         let tagsData = String(cString: tagsString).data(using: .utf8)
         let tags = (try? JSONDecoder().decode([String].self, from: tagsData ?? Data())) ?? []
         
-        var audioData: Data?
-        if let audioBlob = sqlite3_column_blob(statement, 7) {
-            let audioSize = sqlite3_column_bytes(statement, 7)
-            audioData = Data(bytes: audioBlob, count: Int(audioSize))
-        }
+        // audio_data 已经从表中移除，这里不再读取
+        var audioData: Data? = nil
         
         var enrichedContent: String?
         if let enrichedText = sqlite3_column_text(statement, 8) {

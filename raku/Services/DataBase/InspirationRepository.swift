@@ -26,13 +26,16 @@ class InspirationRepository: Repository {
         let createTableSQL = """
             CREATE TABLE IF NOT EXISTS \(tableName) (
                 id TEXT PRIMARY KEY,
-                audio_data BLOB,
+                recording_id TEXT,
                 original_text TEXT NOT NULL,
                 polished_text TEXT NOT NULL,
                 tags TEXT NOT NULL,
                 embedding_vector TEXT NOT NULL,
-                created_at REAL NOT NULL DEFAULT (julianday('now'))
+                created_at REAL NOT NULL DEFAULT (julianday('now')),
+                FOREIGN KEY (recording_id) REFERENCES recordings(id)
             );
+            
+            CREATE INDEX IF NOT EXISTS idx_inspirations_recording_id ON \(tableName) (recording_id);
         """
         
         let createIndexSQL = """
@@ -44,13 +47,91 @@ class InspirationRepository: Repository {
             try self.sqliteCore.executeInternal(createIndexSQL)
             print("✅ 灵感表和索引创建成功")
         }
+        
+        // 数据库结构迁移：处理旧数据库的audio_data列
+        await migrateOldSchema()
+    }
+    
+    /// 迁移旧数据库结构（移除audio_data列）
+    private func migrateOldSchema() async {
+        do {
+            // 检查是否存在audio_data列
+            let checkColumnSQL = "PRAGMA table_info(\(tableName))"
+            
+            try await sqliteCore.performAsync {
+                let statement = try self.sqliteCore.prepare(checkColumnSQL)
+                defer { self.sqliteCore.finalize(statement) }
+                
+                var hasAudioDataColumn = false
+                while try self.sqliteCore.step(statement) == SQLITE_ROW {
+                    if let columnName = sqlite3_column_text(statement, 1) {
+                        let name = String(cString: columnName)
+                        if name == "audio_data" {
+                            hasAudioDataColumn = true
+                            break
+                        }
+                    }
+                }
+                
+                if hasAudioDataColumn {
+                    print("🔄 检测到旧灵感表结构，开始迁移（移除audio_data列）...")
+                    try self.migrateTableWithoutAudioData()
+                }
+            }
+        } catch {
+            print("❌ 灵感表数据库迁移检查失败: \(error)")
+        }
+    }
+    
+    /// 迁移表结构，移除audio_data列
+    private func migrateTableWithoutAudioData() throws {
+        // 创建新表结构
+        let tempTableSQL = """
+            CREATE TABLE IF NOT EXISTS \(tableName)_new (
+                id TEXT PRIMARY KEY,
+                recording_id TEXT,
+                original_text TEXT NOT NULL,
+                polished_text TEXT NOT NULL,
+                tags TEXT NOT NULL,
+                embedding_vector TEXT NOT NULL,
+                created_at REAL NOT NULL DEFAULT (julianday('now')),
+                FOREIGN KEY (recording_id) REFERENCES recordings(id)
+            );
+        """
+        
+        // 复制数据（排除audio_data列）
+        let copyDataSQL = """
+            INSERT INTO \(tableName)_new (id, recording_id, original_text, polished_text, tags, embedding_vector, created_at)
+            SELECT id, 
+                   CASE WHEN recording_id IS NOT NULL THEN recording_id ELSE id END as recording_id,
+                   original_text, polished_text, tags, embedding_vector, 
+                   CASE WHEN created_at IS NOT NULL THEN created_at ELSE julianday('now') END as created_at
+            FROM \(tableName)
+        """
+        
+        // 删除旧表并重命名新表
+        let dropOldTableSQL = "DROP TABLE \(tableName)"
+        let renameTableSQL = "ALTER TABLE \(tableName)_new RENAME TO \(tableName)"
+        
+        try sqliteCore.executeInternal(tempTableSQL)
+        try sqliteCore.executeInternal(copyDataSQL)
+        try sqliteCore.executeInternal(dropOldTableSQL)
+        try sqliteCore.executeInternal(renameTableSQL)
+        
+        // 重建索引
+        let createIndex1SQL = "CREATE INDEX IF NOT EXISTS idx_inspirations_recording_id ON \(tableName) (recording_id);"
+        let createIndex2SQL = "CREATE INDEX IF NOT EXISTS idx_inspirations_created_at ON \(tableName)(created_at);"
+        try sqliteCore.executeInternal(createIndex1SQL)
+        try sqliteCore.executeInternal(createIndex2SQL)
+        
+        print("✅ 灵感表数据库结构迁移完成，已移除audio_data列")
     }
     
     // MARK: - Repository Protocol Implementation
     
     func create(_ model: InspirationData) async throws -> Bool {
         let insertSQL = """
-            INSERT INTO \(tableName) (id, audio_data, original_text, polished_text, tags, embedding_vector, created_at)
+            INSERT INTO \(tableName) (id, recording_id, original_text, polished_text, tags, embedding_vector, created_at)
             VALUES (?, ?, ?, ?, ?, ?, ?)
         """
         
@@ -61,7 +142,7 @@ class InspirationRepository: Repository {
             let modelDict = model.toDict()
             let parameters: [Any] = [
                 modelDict["id"] as Any,
-                modelDict["audio_data"] ?? NSNull(),
+                modelDict["id"] as Any,  // recording_id 暂时与 id 相同
                 modelDict["original_text"] as Any,
                 modelDict["polished_text"] as Any,
                 modelDict["tags"] as Any,
@@ -83,7 +164,7 @@ class InspirationRepository: Repository {
     
     func read(id: String) async throws -> InspirationData? {
         let querySQL = """
-            SELECT id, audio_data, original_text, polished_text, tags, embedding_vector, created_at
+            SELECT id, recording_id, original_text, polished_text, tags, embedding_vector, created_at
             FROM \(tableName)
             WHERE id = ?
         """
@@ -104,7 +185,7 @@ class InspirationRepository: Repository {
     func update(_ model: InspirationData) async throws -> Bool {
         let updateSQL = """
             UPDATE \(tableName) 
-            SET audio_data = ?, original_text = ?, polished_text = ?, tags = ?, embedding_vector = ?
+            SET recording_id = ?, original_text = ?, polished_text = ?, tags = ?, embedding_vector = ?
             WHERE id = ?
         """
         
@@ -114,7 +195,7 @@ class InspirationRepository: Repository {
             
             let modelDict = model.toDict()
             let parameters: [Any] = [
-                modelDict["audio_data"] ?? NSNull(),
+                modelDict["id"] as Any,  // recording_id 暂时与 id 相同
                 modelDict["original_text"] as Any,
                 modelDict["polished_text"] as Any,
                 modelDict["tags"] as Any,
@@ -181,7 +262,7 @@ class InspirationRepository: Repository {
     
     func list(filter: FilterCriteria? = nil) async throws -> [InspirationData] {
         var querySQL = """
-            SELECT id, audio_data, original_text, polished_text, tags, embedding_vector, created_at
+            SELECT id, recording_id, original_text, polished_text, tags, embedding_vector, created_at
             FROM \(tableName)
         """
         
@@ -287,18 +368,15 @@ class InspirationRepository: Repository {
         }
         
         let id = String(cString: idString)
+        // recording_id 在索引1位置，但目前不需要读取
         let original = String(cString: originalText)
         let polished = String(cString: polishedText)
         let tagsStr = String(cString: tagsString)
         let vectorStr = String(cString: vectorString)
         let createdAt = Date(timeIntervalSince1970: sqlite3_column_double(statement, 6))
         
-        // 解析音频数据
-        var audioData: Data?
-        if let audioBlob = sqlite3_column_blob(statement, 1) {
-            let audioSize = sqlite3_column_bytes(statement, 1)
-            audioData = Data(bytes: audioBlob, count: Int(audioSize))
-        }
+        // audio_data 已经从表中移除，不再读取
+        var audioData: Data? = nil
         
         // 解析标签
         let tagsData = tagsStr.data(using: .utf8)

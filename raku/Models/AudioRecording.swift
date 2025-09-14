@@ -16,8 +16,22 @@ struct AudioRecording: Identifiable, Equatable, Codable, DatabaseModel {
     var title: String
     let summary: String
     var tags: [String]
-    let audioData: Data?
+    var audioData: Data?
     var isPlaying: Bool = false
+    
+    // 方便的属性：从数据库获取完整录音数据（包含音频）
+    var completeRecording: AudioRecording? {
+        get {
+            return DatabaseManager.shared.getCompleteRecording(by: id.uuidString)
+        }
+    }
+    
+    // 音频数据ID（引用recordings表中的原始音频数据）
+    var audioDataId: UUID {
+        get {
+            return id // 当前使用recording的ID作为音频数据的ID
+        }
+    }
     var enrichedContent: String?
     var polishedText: String = ""  // 润色后的文本，默认为空
     
@@ -47,7 +61,7 @@ struct AudioRecording: Identifiable, Equatable, Codable, DatabaseModel {
     // MARK: - Codable Support
     enum CodingKeys: String, CodingKey {
         case id, timestamp, duration, transcription, title, summary, tags
-        case audioData = "audio_data"
+        case audioData = "audioData"
         case enrichedContent = "enriched_content"
         case polishedText = "polished_text"
     }
@@ -62,7 +76,7 @@ struct AudioRecording: Identifiable, Equatable, Codable, DatabaseModel {
         dict["transcription"] = transcription
         dict["title"] = title
         dict["summary"] = summary
-        dict["audio_data"] = audioData
+        dict["audioData"] = audioData
         dict["enriched_content"] = enrichedContent
         dict["polished_text"] = polishedText
         
@@ -89,7 +103,7 @@ struct AudioRecording: Identifiable, Equatable, Codable, DatabaseModel {
         }
         
         let timestamp = Date(timeIntervalSince1970: timestampInterval)
-        let audioData = dict["audio_data"] as? Data
+        let audioData = dict["audioData"] as? Data
         let enrichedContent = dict["enriched_content"] as? String
         let polishedText = dict["polished_text"] as? String ?? ""
         
