@@ -101,22 +101,22 @@ class TwoStepLLMService: NSObject, ObservableObject {
     // MARK: - Step 1: 分类和标题生成（保持不变）
     
     private func performFirstStepAnalysis(_ text: String) {
-        // 判断是否需要一句话总结
-        let needsSummary = text.count > 150
-        
-        let systemPrompt = LLMPromptConfiguration.getFirstStepSystemPrompt(needsSummary: needsSummary)
+        let systemPrompt = LLMPromptConfiguration.getFirstStepSystemPrompt(needsSummary: false)
         
         let parameters: [String: Any] = [
-            "model": configuration.flashModel,
+            "model": configuration.liteModel,
             "messages": [
                 ["role": "system", "content": systemPrompt],
                 ["role": "user", "content": text]
             ],
-            "temperature": 1,
-            "max_tokens": 10000
+            "temperature": 0.3,
+            "top_p": 0.5,
+            "frequency_penalty": 0.2,
+            "presence_penalty": 0.1,
+            "max_tokens": 4096
         ]
         
-        print("第一步：使用flash模型进行分类...")
+        print("第一步：使用lite模型进行分类...")
         
         currentTask = networkService.performJSONRequest(
             url: configuration.apiURL,
@@ -250,7 +250,7 @@ class TwoStepLLMService: NSObject, ObservableObject {
             // 构建最终结果
             let finalResult = TwoStepAnalysisResult(
                 title: firstStepResult.title,
-                summary: firstStepResult.oneSentenceSummary ?? firstStepResult.polishedText,
+                summary: firstStepResult.oneSentenceSummary ?? "",
                 thoughtType: firstStepResult.thoughtType,
                 tags: firstStepResult.tags,
                 enrichedContent: content, // 直接使用Markdown内容
@@ -271,7 +271,7 @@ class TwoStepLLMService: NSObject, ObservableObject {
             
             let fallbackResult = TwoStepAnalysisResult(
                 title: firstStepResult.title,
-                summary: firstStepResult.oneSentenceSummary ?? firstStepResult.polishedText,
+                summary: firstStepResult.oneSentenceSummary ?? "",
                 thoughtType: firstStepResult.thoughtType,
                 tags: firstStepResult.tags,
                 enrichedContent: fallbackContent,
