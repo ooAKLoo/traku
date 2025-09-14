@@ -279,8 +279,8 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
         }
         
         if isLLMEnabled {
-            // 使用真实LLM服务
-            llmService.analyzeText(recognitionText)
+            // 使用真实LLM服务，传递音频数据
+            llmService.analyzeText(recognitionText, audioData: currentRecordingData)
         } else {
             // 返回模拟数据
             generateMockAnalysis(for: recognitionText)

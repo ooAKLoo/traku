@@ -29,12 +29,15 @@ struct TwoStepLLMConfiguration {
 // MARK: - 闪念类型枚举
 enum FlashThoughtType: String, CaseIterable {
     case reflection = "思考"
+    case insight = "灵感"
     case unknown = "未分类"
     
     var promptKey: String {
         switch self {
         case .reflection:
             return "reflection"
+        case .insight:
+            return "insight"
         case .unknown:
             return "general"
         }
@@ -142,6 +145,9 @@ struct LLMPromptConfiguration {
         switch type {
         case .reflection:
             return getReflectionMarkdownPrompt()
+        case .insight:
+            // 灵感类型不需要生成Markdown，直接返回空字符串
+            return ""
         case .unknown:
             return getGeneralMarkdownPrompt()
         }

@@ -134,14 +134,16 @@ final class VolcEngineEmbeddingService {
         processingQueue.async { [weak self] in
             guard let self = self else { return }
             
+            let databaseManager = (DatabaseManager.shared as DatabaseManager)
+            
             // 查询未处理的记录
-            let unprocessedIds = DatabaseManager.shared.getRecordingsWithoutEmbeddings()
+            let unprocessedIds = databaseManager.getRecordingsWithoutEmbeddings()
             
             print("[EmbeddingService] Found \(unprocessedIds.count) recordings without embeddings")
             
             for recordingId in unprocessedIds {
                 // 获取录音记录
-                guard let recording = DatabaseManager.shared.getRecording(by: recordingId) else {
+                guard let recording = databaseManager.getRecording(by: recordingId) else {
                     continue
                 }
                 
@@ -155,7 +157,7 @@ final class VolcEngineEmbeddingService {
                     switch result {
                     case .success(let embeddingResult):
                         // 保存到数据库
-                        DatabaseManager.shared.saveEmbeddings(embeddingResult)
+                        databaseManager.saveEmbeddings(embeddingResult)
                         print("[EmbeddingService] Successfully generated embeddings for recording \(recordingId)")
                         
                     case .failure(let error):

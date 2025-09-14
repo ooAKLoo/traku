@@ -28,7 +28,6 @@ class AudioManagerAdapter: ObservableObject {
     private var esp32InputSource: ESP32AudioInputSource!
     private var phoneInputSource: PhoneAudioInputSource!
     private var cancellables = Set<AnyCancellable>()
-    
     // MARK: - Initialization
     init(skipDatabaseLoad: Bool = false) {
         self.esp32Service = ESP32AudioService()
@@ -164,7 +163,7 @@ class AudioManagerAdapter: ObservableObject {
     
     /// 删除录音
     func deleteRecording(_ recording: AudioRecording) {
-        if DatabaseManager.shared.deleteRecording(id: recording.id) {
+        if (DatabaseManager.shared as! DatabaseManager).deleteRecording(id: recording.id) {
             DispatchQueue.main.async {
                 if let index = self.recordings.firstIndex(where: { $0.id == recording.id }) {
                     self.recordings.remove(at: index)
@@ -179,7 +178,7 @@ class AudioManagerAdapter: ObservableObject {
     func refreshRecording(_ recording: AudioRecording) {
         DispatchQueue.global(qos: .userInitiated).async {
             // 重新从数据库加载该录音记录
-            let allRecordings = DatabaseManager.shared.loadRecordings()
+            let allRecordings = (DatabaseManager.shared as! DatabaseManager).loadRecordings()
             if let updatedRecording = allRecordings.first(where: { $0.id == recording.id }) {
                 DispatchQueue.main.async {
                     if let index = self.recordings.firstIndex(where: { $0.id == recording.id }) {
@@ -194,7 +193,7 @@ class AudioManagerAdapter: ObservableObject {
     /// 更新录音记录
     func updateRecording(_ updatedRecording: AudioRecording) {
         // 更新数据库
-        if DatabaseManager.shared.updateRecording(updatedRecording) {
+        if (DatabaseManager.shared as! DatabaseManager).updateRecording(updatedRecording) {
             DispatchQueue.main.async {
                 // 更新UI中的记录
                 if let index = self.recordings.firstIndex(where: { $0.id == updatedRecording.id }) {
@@ -300,7 +299,7 @@ extension AudioManagerAdapter: AudioProcessingPipelineDelegate {
         print("💾 AudioManagerAdapter: 尝试保存初始录音记录，ID: \(recording.id)")
         
         
-        if DatabaseManager.shared.saveOrUpdateRecording(recording) {
+        if (DatabaseManager.shared as! DatabaseManager).saveOrUpdateRecording(recording) {
             print("✅ 数据库保存成功，更新UI")
             DispatchQueue.main.async {
                 // 检查是否已存在相同ID的记录，避免重复
@@ -335,7 +334,7 @@ extension AudioManagerAdapter: AudioProcessingPipelineDelegate {
         print("🎯 AudioManagerAdapter: 接收到最终分析结果，ID: \(recording.id)")
         
         // 保存完整的录音记录到数据库 (DatabaseManager.saveRecording 内部会检查是否存在并自动调用 updateRecording)
-        if DatabaseManager.shared.saveOrUpdateRecording(recording) {
+        if (DatabaseManager.shared as! DatabaseManager).saveOrUpdateRecording(recording) {
             print("✅ 最终录音保存/更新到数据库成功")
         } else {
             print("❌ 最终录音数据库保存/更新失败")
@@ -389,7 +388,7 @@ extension AudioManagerAdapter: AudioProcessingPipelineDelegate {
             enrichedContent: nil
         )
         
-        if DatabaseManager.shared.saveRecording(fallbackRecording) {
+        if (DatabaseManager.shared as! DatabaseManager).saveRecording(fallbackRecording) {
             DispatchQueue.main.async {
                 self.recordings.insert(fallbackRecording, at: 0)
             }
@@ -404,7 +403,7 @@ extension AudioManagerAdapter: AudioProcessingPipelineDelegate {
     private func loadRecordingsFromDatabase() {
         print("🔍 AudioManagerAdapter: 开始从数据库加载录音数据...")
         DispatchQueue.global(qos: .background).async {
-            let loadedRecordings = DatabaseManager.shared.loadRecordings()
+            let loadedRecordings = (DatabaseManager.shared as! DatabaseManager).loadRecordings()
             print("🔍 从数据库加载了 \(loadedRecordings.count) 条录音记录:")
             for (index, recording) in loadedRecordings.enumerated() {
                 print("  \(index + 1). ID: \(recording.id.uuidString.prefix(8))..., 时间: \(recording.timestamp), 转录: \(recording.transcription.prefix(30))...")

@@ -9,6 +9,8 @@
 import Foundation
 import Combine
 
+// DatabaseManager ambiguity resolved using explicit casting
+
 // MARK: - 第一步分析结果
 struct FirstStepAnalysis {
     let title: String
@@ -51,6 +53,7 @@ class TwoStepLLMService: NSObject, ObservableObject {
     private let configuration: TwoStepLLMConfiguration
     private let networkService: NetworkService
     private var currentTask: URLSessionDataTask?
+    private var currentAudioData: Data? // 存储当前音频数据
     
     // MARK: - Delegate
     weak var delegate: TwoStepLLMServiceDelegate?
@@ -73,11 +76,14 @@ class TwoStepLLMService: NSObject, ObservableObject {
     // MARK: - Public Methods
     
     /// 分析文本（两步处理）
-    func analyzeText(_ text: String) {
+    func analyzeText(_ text: String, audioData: Data? = nil) {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             print("分析文本为空")
             return
         }
+        
+        // 存储音频数据
+        self.currentAudioData = audioData
         
         DispatchQueue.main.async {
             self.isAnalyzing = true
@@ -95,6 +101,7 @@ class TwoStepLLMService: NSObject, ObservableObject {
         DispatchQueue.main.async {
             self.isAnalyzing = false
             self.currentStep = 0
+            self.currentAudioData = nil // 清理音频数据
         }
     }
     
@@ -162,9 +169,15 @@ class TwoStepLLMService: NSObject, ObservableObject {
             let summary = result["summary"] as? String
             let polishedText = result["polishedText"] as? String ?? originalText
             
-            let thoughtType = FlashThoughtType(rawValue:
-                typeString == "reflection" ? "思考" : "未分类"
-            ) ?? .unknown
+            let thoughtType: FlashThoughtType
+            switch typeString {
+            case "reflection":
+                thoughtType = .reflection
+            case "insight":
+                thoughtType = .insight
+            default:
+                thoughtType = .unknown
+            }
             
             let firstStepResult = FirstStepAnalysis(
                 title: title,
@@ -181,8 +194,14 @@ class TwoStepLLMService: NSObject, ObservableObject {
                 self.currentStep = 2
             }
             
-            // 继续第二步
-            self.performSecondStepAnalysis(firstStepResult)
+            // 检查是否为灵感类型
+            if thoughtType == .insight {
+                // 灵感类型：执行embedding并保存
+                self.performInsightEmbedding(firstStepResult)
+            } else {
+                // 其他类型：继续第二步
+                self.performSecondStepAnalysis(firstStepResult)
+            }
             
         } catch {
             print("第一步解析失败: \(error)")
@@ -283,6 +302,75 @@ class TwoStepLLMService: NSObject, ObservableObject {
             DispatchQueue.main.async {
                 self.lastResult = fallbackResult
                 self.delegate?.twoStepLLMService(self, didCompleteFinalAnalysis: fallbackResult)
+            }
+        }
+    }
+    
+    // MARK: - Insight Embedding处理
+    
+    private func performInsightEmbedding(_ firstStepResult: FirstStepAnalysis) {
+        // 生成embedding
+        let embeddingService = VolcEngineEmbeddingService.shared
+        embeddingService.generateEmbeddings(
+            for: UUID().uuidString, // 新的ID
+            title: firstStepResult.title,
+            tags: firstStepResult.tags,
+            polishedText: firstStepResult.polishedText
+        ) { [weak self] result in
+            guard let self = self else { return }
+            
+            DispatchQueue.main.async {
+                self.isAnalyzing = false
+                self.currentStep = 0
+            }
+            
+            switch result {
+            case .success(let embeddingResult):
+                // 保存灵感数据到数据库
+                if let embedding = embeddingResult.titleEmbedding {
+                    let databaseManager = (DatabaseManager.shared as! DatabaseManager)
+                let success = databaseManager.saveInspiration(
+                        id: embeddingResult.recordingId,
+                        audioData: self.currentAudioData, // 使用存储的音频数据
+                        originalText: firstStepResult.originalText,
+                        polishedText: firstStepResult.polishedText,
+                        tags: firstStepResult.tags,
+                        embeddingVector: embedding
+                    )
+                    
+                    if success {
+                        print("✅ 灵感数据保存成功")
+                        
+                        // 构建最终结果（灵感类型不需要enrichedContent）
+                        let finalResult = TwoStepAnalysisResult(
+                            title: firstStepResult.title,
+                            summary: firstStepResult.oneSentenceSummary ?? "",
+                            thoughtType: firstStepResult.thoughtType,
+                            tags: firstStepResult.tags,
+                            enrichedContent: "灵感已保存并生成向量", // 简单提示
+                            originalText: firstStepResult.originalText,
+                            polishedText: firstStepResult.polishedText,
+                            timestamp: firstStepResult.timestamp
+                        )
+                        
+                        DispatchQueue.main.async {
+                            self.lastResult = finalResult
+                            self.delegate?.twoStepLLMService(self, didCompleteFinalAnalysis: finalResult)
+                        }
+                    } else {
+                        print("❌ 灵感数据保存失败")
+                        self.delegate?.twoStepLLMService(self, didFailWithError: TwoStepLLMError.parseError)
+                    }
+                } else {
+                    print("❌ 未能生成embedding")
+                    self.delegate?.twoStepLLMService(self, didFailWithError: TwoStepLLMError.parseError)
+                }
+                
+            case .failure(let error):
+                print("❌ Embedding生成失败: \(error)")
+                DispatchQueue.main.async {
+                    self.delegate?.twoStepLLMService(self, didFailWithError: TwoStepLLMError.parseError)
+                }
             }
         }
     }

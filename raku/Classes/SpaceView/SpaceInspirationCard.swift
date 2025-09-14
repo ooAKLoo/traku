@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Foundation
 
 // MARK: - 空间数据模型
 struct SpaceCategory: Identifiable {
@@ -173,6 +174,8 @@ struct SpaceInspirationCard: View {
         }
     }
 }
+
+
 
 // MARK: - Mock数据
 extension SpaceCategory {
