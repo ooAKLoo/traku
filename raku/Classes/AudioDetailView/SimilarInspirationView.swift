@@ -17,6 +17,9 @@ struct SimilarInspirationView: View {
     @State private var searchError: String?
     @State private var selectedRecording: AudioRecording?
     @State private var isNavigating = false
+    @State private var isSelectionMode = false
+    @State private var selectedInspirations: Set<UUID> = []
+    @State private var showingBatchSpaceSelection = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -32,6 +35,25 @@ struct SimilarInspirationView: View {
                     ProgressView()
                         .scaleEffect(0.8)
                         .foregroundColor(isDarkMode ? .white.opacity(0.7) : .gray)
+                } else if !similarRecordings.isEmpty {
+                    // 批量操作按钮
+                    Button(action: {
+                        toggleSelectionMode()
+                    }) {
+                        Text(isSelectionMode ? "取消" : "批量")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(isDarkMode ? .white : .black)
+                            .padding(.horizontal, 12)
+                            .padding(.vertical, 6)
+                            .background(
+                                RoundedRectangle(cornerRadius: 16)
+                                    .fill(isDarkMode ? Color.white.opacity(0.1) : Color.gray.opacity(0.1))
+                                    .overlay(
+                                        RoundedRectangle(cornerRadius: 16)
+                                            .stroke(isDarkMode ? Color.white.opacity(0.2) : Color.gray.opacity(0.2), lineWidth: 1)
+                                    )
+                            )
+                    }
                 }
             }
             
@@ -72,13 +94,27 @@ struct SimilarInspirationView: View {
             } else {
                 // 相似灵感列表
                 VStack(spacing: 16) {
+                    // 批量操作工具栏
+                    if isSelectionMode {
+                        batchToolbar
+                    }
+                    
                     ForEach(similarRecordings, id: \.id) { recording in
                         SimilarInspirationItem(
                             recording: recording,
                             isDarkMode: isDarkMode,
+                            isSelectionMode: isSelectionMode,
+                            isSelected: selectedInspirations.contains(recording.id),
                             onTap: {
-                                selectedRecording = recording
-                                isNavigating = true
+                                if isSelectionMode {
+                                    toggleSelection(for: recording.id)
+                                } else {
+                                    selectedRecording = recording
+                                    isNavigating = true
+                                }
+                            },
+                            onSelectionToggle: {
+                                toggleSelection(for: recording.id)
                             }
                         )
                     }
@@ -86,8 +122,104 @@ struct SimilarInspirationView: View {
             }
         }
         .background(navigationLink)
+        .sheet(isPresented: $showingBatchSpaceSelection) {
+            SimilarInspirationBatchView(
+                recordings: selectedInspirations.compactMap { id in
+                    similarRecordings.first { $0.id == id }
+                },
+                isDarkMode: isDarkMode,
+                isPresented: $showingBatchSpaceSelection,
+                onCompleted: {
+                    exitSelectionMode()
+                }
+            )
+        }
         .onAppear {
             loadSimilarInspiration()
+        }
+    }
+    
+    // MARK: - 批量操作工具栏
+    private var batchToolbar: some View {
+        VStack(spacing: 12) {
+            // 选择状态
+            HStack {
+                Text("已选择 \(selectedInspirations.count) 项")
+                    .font(.system(size: 13, weight: .medium))
+                    .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8))
+                
+                Spacer()
+                
+                Button(selectedInspirations.count == similarRecordings.count ? "取消全选" : "全选") {
+                    if selectedInspirations.count == similarRecordings.count {
+                        selectedInspirations.removeAll()
+                    } else {
+                        selectedInspirations = Set(similarRecordings.map { $0.id })
+                    }
+                }
+                .font(.system(size: 13, weight: .medium))
+                .foregroundColor(.blue)
+            }
+            
+            // 批量操作按钮
+            HStack(spacing: 10) {
+                Button(action: {
+                    showingBatchSpaceSelection = true
+                }) {
+                    HStack(spacing: 4) {
+                        Image(systemName: "plus.circle.fill")
+                            .font(.system(size: 12, weight: .medium))
+                        
+                        Text("添加到空间")
+                            .font(.system(size: 12, weight: .medium))
+                    }
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 6)
+                    .background(
+                        RoundedRectangle(cornerRadius: 16)
+                            .fill(selectedInspirations.isEmpty ? Color.gray : Color.blue)
+                    )
+                }
+                .disabled(selectedInspirations.isEmpty)
+                
+                Spacer()
+            }
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 10)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(isDarkMode ? Color.white.opacity(0.04) : Color.gray.opacity(0.04))
+                .overlay(
+                    RoundedRectangle(cornerRadius: 12)
+                        .stroke(isDarkMode ? Color.white.opacity(0.08) : Color.gray.opacity(0.08), lineWidth: 1)
+                )
+        )
+    }
+    
+    // MARK: - 批量操作方法
+    private func toggleSelectionMode() {
+        withAnimation(.easeInOut(duration: 0.25)) {
+            isSelectionMode.toggle()
+            if !isSelectionMode {
+                selectedInspirations.removeAll()
+            }
+        }
+    }
+    
+    private func exitSelectionMode() {
+        withAnimation(.easeInOut(duration: 0.25)) {
+            isSelectionMode = false
+            selectedInspirations.removeAll()
+        }
+    }
+    
+    private func toggleSelection(for id: UUID) {
+        if selectedInspirations.contains(id) {
+            selectedInspirations.remove(id)
+        } else {
+            selectedInspirations.insert(id)
         }
     }
     
@@ -188,9 +320,71 @@ struct SimilarInspirationView: View {
 struct SimilarInspirationItem: View {
     let recording: AudioRecording
     let isDarkMode: Bool
+    var isSelectionMode: Bool = false
+    var isSelected: Bool = false
     let onTap: () -> Void
+    var onSelectionToggle: (() -> Void)?
+    
+    @State private var showingSpaceSelection = false
     
     var body: some View {
+        HStack {
+            // 选择按钮（批量模式下显示）
+            if isSelectionMode {
+                Button(action: {
+                    onSelectionToggle?()
+                }) {
+                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(isSelected ? .blue : (isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4)))
+                        .animation(.easeInOut(duration: 0.2), value: isSelected)
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+            
+            // 主内容
+            contentView
+            
+            // 添加到空间按钮（单条模式下显示）
+            if !isSelectionMode {
+                Button(action: {
+                    showingSpaceSelection = true
+                }) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 18, weight: .medium))
+                        .foregroundColor(isDarkMode ? .blue.opacity(0.8) : .blue)
+                        .background(
+                            Circle()
+                                .fill(isDarkMode ? Color.white.opacity(0.1) : Color.white)
+                                .frame(width: 28, height: 28)
+                        )
+                }
+                .buttonStyle(PlainButtonStyle())
+            }
+        }
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(isSelected ? 
+                      (isDarkMode ? Color.blue.opacity(0.1) : Color.blue.opacity(0.05)) : 
+                      (isDarkMode ? Color.white.opacity(0.08) : Color(hex: "EBEBE9").opacity(0.3)))
+                .animation(.easeInOut(duration: 0.2), value: isSelected)
+        )
+        .scaleEffect(isSelected ? 0.98 : 1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isSelected)
+        .contentShape(Rectangle())
+        .sheet(isPresented: $showingSpaceSelection) {
+            SpaceSelectionView(
+                recording: recording,
+                isDarkMode: isDarkMode,
+                isPresented: $showingSpaceSelection
+            )
+        }
+        .onTapGesture {
+            onTap()
+        }
+    }
+    
+    private var contentView: some View {
         VStack(alignment: .leading, spacing: 12) {
             // 标题
             Text(recording.title)
@@ -226,15 +420,6 @@ struct SimilarInspirationItem: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.horizontal, 18)
         .padding(.vertical, 16)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(isDarkMode ? Color.white.opacity(0.08) : Color(hex: "EBEBE9").opacity(0.3))
-        )
-        .contentShape(Rectangle())
-        .scaleEffect(1.0) // 为后续交互动画预留
-        .onTapGesture {
-            onTap()
-        }
     }
     
     private func formatRecordingDate(_ date: Date) -> String {
@@ -400,6 +585,274 @@ struct FlowLayout: Layout {
             subviews.append(subview)
             width += size.width + spacing
             maxHeight = max(maxHeight, size.height)
+        }
+    }
+}
+
+// MARK: - 相似灵感批量选择视图
+struct SimilarInspirationBatchView: View {
+    let recordings: [AudioRecording]
+    let isDarkMode: Bool
+    @Binding var isPresented: Bool
+    let onCompleted: () -> Void
+    
+    @State private var spaces: [Space] = []
+    @State private var selectedSpace: Space?
+    @State private var categories: [Category] = []
+    @State private var selectedCategory: Category?
+    @State private var isLoading = false
+    @State private var showingSuccessMessage = false
+    @State private var successCount = 0
+    
+    var body: some View {
+        NavigationView {
+            VStack(spacing: 0) {
+                // 批量预览
+                batchPreview
+                
+                Divider()
+                    .background(isDarkMode ? Color.white.opacity(0.1) : Color.black.opacity(0.1))
+                
+                // 空间和类别选择
+                selectionContent
+            }
+            .background(isDarkMode ? Color.black : Color.white)
+            .navigationTitle("批量添加相似灵感")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("取消") {
+                        isPresented = false
+                    }
+                    .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8))
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("添加") {
+                        batchAddToSpace()
+                    }
+                    .disabled(selectedSpace == nil || isLoading || recordings.isEmpty)
+                    .foregroundColor(canAdd ? (isDarkMode ? .blue.opacity(0.9) : .blue) : (isDarkMode ? .white.opacity(0.3) : .black.opacity(0.3)))
+                }
+            }
+        }
+        .onAppear {
+            loadSpaces()
+        }
+        .alert("批量添加完成", isPresented: $showingSuccessMessage) {
+            Button("确定") {
+                onCompleted()
+                isPresented = false
+            }
+        } message: {
+            Text("成功添加 \(successCount) 条相似灵感到空间")
+        }
+    }
+    
+    // MARK: - 批量预览
+    private var batchPreview: some View {
+        VStack(alignment: .leading, spacing: 12) {
+            HStack {
+                Image(systemName: "sparkles")
+                    .font(.system(size: 16, weight: .medium))
+                    .foregroundColor(isDarkMode ? .yellow : .orange)
+                
+                Text("即将批量添加 \(recordings.count) 条相似灵感")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8))
+                
+                Spacer()
+            }
+            
+            // 显示前几条相似灵感预览
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(recordings.prefix(2), id: \.id) { recording in
+                    HStack {
+                        Circle()
+                            .fill(isDarkMode ? Color.blue.opacity(0.6) : Color.blue)
+                            .frame(width: 6, height: 6)
+                        
+                        Text(recording.title)
+                            .font(.system(size: 14))
+                            .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8))
+                            .lineLimit(1)
+                    }
+                }
+                
+                if recordings.count > 2 {
+                    HStack {
+                        Circle()
+                            .fill(isDarkMode ? Color.white.opacity(0.3) : Color.black.opacity(0.3))
+                            .frame(width: 6, height: 6)
+                        
+                        Text("还有 \(recordings.count - 2) 条...")
+                            .font(.system(size: 14))
+                            .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
+                    }
+                }
+            }
+        }
+        .padding(20)
+    }
+    
+    // MARK: - 选择内容
+    private var selectionContent: some View {
+        ScrollView {
+            VStack(spacing: 24) {
+                // 空间选择
+                spaceSelectionSection
+                
+                // 类别选择
+                if selectedSpace != nil {
+                    categorySelectionSection
+                }
+            }
+            .padding(20)
+        }
+    }
+    
+    // MARK: - 空间选择区域
+    private var spaceSelectionSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("选择空间")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(isDarkMode ? .white : .black)
+                
+                Spacer()
+            }
+            
+            if spaces.isEmpty {
+                VStack(spacing: 12) {
+                    Image(systemName: "folder.badge.plus")
+                        .font(.system(size: 32))
+                        .foregroundColor(isDarkMode ? .white.opacity(0.3) : .black.opacity(0.3))
+                    
+                    Text("暂无空间")
+                        .font(.system(size: 14))
+                        .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
+                    
+                    Text("请先创建一个空间")
+                        .font(.system(size: 12))
+                        .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4))
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 30)
+            } else {
+                LazyVGrid(columns: [
+                    GridItem(.flexible()),
+                    GridItem(.flexible())
+                ], spacing: 12) {
+                    ForEach(spaces) { space in
+                        SpaceSelectionCard(
+                            space: space,
+                            isSelected: selectedSpace?.id == space.id,
+                            isDarkMode: isDarkMode
+                        ) {
+                            selectedSpace = space
+                            loadCategories(for: space)
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // MARK: - 类别选择区域
+    private var categorySelectionSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Text("选择类别")
+                    .font(.system(size: 18, weight: .semibold))
+                    .foregroundColor(isDarkMode ? .white : .black)
+                
+                Text("（可选）")
+                    .font(.system(size: 14))
+                    .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
+                
+                Spacer()
+            }
+            
+            if categories.isEmpty {
+                VStack(spacing: 8) {
+                    Text("该空间暂无类别")
+                        .font(.system(size: 14))
+                        .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
+                    
+                    Text("灵感将被添加为未分类")
+                        .font(.system(size: 12))
+                        .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4))
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 20)
+            } else {
+                // 未分类选项
+                CategorySelectionCard(
+                    title: "未分类",
+                    isSelected: selectedCategory == nil,
+                    isDarkMode: isDarkMode
+                ) {
+                    selectedCategory = nil
+                }
+                
+                // 类别列表
+                LazyVGrid(columns: [
+                    GridItem(.flexible()),
+                    GridItem(.flexible())
+                ], spacing: 12) {
+                    ForEach(categories) { category in
+                        CategorySelectionCard(
+                            title: category.name,
+                            isSelected: selectedCategory?.id == category.id,
+                            isDarkMode: isDarkMode
+                        ) {
+                            selectedCategory = category
+                        }
+                    }
+                }
+            }
+        }
+    }
+    
+    // MARK: - 计算属性
+    private var canAdd: Bool {
+        selectedSpace != nil && !isLoading && !recordings.isEmpty
+    }
+    
+    // MARK: - 数据加载方法
+    private func loadSpaces() {
+        spaces = DatabaseManager.shared.getAllSpaces()
+    }
+    
+    private func loadCategories(for space: Space) {
+        categories = DatabaseManager.shared.getCategories(for: space.id)
+        selectedCategory = nil
+    }
+    
+    // MARK: - 批量添加到空间
+    private func batchAddToSpace() {
+        guard let space = selectedSpace else { return }
+        
+        isLoading = true
+        successCount = 0
+        
+        DispatchQueue.global(qos: .userInitiated).async {
+            for recording in recordings {
+                let success = DatabaseManager.shared.addRecordingToSpace(
+                    recordingId: recording.id,
+                    spaceId: space.id,
+                    categoryId: selectedCategory?.id
+                )
+                
+                if success {
+                    successCount += 1
+                }
+            }
+            
+            DispatchQueue.main.async {
+                isLoading = false
+                showingSuccessMessage = true
+            }
         }
     }
 }
