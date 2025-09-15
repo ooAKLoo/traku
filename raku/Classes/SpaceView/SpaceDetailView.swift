@@ -251,32 +251,84 @@ struct ArticleCard: View {
     let onToggleMark: () -> Void
     let onDelete: () -> Void
     
-    @State private var dragOffset: CGFloat = 0
+    @State private var offset: CGFloat = 0
     @State private var isDragging = false
+    @State private var isDeleting = false
+    @State private var hasTriggeredHaptic = false
     
-    private let deleteThreshold: CGFloat = -100
+    // 删除阈值（圆环完全闭合的滑动距离）
+    private let deleteThreshold: CGFloat = -180
+    private let maxSwipeDistance: CGFloat = -220
+    // 标记阈值（向右滑动标记的距离）
+    private let markThreshold: CGFloat = 30
+    private let maxMarkDistance: CGFloat = 50
+    
+    // 计算删除进度 (0 到 1)
+    private var deleteProgress: CGFloat {
+        guard offset < 0 else { return 0 }
+        return min(abs(offset) / abs(deleteThreshold), 1.0)
+    }
+    
+    // 根据进度计算颜色深度
+    private var trashColor: Color {
+        if deleteProgress < 0.5 {
+            return Color.orange.opacity(0.7 + Double(deleteProgress * 0.3))
+        } else {
+            return Color.red.opacity(0.7 + Double(deleteProgress * 0.3))
+        }
+    }
     
     var body: some View {
-        ZStack(alignment: .trailing) {
-            // 删除背景
+        ZStack {
+            // 右侧删除区域
             HStack {
                 Spacer()
                 
-                Image(systemName: "trash")
-                    .font(.title2)
-                    .foregroundColor(.white)
-                    .padding(.trailing, 20)
+                // 圆环进度垃圾桶
+                ZStack {
+                    // 进度圆环
+                    if deleteProgress < 1 {
+                        Circle()
+                            .trim(from: 0, to: deleteProgress)
+                            .stroke(
+                                trashColor,
+                                style: StrokeStyle(
+                                    lineWidth: 3,
+                                    lineCap: .round
+                                )
+                            )
+                            .frame(width: 40, height: 40)
+                            .rotationEffect(.degrees(-90))
+                            .animation(.easeInOut(duration: 0.2), value: deleteProgress)
+                    }
+                    
+                    // 垃圾桶图标或对勾
+                    Image(systemName: deleteProgress == 1 ? "checkmark" : "trash")
+                        .font(.system(size: 18, weight: .semibold))
+                        .foregroundColor(deleteProgress == 1 ? Color.red : trashColor)
+                        .scaleEffect(deleteProgress == 1 ? 1.1 : 1.0)
+                        .animation(.spring(response: 0.3, dampingFraction: 0.7), value: deleteProgress)
+                        .onChange(of: deleteProgress == 1) { showingCheckmark in
+                            if showingCheckmark && !hasTriggeredHaptic {
+                                let impactFeedback = UIImpactFeedbackGenerator(style: .medium)
+                                impactFeedback.impactOccurred()
+                                hasTriggeredHaptic = true
+                            } else if !showingCheckmark {
+                                hasTriggeredHaptic = false
+                            }
+                        }
+                }
+                .frame(width: 60)
+                .opacity(offset < -10 ? 1 : 0)
+                .animation(.easeOut(duration: 0.2), value: offset < -10)
             }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .background(Color.red)
-            .opacity(dragOffset < deleteThreshold ? 1 : 0)
             
             // 主内容
             HStack(alignment: .top, spacing: 16) {
                 // 左侧时间线和标记
                 VStack(alignment: .center, spacing: 0) {
                     Circle()
-                        .fill(article.isMarkedImportant ? Color.orange : 
+                        .fill(article.isMarkedImportant ? Color.black : 
                               (isDarkMode ? Color.white.opacity(0.2) : Color.black.opacity(0.2)))
                         .frame(width: 5, height: 5)
                         .onTapGesture {
@@ -309,19 +361,59 @@ struct ArticleCard: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 16)
             .background(isDarkMode ? Color.black : Color(hex: "FAFAFA"))
-            .offset(x: dragOffset)
+            .offset(x: offset)
             .gesture(
                 DragGesture()
                     .onChanged { value in
-                        dragOffset = value.translation.width
-                        isDragging = true
+                        withAnimation(.interactiveSpring(response: 0.3)) {
+                            if !isDragging {
+                                isDragging = true
+                            }
+                            
+                            let translation = value.translation.width
+                            
+                            // 向左滑动删除
+                            if translation < 0 {
+                                offset = max(translation, maxSwipeDistance)
+                            }
+                            // 向右滑动标记
+                            else if translation > 0 {
+                                offset = min(translation, maxMarkDistance)
+                            }
+                            // 从任何方向回到中心
+                            else if offset != 0 {
+                                offset = translation / 3
+                            }
+                        }
                     }
                     .onEnded { _ in
-                        if dragOffset < deleteThreshold {
-                            onDelete()
+                        withAnimation(.spring(response: 0.4, dampingFraction: 0.8)) {
+                            isDragging = false
+                            
+                            // 向右滑动标记逻辑（轻微滑动即可触发）
+                            if offset > markThreshold {
+                                // 触发标记切换
+                                onToggleMark()
+                                // 弹回原位
+                                offset = 0
+                            }
+                            // 向左滑动删除逻辑
+                            else if deleteProgress >= 1.0 {
+                                isDeleting = true
+                                // 滑出屏幕动画
+                                withAnimation(.easeOut(duration: 0.3)) {
+                                    offset = -UIScreen.main.bounds.width
+                                }
+                                // 延迟后删除
+                                DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                                    onDelete()
+                                }
+                            }
+                            // 其他情况弹回原位
+                            else {
+                                offset = 0
+                            }
                         }
-                        dragOffset = 0
-                        isDragging = false
                     }
             )
         }
