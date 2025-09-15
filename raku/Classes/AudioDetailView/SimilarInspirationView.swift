@@ -4,14 +4,19 @@
 //
 
 import SwiftUI
+import Combine
 
 struct SimilarInspirationView: View {
     let currentRecording: AudioRecording
     let isDarkMode: Bool
+    let audioManager: AudioManagerAdapter
+    let onRecordingUpdated: ((AudioRecording) -> Void)?
     
     @State private var similarRecordings: [AudioRecording] = []
     @State private var isLoading = true
     @State private var searchError: String?
+    @State private var selectedRecording: AudioRecording?
+    @State private var isNavigating = false
     
     var body: some View {
         VStack(alignment: .leading, spacing: 20) {
@@ -70,14 +75,41 @@ struct SimilarInspirationView: View {
                     ForEach(similarRecordings, id: \.id) { recording in
                         SimilarInspirationItem(
                             recording: recording,
-                            isDarkMode: isDarkMode
+                            isDarkMode: isDarkMode,
+                            onTap: {
+                                selectedRecording = recording
+                                isNavigating = true
+                            }
                         )
                     }
                 }
             }
         }
+        .background(navigationLink)
         .onAppear {
             loadSimilarInspiration()
+        }
+    }
+    
+    // MARK: - Navigation Link
+    private var navigationLink: some View {
+        Group {
+            if let recording = selectedRecording {
+                NavigationLink(
+                    destination: RecordingDetailView(
+                        recording: recording,
+                        audioManager: audioManager,
+                        onRecordingUpdated: onRecordingUpdated
+                    )
+                    .navigationBarHidden(true),
+                    isActive: $isNavigating
+                ) {
+                    EmptyView()
+                }
+                .hidden()
+            } else {
+                EmptyView()
+            }
         }
     }
     
@@ -156,6 +188,7 @@ struct SimilarInspirationView: View {
 struct SimilarInspirationItem: View {
     let recording: AudioRecording
     let isDarkMode: Bool
+    let onTap: () -> Void
     
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -200,8 +233,7 @@ struct SimilarInspirationItem: View {
         .contentShape(Rectangle())
         .scaleEffect(1.0) // 为后续交互动画预留
         .onTapGesture {
-            // 点击跳转到对应的记录详情
-            print("点击查看相似灵感: \(recording.title)")
+            onTap()
         }
     }
     
@@ -387,7 +419,9 @@ struct SimilarInspirationView_Previews: PreviewProvider {
                 enrichedContent: nil,
                 contentType: "inspiration"
             ),
-            isDarkMode: true
+            isDarkMode: true,
+            audioManager: AudioManagerAdapter(),
+            onRecordingUpdated: nil
         )
         .padding()
         .background(Color.black)

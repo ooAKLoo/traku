@@ -220,7 +220,9 @@ struct RecordingDetailView: View {
                                     // 灵感类型：显示相似的其他条目
                                     SimilarInspirationView(
                                         currentRecording: viewModel.recording,
-                                        isDarkMode: isDarkMode
+                                        isDarkMode: isDarkMode,
+                                        audioManager: viewModel.audioManager,
+                                        onRecordingUpdated: viewModel.onRecordingUpdated
                                     )
                                     .padding(.horizontal, 24)
                                     .padding(.top, 12)
