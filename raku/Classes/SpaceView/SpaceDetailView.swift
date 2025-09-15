@@ -13,7 +13,7 @@ struct SpaceDetailView: View {
     @AppStorage("isDarkMode") private var isDarkMode = false
     @Environment(\.presentationMode) var presentationMode
     
-    @State private var selectedCategoryId: UUID? = nil
+    @State private var selectedCategoryId: UUID?
     @State private var categories: [Category] = []
     @State private var spaceArticles: [SpaceArticle] = []
     @State private var recordings: [UUID: AudioRecording] = [:]
@@ -27,7 +27,7 @@ struct SpaceDetailView: View {
     
     // 过滤后的文章
     private var filteredArticles: [SpaceArticle] {
-        if selectedCategoryId == nil {
+        guard let selectedCategoryId = selectedCategoryId else {
             return spaceArticles
         }
         return spaceArticles.filter { $0.categoryId == selectedCategoryId }
@@ -126,31 +126,6 @@ struct SpaceDetailView: View {
     private var categoryTabBar: some View {
         ScrollView(.horizontal, showsIndicators: false) {
             HStack(spacing: 32) {
-                // 全部分类选项
-                Button(action: {
-                    withAnimation(.easeInOut(duration: 0.25)) {
-                        selectedCategoryId = nil
-                    }
-                }) {
-                    VStack(spacing: 6) {
-                        Text("全部")
-                            .font(.system(size: 14, weight: selectedCategoryId == nil ? .medium : .regular))
-                            .foregroundColor(selectedCategoryId == nil ?
-                                            (isDarkMode ? .white : .black) :
-                                            (isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4)))
-                            .tracking(0.3)
-                        
-                        // 极简指示线
-                        Rectangle()
-                            .fill(isDarkMode ? Color.white : Color.black)
-                            .frame(width: 16, height: 2)
-                            .cornerRadius(1)
-                            .opacity(selectedCategoryId == nil ? 1 : 0)
-                            .animation(.easeInOut(duration: 0.25), value: selectedCategoryId)
-                    }
-                }
-                .buttonStyle(PlainButtonStyle())
-                
                 ForEach(categories) { category in
                     Button(action: {
                         withAnimation(.easeInOut(duration: 0.25)) {
@@ -212,6 +187,11 @@ struct SpaceDetailView: View {
     private func loadData() {
         // 加载类别
         categories = DatabaseManager.shared.getCategories(for: space.id)
+        
+        // 如果没有选中的分类且有分类，默认选中第一个
+        if selectedCategoryId == nil && !categories.isEmpty {
+            selectedCategoryId = categories.first?.id
+        }
         
         // 加载文章
         spaceArticles = DatabaseManager.shared.getArticlesForSpace(space.id)

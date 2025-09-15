@@ -17,10 +17,6 @@ struct SimilarInspirationView: View {
         VStack(alignment: .leading, spacing: 20) {
             // 标题
             HStack {
-                Image(systemName: "lightbulb.fill")
-                    .foregroundColor(.blue)
-                    .font(.system(size: 16))
-                
                 Text("相似灵感")
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundColor(isDarkMode ? .white : .black)
