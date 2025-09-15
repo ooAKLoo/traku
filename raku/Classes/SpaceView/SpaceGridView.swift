@@ -14,7 +14,6 @@ struct SpaceGridView: View {
     @State private var selectedSpace: Space? = nil
     @State private var isNavigatingToSpace = false
     @State private var spaces: [Space] = []
-    @State private var cardStates: [String: Bool] = [:]
     @State private var showingInspirationList = false
     @State private var showingSpaceCreation = false
     
@@ -52,19 +51,8 @@ struct SpaceGridView: View {
                                         loadSpaces()
                                     }
                                 }
-                            },
-                            onDragStateChanged: { isDragging in
-                                // 可以在这里处理拖动状态变化
-                                cardStates[space.id.uuidString] = isDragging
                             }
                         )
-                        .onTapGesture {
-                            // 只有在没有拖动时才导航
-                            if cardStates[space.id.uuidString] != true {
-                                selectedSpace = space
-                                isNavigatingToSpace = true
-                            }
-                        }
                     }
                 }
                 .padding(.horizontal, 20)

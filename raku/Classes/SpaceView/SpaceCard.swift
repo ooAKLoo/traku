@@ -13,62 +13,17 @@ struct SpaceCard: View {
     let isDarkMode: Bool
     let onTap: () -> Void
     let onDelete: () -> Void
-    let onDragStateChanged: (Bool) -> Void
-    
-    @State private var dragOffset = CGSize.zero
-    @State private var isDragging = false
-    @State private var showingDeleteConfirmation = false
     
     private let cardHeight: CGFloat = 120
-    private let deleteThreshold: CGFloat = -100
     
     var body: some View {
-        ZStack {
-            // 背景删除区域
-            deleteBackground
-            
-            // 主卡片
+        Button(action: onTap) {
             mainCard
-                .offset(dragOffset)
-                .scaleEffect(isDragging ? 0.95 : 1.0)
-                .gesture(dragGesture)
-                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: dragOffset)
-                .animation(.spring(response: 0.3, dampingFraction: 0.7), value: isDragging)
         }
+        .buttonStyle(PlainButtonStyle())
         .frame(height: cardHeight)
-        .confirmationDialog("删除空间", isPresented: $showingDeleteConfirmation) {
-            Button("删除", role: .destructive) {
-                onDelete()
-            }
-            Button("取消", role: .cancel) { }
-        } message: {
-            Text("确定要删除空间「\(space.name)」吗？此操作不可撤销。")
-        }
     }
     
-    // MARK: - 删除背景
-    private var deleteBackground: some View {
-        HStack {
-            Spacer()
-            
-            VStack {
-                Image(systemName: "trash")
-                    .font(.title2)
-                    .foregroundColor(.white)
-                
-                Text("删除")
-                    .font(.caption)
-                    .foregroundColor(.white)
-            }
-            .padding(.trailing, 20)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(Color.red)
-        )
-        .opacity(dragOffset.width < deleteThreshold ? 1 : 0)
-    }
     
     // MARK: - 主卡片
     private var mainCard: some View {
@@ -80,9 +35,6 @@ struct SpaceCard: View {
                     .lineLimit(1)
                 
                 Spacer()
-                
-                // 文章数量标识
-                articleCountBadge
             }
             
             if !space.description.isEmpty {
@@ -123,49 +75,7 @@ struct SpaceCard: View {
         )
     }
     
-    // MARK: - 文章数量标识
-    private var articleCountBadge: some View {
-        Text("\(getArticleCount())")
-            .font(.caption)
-            .foregroundColor(.white)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(
-                Capsule()
-                    .fill(Color.blue)
-            )
-    }
-    
-    // MARK: - 拖动手势
-    private var dragGesture: some Gesture {
-        DragGesture()
-            .onChanged { value in
-                dragOffset = value.translation
-                
-                if !isDragging {
-                    isDragging = true
-                    onDragStateChanged(true)
-                }
-            }
-            .onEnded { value in
-                if dragOffset.width < deleteThreshold {
-                    showingDeleteConfirmation = true
-                }
-                
-                // 重置拖动状态
-                dragOffset = .zero
-                isDragging = false
-                onDragStateChanged(false)
-            }
-    }
-    
     // MARK: - Helper Methods
-    
-    private func getArticleCount() -> Int {
-        // 从数据库获取文章数量
-        let articles = DatabaseManager.shared.getArticlesForSpace(space.id)
-        return articles.count
-    }
     
     private func formatDate(_ date: Date) -> String {
         let formatter = DateFormatter()
@@ -188,16 +98,14 @@ struct SpaceCard_Previews: PreviewProvider {
                 space: sampleSpace,
                 isDarkMode: false,
                 onTap: { },
-                onDelete: { },
-                onDragStateChanged: { _ in }
+                onDelete: { }
             )
             
             SpaceCard(
                 space: sampleSpace,
                 isDarkMode: true,
                 onTap: { },
-                onDelete: { },
-                onDragStateChanged: { _ in }
+                onDelete: { }
             )
         }
         .padding()
