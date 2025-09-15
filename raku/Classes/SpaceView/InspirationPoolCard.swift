@@ -87,6 +87,7 @@ struct InspirationPoolCard: View {
 struct InspirationListView: View {
     let isDarkMode: Bool
     @Environment(\.presentationMode) var presentationMode
+    @StateObject private var popupManager = GlobalPopupManager.shared
     @State private var inspirations: [AudioRecording] = []
     @State private var allInspirations: [AudioRecording] = []  // 保存所有灵感
     @State private var usedInspirations: [AudioRecording] = []  // 已使用的灵感
@@ -123,9 +124,27 @@ struct InspirationListView: View {
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.hidden)
         .presentationBackground(isDarkMode ? Color.black : Color.white)
+        .globalPopup()  // 在 sheet 中也需要添加全局浮窗支持
+        .environmentObject(popupManager)  // 确保 popupManager 可用
         .onAppear {
             loadInspirations()
         }
+        .globalBatchSelectionToolbar(
+            isPresented: $isSelectionMode,
+            selectedCount: selectedInspirations.count,
+            totalCount: inspirations.count,
+            actionTitle: "添加到空间",
+            actionIcon: "plus.circle.fill",
+            onSelectAll: {
+                selectedInspirations = Set(inspirations.map { $0.id })
+            },
+            onDeselectAll: {
+                selectedInspirations.removeAll()
+            },
+            onAction: {
+                showingBatchSpaceSelection = true
+            }
+        )
     }
     
     // MARK: - 背景渐变
@@ -229,10 +248,6 @@ struct InspirationListView: View {
             }
             .padding(.horizontal, 20)
             
-            // 批量操作工具栏
-            if isSelectionMode {
-                batchToolbar
-            }
             
             // 统计信息
             if !isSelectionMode {
@@ -273,65 +288,6 @@ struct InspirationListView: View {
         .padding(.bottom, 20)
     }
     
-    // MARK: - 批量操作工具栏
-    private var batchToolbar: some View {
-        VStack(spacing: 16) {
-            // 选择状态
-            HStack {
-                Text("已选择 \(selectedInspirations.count) 项")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8))
-                
-                Spacer()
-                
-                Button(selectedInspirations.count == inspirations.count ? "取消全选" : "全选") {
-                    if selectedInspirations.count == inspirations.count {
-                        selectedInspirations.removeAll()
-                    } else {
-                        selectedInspirations = Set(inspirations.map { $0.id })
-                    }
-                }
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(.blue)
-            }
-            
-            // 批量操作按钮
-            HStack(spacing: 12) {
-                Button(action: {
-                    showingBatchSpaceSelection = true
-                }) {
-                    HStack(spacing: 6) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 14, weight: .medium))
-                        
-                        Text("添加到空间")
-                            .font(.system(size: 14, weight: .medium))
-                    }
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 16)
-                    .padding(.vertical, 8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 20)
-                            .fill(selectedInspirations.isEmpty ? Color.gray : Color.blue)
-                    )
-                }
-                .disabled(selectedInspirations.isEmpty)
-                
-                Spacer()
-            }
-        }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 12)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(isDarkMode ? Color.white.opacity(0.05) : Color.gray.opacity(0.05))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(isDarkMode ? Color.white.opacity(0.1) : Color.gray.opacity(0.1), lineWidth: 1)
-                )
-        )
-        .padding(.horizontal, 20)
-    }
     
     // MARK: - 内容区域
     private var contentSection: some View {

@@ -22,6 +22,7 @@ struct rakuApp: App {
         WindowGroup {
             ContentView()
                 .toastContainer()
+                .globalPopup()
         }
     }
     

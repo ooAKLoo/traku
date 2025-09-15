@@ -94,10 +94,6 @@ struct SimilarInspirationView: View {
             } else {
                 // 相似灵感列表
                 VStack(spacing: 16) {
-                    // 批量操作工具栏
-                    if isSelectionMode {
-                        batchToolbar
-                    }
                     
                     ForEach(similarRecordings, id: \.id) { recording in
                         SimilarInspirationItem(
@@ -137,66 +133,24 @@ struct SimilarInspirationView: View {
         .onAppear {
             loadSimilarInspiration()
         }
-    }
-    
-    // MARK: - 批量操作工具栏
-    private var batchToolbar: some View {
-        VStack(spacing: 12) {
-            // 选择状态
-            HStack {
-                Text("已选择 \(selectedInspirations.count) 项")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8))
-                
-                Spacer()
-                
-                Button(selectedInspirations.count == similarRecordings.count ? "取消全选" : "全选") {
-                    if selectedInspirations.count == similarRecordings.count {
-                        selectedInspirations.removeAll()
-                    } else {
-                        selectedInspirations = Set(similarRecordings.map { $0.id })
-                    }
-                }
-                .font(.system(size: 13, weight: .medium))
-                .foregroundColor(.blue)
+        .globalBatchSelectionToolbar(
+            isPresented: $isSelectionMode,
+            selectedCount: selectedInspirations.count,
+            totalCount: similarRecordings.count,
+            actionTitle: "添加到空间",
+            actionIcon: "plus.circle.fill",
+            onSelectAll: {
+                selectedInspirations = Set(similarRecordings.map { $0.id })
+            },
+            onDeselectAll: {
+                selectedInspirations.removeAll()
+            },
+            onAction: {
+                showingBatchSpaceSelection = true
             }
-            
-            // 批量操作按钮
-            HStack(spacing: 10) {
-                Button(action: {
-                    showingBatchSpaceSelection = true
-                }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "plus.circle.fill")
-                            .font(.system(size: 12, weight: .medium))
-                        
-                        Text("添加到空间")
-                            .font(.system(size: 12, weight: .medium))
-                    }
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(
-                        RoundedRectangle(cornerRadius: 16)
-                            .fill(selectedInspirations.isEmpty ? Color.gray : Color.blue)
-                    )
-                }
-                .disabled(selectedInspirations.isEmpty)
-                
-                Spacer()
-            }
-        }
-        .padding(.horizontal, 16)
-        .padding(.vertical, 10)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(isDarkMode ? Color.white.opacity(0.04) : Color.gray.opacity(0.04))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(isDarkMode ? Color.white.opacity(0.08) : Color.gray.opacity(0.08), lineWidth: 1)
-                )
         )
     }
+    
     
     // MARK: - 批量操作方法
     private func toggleSelectionMode() {
