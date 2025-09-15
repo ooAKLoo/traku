@@ -325,42 +325,50 @@ struct ArticleCard: View {
             
             // 主内容
             HStack(alignment: .top, spacing: 16) {
-                // 左侧时间线和标记
+                // 左侧时间线
                 VStack(alignment: .center, spacing: 0) {
+                    // 时间点 - 根据标记状态显示
                     Circle()
-                        .fill(article.isMarkedImportant ? Color.black : 
-                              (isDarkMode ? Color.white.opacity(0.2) : Color.black.opacity(0.2)))
-                        .frame(width: 5, height: 5)
+                        .fill(circleColor)
+                        .frame(width: circleSize, height: circleSize)
                         .onTapGesture {
                             onToggleMark()
                         }
                     
+                    // 连接线
                     Rectangle()
-                        .fill(isDarkMode ? Color.white.opacity(0.1) : Color.black.opacity(0.1))
-                        .frame(width: 1)
+                        .fill(isDarkMode ? Color.white.opacity(0.08) : Color.black.opacity(0.08))
+                        .frame(width: 0.5)
                 }
-                .frame(width: 20)
+                .padding(.top, 8)
                 
-                // 内容
+                // 内容区域
                 VStack(alignment: .leading, spacing: 8) {
                     // 润色后的内容，如果没有则显示标题
                     Text(recording.polishedText.isEmpty ? recording.title : recording.polishedText)
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundColor(isDarkMode ? .white : .black)
-                        .lineLimit(3)
+                        .font(.system(size: 15, weight: .regular))
+                        .foregroundColor(isDarkMode ? .white.opacity(0.9) : .black.opacity(0.85))
+                        .lineSpacing(6)
+                        .fixedSize(horizontal: false, vertical: true)
                         .multilineTextAlignment(.leading)
+                        .lineLimit(3)
                     
-                    // 显示创建时间
-                    Text(ArticleCard.formatDate(article.createdAt))
-                        .font(.system(size: 12, weight: .regular))
-                        .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
+                    // 显示创建时间 - 极简风格
+                    Text(ArticleCard.formatMinimalTimestamp(article.createdAt))
+                        .font(.system(size: 11, weight: .regular))
+                        .foregroundColor(isDarkMode ? .white.opacity(0.25) : .black.opacity(0.25))
+                        .tracking(0.5)
                 }
+                .padding(.trailing, 20)
+                .padding(.vertical, 16)
                 
-                Spacer()
+                Spacer(minLength: 0)
             }
-            .padding(.horizontal, 20)
-            .padding(.vertical, 16)
-            .background(isDarkMode ? Color.black : Color(hex: "FAFAFA"))
+            .padding(.leading, 20)
+            .background(
+                Rectangle()
+                    .fill(isDarkMode ? Color.black : Color(hex: "FAFAFA"))
+            )
             .offset(x: offset)
             .gesture(
                 DragGesture()
@@ -419,6 +427,21 @@ struct ArticleCard: View {
         }
     }
     
+    // MARK: - 圆点样式计算
+    private var circleColor: Color {
+        if article.isMarkedImportant {
+            // 已标记：纯黑/纯白
+            return isDarkMode ? Color.white : Color.black
+        } else {
+            // 未标记：半透明
+            return isDarkMode ? Color.white.opacity(0.2) : Color.black.opacity(0.2)
+        }
+    }
+    
+    private var circleSize: CGFloat {
+        return 5  // 统一大小
+    }
+    
     // MARK: - Date Formatting
     static func formatDate(_ date: Date) -> String {
         let formatter = DateFormatter()
@@ -448,6 +471,33 @@ struct ArticleCard: View {
         }
         
         return formatter.string(from: date)
+    }
+    
+    // MARK: - 极简时间格式
+    static func formatMinimalTimestamp(_ date: Date) -> String {
+        let calendar = Calendar.current
+        let now = Date()
+        let components = calendar.dateComponents([.minute, .hour, .day], from: date, to: now)
+        
+        if let day = components.day, day > 0 {
+            if day == 1 {
+                return "昨天"
+            } else if day < 7 {
+                return "\(day)天前"
+            } else if day < 30 {
+                return "\(day / 7)周前"
+            } else {
+                let formatter = DateFormatter()
+                formatter.dateFormat = "MM.dd"
+                return formatter.string(from: date)
+            }
+        } else if let hour = components.hour, hour > 0 {
+            return "\(hour)小时前"
+        } else if let minute = components.minute, minute > 0 {
+            return "\(minute)分钟前"
+        } else {
+            return "刚刚"
+        }
     }
 }
 
