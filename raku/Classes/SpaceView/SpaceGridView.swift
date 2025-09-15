@@ -131,7 +131,7 @@ struct AddSpaceCard: View {
                         RoundedRectangle(cornerRadius: 16)
                             .stroke(
                                 isDarkMode ? Color.gray.opacity(0.3) : Color.gray.opacity(0.2),
-                                style: StrokeStyle(lineWidth: 1, dash: [5])
+                                style: StrokeStyle(lineWidth: 2, dash: [4])
                             )
                     )
                     .shadow(

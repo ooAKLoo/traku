@@ -88,10 +88,20 @@ struct InspirationListView: View {
     let isDarkMode: Bool
     @Environment(\.presentationMode) var presentationMode
     @State private var inspirations: [AudioRecording] = []
+    @State private var allInspirations: [AudioRecording] = []  // 保存所有灵感
+    @State private var usedInspirations: [AudioRecording] = []  // 已使用的灵感
+    @State private var unusedInspirations: [AudioRecording] = []  // 未使用的灵感
     @State private var stats: (used: Int, unused: Int) = (0, 0)
     @State private var isSelectionMode = false
     @State private var selectedInspirations: Set<UUID> = []
     @State private var showingBatchSpaceSelection = false
+    @State private var filterType: FilterType = .all  // 筛选类型
+    
+    enum FilterType {
+        case all
+        case used
+        case unused
+    }
     
     var body: some View {
         ZStack {
@@ -154,15 +164,44 @@ struct InspirationListView: View {
                             .foregroundColor(isDarkMode ? .yellow : .orange)
                             .scaleEffect(1.1)
                         
-                        Text("灵感资源池")
-                            .font(.system(size: 28, weight: .bold, design: .rounded))
-                            .foregroundColor(isDarkMode ? .white : .black)
-                            .tracking(-0.5)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text("灵感资源池")
+                                .font(.system(size: 28, weight: .bold, design: .rounded))
+                                .foregroundColor(isDarkMode ? .white : .black)
+                                .tracking(-0.5)
+                            
+                            if filterType != .all {
+                                Text(filterType == .used ? "已使用的灵感" : "未使用的灵感")
+                                    .font(.system(size: 13, weight: .medium))
+                                    .foregroundColor(filterType == .used ? 
+                                                   (isDarkMode ? .green : .green) : 
+                                                   (isDarkMode ? .orange : .orange))
+                            }
+                        }
                     }
                     
-                    Text("收集与整理你的思维火花")
-                        .font(.system(size: 15, weight: .regular))
-                        .foregroundColor(isDarkMode ? Color.white.opacity(0.6) : Color.black.opacity(0.5))
+                    HStack(spacing: 8) {
+                        Text("收集与整理你的思维火花")
+                            .font(.system(size: 15, weight: .regular))
+                            .foregroundColor(isDarkMode ? Color.white.opacity(0.6) : Color.black.opacity(0.5))
+                        
+                        if filterType != .all {
+                            Text("·")
+                                .font(.system(size: 15, weight: .regular))
+                                .foregroundColor(isDarkMode ? Color.white.opacity(0.4) : Color.black.opacity(0.4))
+                            
+                            Button(action: {
+                                withAnimation(.easeInOut(duration: 0.3)) {
+                                    filterType = .all
+                                    updateFilteredInspirations()
+                                }
+                            }) {
+                                Text("查看全部")
+                                    .font(.system(size: 14, weight: .medium))
+                                    .foregroundColor(.blue)
+                            }
+                        }
+                    }
                 }
                 
                 Spacer()
@@ -203,7 +242,14 @@ struct InspirationListView: View {
                         value: "\(stats.used)",
                         icon: "checkmark.circle.fill",
                         color: isDarkMode ? .green : .green,
-                        isDarkMode: isDarkMode
+                        isDarkMode: isDarkMode,
+                        isSelected: filterType == .used,
+                        onTap: {
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                filterType = filterType == .used ? .all : .used
+                                updateFilteredInspirations()
+                            }
+                        }
                     )
                     
                     StatCard(
@@ -211,7 +257,14 @@ struct InspirationListView: View {
                         value: "\(stats.unused)",
                         icon: "circle.fill",
                         color: isDarkMode ? .orange : .orange,
-                        isDarkMode: isDarkMode
+                        isDarkMode: isDarkMode,
+                        isSelected: filterType == .unused,
+                        onTap: {
+                            withAnimation(.easeInOut(duration: 0.3)) {
+                                filterType = filterType == .unused ? .all : .unused
+                                updateFilteredInspirations()
+                            }
+                        }
                     )
                 }
                 .padding(.horizontal, 20)
@@ -364,9 +417,51 @@ struct InspirationListView: View {
     
     private func loadInspirations() {
         // 从数据库加载实际的灵感数据
-        inspirations = DatabaseManager.shared.getInspirationRecordings()
+        allInspirations = DatabaseManager.shared.getInspirationRecordings()
+        
+        // 分类已使用和未使用的灵感
+        categorizeInspirations()
+        
         // 加载优化的统计信息
         stats = DatabaseManager.shared.getInspirationUsageStats()
+        
+        // 根据当前筛选类型显示数据
+        updateFilteredInspirations()
+    }
+    
+    private func categorizeInspirations() {
+        usedInspirations = []
+        unusedInspirations = []
+        
+        for inspiration in allInspirations {
+            // 检查这个灵感是否已经被添加到任何空间
+            let spaces = DatabaseManager.shared.getAllSpaces()
+            var isUsed = false
+            
+            for space in spaces {
+                if DatabaseManager.shared.isRecordingInSpace(recordingId: inspiration.id, spaceId: space.id) {
+                    isUsed = true
+                    break
+                }
+            }
+            
+            if isUsed {
+                usedInspirations.append(inspiration)
+            } else {
+                unusedInspirations.append(inspiration)
+            }
+        }
+    }
+    
+    private func updateFilteredInspirations() {
+        switch filterType {
+        case .all:
+            inspirations = allInspirations
+        case .used:
+            inspirations = usedInspirations
+        case .unused:
+            inspirations = unusedInspirations
+        }
     }
     
     // MARK: - 批量操作方法
@@ -402,35 +497,44 @@ struct StatCard: View {
     let icon: String
     let color: Color
     let isDarkMode: Bool
+    var isSelected: Bool = false
+    var onTap: (() -> Void)?
     
     var body: some View {
-        VStack(spacing: 8) {
-            HStack(spacing: 6) {
-                Image(systemName: icon)
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(color)
+        Button(action: {
+            onTap?()
+        }) {
+            VStack(spacing: 8) {
+                HStack(spacing: 6) {
+                    Image(systemName: icon)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(isSelected ? .white : color)
+                    
+                    Text(value)
+                        .font(.system(size: 18, weight: .bold, design: .rounded))
+                        .foregroundColor(isSelected ? .white : (isDarkMode ? .white : .black))
+                }
                 
-                Text(value)
-                    .font(.system(size: 18, weight: .bold, design: .rounded))
-                    .foregroundColor(isDarkMode ? .white : .black)
+                Text(title)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundColor(isSelected ? .white.opacity(0.9) : (isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6)))
             }
-            
-            Text(title)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 12)
+            .padding(.horizontal, 8)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(isSelected ? color : (isDarkMode ? Color.white.opacity(0.06) : Color.gray.opacity(0.06)))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 12)
+                            .stroke(isSelected ? color : color.opacity(0.2), lineWidth: isSelected ? 2 : 1)
+                    )
+            )
+            .shadow(color: color.opacity(isDarkMode ? 0.1 : 0.05), radius: 4, x: 0, y: 2)
+            .scaleEffect(isSelected ? 0.98 : 1.0)
+            .animation(.easeInOut(duration: 0.2), value: isSelected)
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, 12)
-        .padding(.horizontal, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(isDarkMode ? Color.white.opacity(0.06) : Color.gray.opacity(0.06))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(color.opacity(0.2), lineWidth: 1)
-                )
-        )
-        .shadow(color: color.opacity(isDarkMode ? 0.1 : 0.05), radius: 4, x: 0, y: 2)
+        .buttonStyle(PlainButtonStyle())
     }
 }
 
