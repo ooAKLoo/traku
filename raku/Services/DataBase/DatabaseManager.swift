@@ -204,6 +204,13 @@ class DatabaseManager {
         }
     }
     
+    /// 获取灵感使用统计信息（优化版本）
+    func getInspirationUsageStats() -> (used: Int, unused: Int) {
+        return performSync {
+            try await self.recordingRepository.getInspirationUsageStats()
+        }
+    }
+    
     // MARK: - Embedding Operations
     
     /// 更新记录的向量嵌入

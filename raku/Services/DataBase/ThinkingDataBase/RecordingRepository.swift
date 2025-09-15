@@ -410,6 +410,34 @@ class RecordingRepository: Repository {
         return results
     }
     
+    /// 获取灵感使用统计信息（优化版本）
+    func getInspirationUsageStats() async throws -> (used: Int, unused: Int) {
+        let sql = """
+            SELECT 
+                COUNT(sa.audio_recording_id) as used,
+                COUNT(*) - COUNT(sa.audio_recording_id) as unused
+            FROM \(tableName) ar
+            LEFT JOIN space_articles sa ON ar.id = sa.audio_recording_id
+            WHERE ar.content_type = 'inspiration'
+        """
+        
+        return try await sqliteCore.performAsync {
+            let statement = try self.sqliteCore.prepare(sql)
+            defer { self.sqliteCore.finalize(statement) }
+            
+            guard try self.sqliteCore.step(statement) == SQLITE_ROW else {
+                return (used: 0, unused: 0)
+            }
+            
+            let used = Int(sqlite3_column_int(statement, 0))
+            let unused = Int(sqlite3_column_int(statement, 1))
+            
+            print("dataprocess--- 灵感统计: 已使用=\(used), 未使用=\(unused)")
+            
+            return (used: used, unused: unused)
+        }
+    }
+    
     /// 更新记录的内容类型
     func updateContentType(id: UUID, contentType: String) async throws -> Bool {
         let updateSQL = "UPDATE \(tableName) SET content_type = ? WHERE id = ?"
