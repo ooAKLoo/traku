@@ -15,6 +15,7 @@ struct SpaceCreationView: View {
     
     @State private var selectedMode: CreationMode = .template
     @State private var showingCustomSpaceView = false
+    @State private var selectedTemplate: SpaceTemplate? = nil
     
     enum CreationMode: String, CaseIterable {
         case custom = "自定义"
@@ -218,7 +219,7 @@ struct SpaceCreationView: View {
                             isDarkMode: isDarkMode,
                             onTap: {
                                 withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                                    createSpaceFromTemplate(template)
+                                    selectTemplate(template)
                                 }
                             }
                         )
@@ -242,11 +243,25 @@ struct SpaceCreationView: View {
             // 描述文本
             HStack {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text("从零开始构建")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(isDarkMode ? Color.white.opacity(0.9) : Color.black.opacity(0.8))
+                    HStack(spacing: 8) {
+                        Text(selectedTemplate != nil ? "基于模板自定义" : "从零开始构建")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(isDarkMode ? Color.white.opacity(0.9) : Color.black.opacity(0.8))
+                        
+                        if selectedTemplate != nil {
+                            Button(action: {
+                                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                    selectedTemplate = nil
+                                }
+                            }) {
+                                Image(systemName: "xmark.circle.fill")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(isDarkMode ? Color.white.opacity(0.4) : Color.black.opacity(0.4))
+                            }
+                        }
+                    }
                     
-                    Text("创建完全符合你需求的空间")
+                    Text(selectedTemplate != nil ? "已为你预填充模板内容，可自由编辑" : "创建完全符合你需求的空间")
                         .font(.system(size: 13))
                         .foregroundColor(isDarkMode ? Color.white.opacity(0.5) : Color.black.opacity(0.4))
                 }
@@ -264,7 +279,8 @@ struct SpaceCreationView: View {
                         isPresented = false
                     }
                 },
-                isEmbedded: true
+                isEmbedded: true,
+                templateData: selectedTemplate
             )
         }
         .transition(.asymmetric(
@@ -274,27 +290,11 @@ struct SpaceCreationView: View {
     }
     
     // MARK: - Methods
-    private func createSpaceFromTemplate(_ template: SpaceTemplate) {
-        // 创建空间
-        let space = Space(
-            name: template.title,
-            description: template.description
-        )
-        
-        // 保存到数据库
-        if DatabaseManager.shared.createSpace(space) {
-            // 创建类别
-            for categoryItem in template.categories {
-                let category = Category(
-                    spaceId: space.id,
-                    name: categoryItem.name
-                )
-                _ = DatabaseManager.shared.createCategory(category)
-            }
-            
-            onSpaceCreated(space)
-            isPresented = false
-        }
+    private func selectTemplate(_ template: SpaceTemplate) {
+        // 保存选中的模板
+        selectedTemplate = template
+        // 切换到自定义模式
+        selectedMode = .custom
     }
 }
 

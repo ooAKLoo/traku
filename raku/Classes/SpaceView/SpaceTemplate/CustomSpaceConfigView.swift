@@ -13,20 +13,16 @@ struct CustomSpaceConfigView: View {
     let isDarkMode: Bool
     let onSpaceCreated: (Space) -> Void
     var isEmbedded: Bool = false
+    var templateData: SpaceTemplate? = nil  // 添加模板数据参数
     
     @State private var spaceName = ""
     @State private var spaceDescription = ""
     @State private var selectedEmoji = "📋"
     @State private var categories: [CustomCategoryItem] = []
     @State private var newCategoryName = ""
-    @State private var selectedCategoryColor = Color.blue
-    @State private var selectedCategoryEmoji = "⚡"
     @State private var showingEmojiPicker = false
-    @State private var showingCategoryEmojiPicker = false
     
     private let availableEmojis = ["📋", "🎨", "🚀", "📚", "✍️", "💡", "🔮", "⭐", "🌟", "🎯", "🎪", "🎭"]
-    private let availableColors: [Color] = [.blue, .green, .orange, .red, .purple, .pink, .yellow, .cyan]
-    private let categoryEmojis = ["⚡", "💬", "🔍", "🎯", "💡", "🌈", "📝", "🖱️", "🔷", "📈", "💰", "🔎", "💼", "📖", "🤔", "🧪", "📄", "🔖", "👤", "📚", "🏞️", "💭", "✨"]
     
     var body: some View {
         Group {
@@ -63,12 +59,8 @@ struct CustomSpaceConfigView: View {
                 isDarkMode: isDarkMode
             )
         }
-        .sheet(isPresented: $showingCategoryEmojiPicker) {
-            EmojiPickerView(
-                selectedEmoji: $selectedCategoryEmoji,
-                emojis: categoryEmojis,
-                isDarkMode: isDarkMode
-            )
+        .onAppear {
+            initializeFromTemplate()
         }
     }
     
@@ -281,57 +273,20 @@ struct CustomSpaceConfigView: View {
                 .foregroundColor(isDarkMode ? .white.opacity(0.9) : .black.opacity(0.8))
             
             HStack(spacing: 12) {
-                // Emoji选择器
-                Button(action: {
-                    showingCategoryEmojiPicker = true
-                }) {
-                    Text(selectedCategoryEmoji)
-                        .font(.system(size: 24))
-                        .frame(width: 44, height: 44)
-                        .background(
-                            RoundedRectangle(cornerRadius: 8)
-                                .fill(selectedCategoryColor.opacity(0.1))
-                        )
-                }
-                
                 // 类别名称输入
                 TextField("类别名称", text: $newCategoryName)
                     .font(.system(size: 16))
                     .textFieldStyle(PremiumTextFieldStyle(isDarkMode: isDarkMode))
-                
-                // 颜色选择器
-                Menu {
-                    ForEach(availableColors, id: \.self) { color in
-                        Button(action: {
-                            selectedCategoryColor = color
-                        }) {
-                            HStack {
-                                Circle()
-                                    .fill(color)
-                                    .frame(width: 20, height: 20)
-                                Text(colorName(for: color))
-                            }
-                        }
-                    }
-                } label: {
-                    Circle()
-                        .fill(selectedCategoryColor)
-                        .frame(width: 28, height: 28)
-                        .overlay(
-                            Circle()
-                                .stroke(isDarkMode ? Color.white.opacity(0.2) : Color.black.opacity(0.1), lineWidth: 1)
-                        )
-                }
                 
                 // 添加按钮
                 Button(action: addCategory) {
                     Image(systemName: "plus")
                         .font(.system(size: 16, weight: .medium))
                         .foregroundColor(.white)
-                        .frame(width: 32, height: 32)
+                        .frame(width: 36, height: 36)
                         .background(
                             RoundedRectangle(cornerRadius: 8)
-                                .fill(canAddCategory ? selectedCategoryColor : (isDarkMode ? Color.gray.opacity(0.3) : Color.gray.opacity(0.5)))
+                                .fill(canAddCategory ? Color.blue : (isDarkMode ? Color.gray.opacity(0.3) : Color.gray.opacity(0.5)))
                         )
                 }
                 .disabled(!canAddCategory)
@@ -356,19 +311,35 @@ struct CustomSpaceConfigView: View {
     }
     
     // MARK: - 方法
+    private func initializeFromTemplate() {
+        guard let template = templateData else { return }
+        
+        // 填充基本信息
+        spaceName = template.title
+        spaceDescription = template.description
+        selectedEmoji = template.emoji
+        
+        // 转换模板类别为自定义类别
+        categories = template.categories.map { templateCategory in
+            CustomCategoryItem(
+                name: templateCategory.name,
+                emoji: "📁",  // 使用统一的默认图标
+                color: .blue  // 使用统一的默认颜色
+            )
+        }
+    }
+    
     private func addCategory() {
         guard canAddCategory else { return }
         
         let category = CustomCategoryItem(
             name: newCategoryName.trimmingCharacters(in: .whitespacesAndNewlines),
-            emoji: selectedCategoryEmoji,
-            color: selectedCategoryColor
+            emoji: "📁",  // 使用统一的默认图标
+            color: .blue  // 使用统一的默认颜色
         )
         
         categories.append(category)
         newCategoryName = ""
-        selectedCategoryEmoji = categoryEmojis.randomElement() ?? "⚡"
-        selectedCategoryColor = availableColors.randomElement() ?? .blue
     }
     
     private func createSpace() {
@@ -396,19 +367,6 @@ struct CustomSpaceConfigView: View {
         }
     }
     
-    private func colorName(for color: Color) -> String {
-        switch color {
-        case .blue: return "蓝色"
-        case .green: return "绿色"
-        case .orange: return "橙色"
-        case .red: return "红色"
-        case .purple: return "紫色"
-        case .pink: return "粉色"
-        case .yellow: return "黄色"
-        case .cyan: return "青色"
-        default: return "默认"
-        }
-    }
 }
 
 // MARK: - 自定义数据模型
