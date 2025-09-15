@@ -18,7 +18,7 @@ struct SimilarInspirationView: View {
             // 标题
             HStack {
                 Image(systemName: "lightbulb.fill")
-                    .foregroundColor(.orange)
+                    .foregroundColor(.blue)
                     .font(.system(size: 16))
                 
                 Text("相似灵感")
@@ -46,7 +46,7 @@ struct SimilarInspirationView: View {
                 // 错误状态
                 HStack(spacing: 12) {
                     Image(systemName: "exclamationmark.triangle")
-                        .foregroundColor(.orange)
+                        .foregroundColor(.blue)
                     
                     Text(error)
                         .font(.system(size: 14))
@@ -203,7 +203,7 @@ struct SimilarInspirationItem: View {
                                 .padding(.vertical, 2)
                                 .background(
                                     RoundedRectangle(cornerRadius: 4)
-                                        .fill(isDarkMode ? Color.orange.opacity(0.2) : Color.orange.opacity(0.15))
+                                        .fill(isDarkMode ? Color.blue.opacity(0.2) : Color.blue.opacity(0.15))
                                 )
                         }
                     }
@@ -224,10 +224,6 @@ struct SimilarInspirationItem: View {
         .background(
             RoundedRectangle(cornerRadius: 12)
                 .fill(isDarkMode ? Color.white.opacity(0.05) : Color.gray.opacity(0.08))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(isDarkMode ? Color.white.opacity(0.1) : Color.gray.opacity(0.2), lineWidth: 0.5)
-                )
         )
         .contentShape(Rectangle())
         .onTapGesture {
@@ -289,7 +285,7 @@ struct SimilarInspirationPlaceholder: View {
             HStack(spacing: 6) {
                 ForEach(0..<2, id: \.self) { _ in
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(isDarkMode ? Color.orange.opacity(0.1) : Color.orange.opacity(0.1))
+                        .fill(isDarkMode ? Color.blue.opacity(0.1) : Color.blue.opacity(0.1))
                         .frame(width: 40, height: 16)
                 }
             }

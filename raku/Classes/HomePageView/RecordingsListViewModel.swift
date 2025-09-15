@@ -18,6 +18,7 @@ class RecordingsListViewModel: ObservableObject {
     @Published var searchResults: [SearchResult] = []
     @Published var isSearching = false
     @Published var searchError: SearchError?
+    @Published var showingSpaceTemplateSheet = false
     
     private let audioManager: AudioManagerAdapter
     
@@ -60,6 +61,15 @@ class RecordingsListViewModel: ObservableObject {
     
     func updateRecording(_ updatedRecording: AudioRecording) {
         audioManager.updateRecording(updatedRecording)
+    }
+    
+    func createSpaceFromTemplate(_ template: SpaceTemplate) {
+        // TODO: 实现从模板创建空间的逻辑
+        print("📋 创建空间: \(template.title)")
+        print("📂 包含类别: \(template.categories.map { $0.name }.joined(separator: ", "))")
+        
+        // 这里可以添加实际的空间创建逻辑
+        // 比如保存到数据库、更新UI状态等
     }
     
     private func performSearch(query: String) {

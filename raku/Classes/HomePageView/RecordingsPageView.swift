@@ -104,7 +104,12 @@ struct RecordingsPageView: View {
             // 悬浮录音控制卡片
             VStack {
                 Spacer()
-                FloatingRecordingCard(audioManager: audioManager)
+                FloatingRecordingCard(
+                    audioManager: audioManager,
+                    selectedFilter: viewModel.selectedFilter,
+                    isDarkMode: isDarkMode,
+                    showingSpaceTemplateSheet: $viewModel.showingSpaceTemplateSheet
+                )
             }
             
         }
@@ -113,6 +118,18 @@ struct RecordingsPageView: View {
         }
         .sheet(isPresented: $viewModel.showingConnectionConfig) {
             ConnectionConfigView(audioManager: audioManager)
+        }
+        .sheet(isPresented: $viewModel.showingSpaceTemplateSheet) {
+            SpaceCreationView(
+                isPresented: $viewModel.showingSpaceTemplateSheet,
+                isDarkMode: isDarkMode,
+                onTemplateSelected: { template in
+                    viewModel.createSpaceFromTemplate(template)
+                },
+                onCustomSelected: {
+                    // 自定义空间创建逻辑
+                }
+            )
         }
     }
 }
