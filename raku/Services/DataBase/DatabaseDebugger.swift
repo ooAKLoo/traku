@@ -12,17 +12,11 @@ class DatabaseDebugger {
     
     private let sqliteCore: SQLiteCore
     private let recordingRepository: RecordingRepository
-    private let inspirationRepository: InspirationRepository
-    private let embeddingRepository: EmbeddingRepository
     
     init(sqliteCore: SQLiteCore,
-         recordingRepository: RecordingRepository,
-         inspirationRepository: InspirationRepository,
-         embeddingRepository: EmbeddingRepository) {
+         recordingRepository: RecordingRepository) {
         self.sqliteCore = sqliteCore
         self.recordingRepository = recordingRepository
-        self.inspirationRepository = inspirationRepository
-        self.embeddingRepository = embeddingRepository
     }
     
     // MARK: - Public Debug Methods
@@ -33,8 +27,8 @@ class DatabaseDebugger {
         
         do {
             let recordingCount = try await recordingRepository.count()
-            let inspirationCount = try await inspirationRepository.count()
-            let embeddingCount = try await embeddingRepository.count()
+            let inspirationCount = 0 // Inspiration功能已整合到RecordingRepository中
+            let embeddingCount = try await recordingRepository.count()
             
             print("📈 录音记录数: \(recordingCount)")
             print("💡 灵感记录数: \(inspirationCount)")
@@ -67,6 +61,17 @@ class DatabaseDebugger {
                 print("   标签: \(recording.tags.joined(separator: ", "))")
                 print("   音频数据: \(recording.audioData != nil ? "✅" : "❌")")
                 print("   润色文本: \(recording.polishedText.isEmpty ? "❌" : "✅")")
+                
+                // 尝试获取向量数据
+                do {
+                    if let vector = try await recordingRepository.getEmbeddingVector(id: recording.id) {
+                        print("   向量数据: ✅ (\(vector.count)维)")
+                    } else {
+                        print("   向量数据: ❌")
+                    }
+                } catch {
+                    print("   向量数据: ❌")
+                }
             }
             
             if recordings.count > 10 {
@@ -80,26 +85,37 @@ class DatabaseDebugger {
         print("\n🎵 =====================================\n")
     }
     
-    /// 打印所有灵感记录的摘要信息
+    /// 打印所有灵感记录的摘要信息（从统一的录音表获取灵感类型记录）
     func printInspirationSummary() async {
         print("\n💡 ========== 灵感记录摘要 ==========")
         
         do {
-            let inspirations = try await inspirationRepository.list()
+            let inspirationRecordings = try await recordingRepository.getInspirationRecordings()
             
-            for (index, inspiration) in inspirations.prefix(10).enumerated() {
+            for (index, recording) in inspirationRecordings.prefix(10).enumerated() {
                 print("\n✨ 灵感 #\(index + 1):")
-                print("   ID: \(inspiration.id)")
-                print("   原始文本: \(inspiration.originalText.prefix(50))...")
-                print("   润色文本: \(inspiration.polishedText.prefix(50))...")
-                print("   标签: \(inspiration.tags.joined(separator: ", "))")
-                print("   创建时间: \(formatDate(inspiration.createdAt))")
-                print("   音频数据: \(inspiration.audioData != nil ? "✅" : "❌")")
-                print("   向量数据: \(inspiration.embeddingVector.isEmpty ? "❌" : "✅ (\(inspiration.embeddingVector.count)维)")")
+                print("   ID: \(recording.id)")
+                print("   标题: \(recording.title)")
+                print("   原始文本: \(recording.transcription.prefix(50))...")
+                print("   润色文本: \(recording.polishedText.prefix(50))...")
+                print("   标签: \(recording.tags.joined(separator: ", "))")
+                print("   创建时间: \(formatDate(recording.timestamp))")
+                print("   音频数据: \(recording.audioData != nil ? "✅" : "❌")")
+                
+                // 检查向量数据
+                do {
+                    if let vector = try await recordingRepository.getEmbeddingVector(id: recording.id) {
+                        print("   向量数据: ✅ (\(vector.count)维)")
+                    } else {
+                        print("   向量数据: ❌")
+                    }
+                } catch {
+                    print("   向量数据: ❌")
+                }
             }
             
-            if inspirations.count > 10 {
-                print("\n... 还有 \(inspirations.count - 10) 条记录未显示")
+            if inspirationRecordings.count > 10 {
+                print("\n... 还有 \(inspirationRecordings.count - 10) 条记录未显示")
             }
             
         } catch {
@@ -113,7 +129,7 @@ class DatabaseDebugger {
     func printTableSchemas() async {
         print("\n🏗️ ========== 数据库表结构 ==========")
         
-        let tables = ["audio_recordings", "inspirations", "embeddings"]
+        let tables = ["audio_recordings"]
         
         for tableName in tables {
             print("\n📋 表: \(tableName)")
@@ -139,17 +155,20 @@ class DatabaseDebugger {
         
         do {
             let recordings = try await recordingRepository.list()
-            let embeddingFilter = FilterCriteria(orderBy: "recording_id")
-            let embeddings = try await embeddingRepository.list(filter: embeddingFilter)
-            
-            // 按录音ID分组向量
-            var embeddingsByRecording: [String: [EmbeddingData]] = [:]
-            for embedding in embeddings {
-                embeddingsByRecording[embedding.recordingId, default: []].append(embedding)
-            }
-            
             print("📊 录音记录数: \(recordings.count)")
-            print("📊 有向量数据的录音数: \(embeddingsByRecording.keys.count)")
+            
+            // 统计有向量数据的录音
+            var recordingsWithEmbeddings = 0
+            for recording in recordings {
+                do {
+                    if try await recordingRepository.getEmbeddingVector(id: recording.id) != nil {
+                        recordingsWithEmbeddings += 1
+                    }
+                } catch {
+                    // 忽略错误，继续统计
+                }
+            }
+            print("📊 有向量数据的录音数: \(recordingsWithEmbeddings)")
             
             var missingEmbeddings: [String] = []
             var incompleteEmbeddings: [String] = []
@@ -157,42 +176,24 @@ class DatabaseDebugger {
             for recording in recordings {
                 let recordingId = recording.id.uuidString
                 
-                if let recordingEmbeddings = embeddingsByRecording[recordingId] {
-                    let embeddingTypes = Set(recordingEmbeddings.map { $0.embeddingType })
-                    
-                    // 检查必要的向量类型
-                    let expectedTypes = ["title", "polished_text"]
-                    let missingTypes = expectedTypes.filter { !embeddingTypes.contains($0) }
-                    
-                    if !missingTypes.isEmpty {
-                        incompleteEmbeddings.append("\(recordingId.prefix(8))... (缺少: \(missingTypes.joined(separator: ", ")))")
+                do {
+                    if try await recordingRepository.getEmbeddingVector(id: recording.id) == nil {
+                        missingEmbeddings.append("\(recordingId.prefix(8))... (\(recording.title))")
                     }
-                } else {
+                } catch {
                     missingEmbeddings.append("\(recordingId.prefix(8))... (\(recording.title))")
                 }
             }
             
-            if missingEmbeddings.isEmpty && incompleteEmbeddings.isEmpty {
-                print("✅ 所有录音都有完整的向量数据")
+            if missingEmbeddings.isEmpty {
+                print("✅ 所有录音都有向量数据")
             } else {
-                if !missingEmbeddings.isEmpty {
-                    print("❌ 缺少向量数据的录音 (\(missingEmbeddings.count)):")
-                    for missing in missingEmbeddings.prefix(5) {
-                        print("   - \(missing)")
-                    }
-                    if missingEmbeddings.count > 5 {
-                        print("   ... 还有 \(missingEmbeddings.count - 5) 条")
-                    }
+                print("❌ 缺少向量数据的录音 (\(missingEmbeddings.count)):")
+                for missing in missingEmbeddings.prefix(5) {
+                    print("   - \(missing)")
                 }
-                
-                if !incompleteEmbeddings.isEmpty {
-                    print("⚠️ 向量数据不完整的录音 (\(incompleteEmbeddings.count)):")
-                    for incomplete in incompleteEmbeddings.prefix(5) {
-                        print("   - \(incomplete)")
-                    }
-                    if incompleteEmbeddings.count > 5 {
-                        print("   ... 还有 \(incompleteEmbeddings.count - 5) 条")
-                    }
+                if missingEmbeddings.count > 5 {
+                    print("   ... 还有 \(missingEmbeddings.count - 5) 条")
                 }
             }
             
@@ -219,8 +220,8 @@ class DatabaseDebugger {
         // 添加统计信息
         do {
             let recordingCount = try await recordingRepository.count()
-            let inspirationCount = try await inspirationRepository.count()
-            let embeddingCount = try await embeddingRepository.count()
+            let inspirationCount = 0 // Inspiration功能已整合到RecordingRepository中
+            let embeddingCount = try await recordingRepository.count()
             
             report += """
             📊 数据库统计:
@@ -258,7 +259,7 @@ class DatabaseDebugger {
         }
         
         // 添加表结构信息
-        let tables = ["audio_recordings", "inspirations", "embeddings"]
+        let tables = ["audio_recordings"]
         report += "\n\n🏗️ 数据库表结构:\n"
         
         for tableName in tables {
@@ -296,17 +297,20 @@ class DatabaseDebugger {
     /// 检查数据完整性
     private func checkDataIntegrity() async {
         do {
-            // 检查是否有孤立的向量数据
-            let embeddings = try await embeddingRepository.list()
+            // 检查录音数据完整性
             let recordings = try await recordingRepository.list()
-            let recordingIds = Set(recordings.map { $0.id.uuidString })
+            var invalidCount = 0
             
-            let orphanedEmbeddings = embeddings.filter { !recordingIds.contains($0.recordingId) }
+            for recording in recordings {
+                if recording.transcription.isEmpty || recording.title.isEmpty {
+                    invalidCount += 1
+                }
+            }
             
-            if orphanedEmbeddings.isEmpty {
+            if invalidCount == 0 {
                 print("✅ 数据完整性检查通过")
             } else {
-                print("⚠️ 发现 \(orphanedEmbeddings.count) 条孤立的向量记录")
+                print("⚠️ 发现 \(invalidCount) 条不完整的录音记录")
             }
             
         } catch {
@@ -332,9 +336,7 @@ extension DatabaseManager {
     var debugger: DatabaseDebugger {
         return DatabaseDebugger(
             sqliteCore: sqliteCore,
-            recordingRepository: recordingRepository,
-            inspirationRepository: inspirationRepository,
-            embeddingRepository: embeddingRepository
+            recordingRepository: recordingRepository
         )
     }
     
@@ -343,6 +345,7 @@ extension DatabaseManager {
         Task {
             await debugger.printDatabaseStats()
             await debugger.printRecordingSummary()
+            await debugger.printInspirationSummary()
             await debugger.checkEmbeddingIntegrity()
         }
     }
@@ -351,6 +354,4 @@ extension DatabaseManager {
     
     internal var _sqliteCore: SQLiteCore { return sqliteCore }
     internal var _recordingRepository: RecordingRepository { return recordingRepository }
-    internal var _inspirationRepository: InspirationRepository { return inspirationRepository }
-    internal var _embeddingRepository: EmbeddingRepository { return embeddingRepository }
 }

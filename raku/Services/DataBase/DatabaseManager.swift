@@ -16,8 +16,6 @@ class DatabaseManager {
     
     internal let sqliteCore: SQLiteCore
     internal let recordingRepository: RecordingRepository
-    internal let inspirationRepository: InspirationRepository
-    internal let embeddingRepository: EmbeddingRepository
     internal let recordingDataRepository: RecordingDataRepository
     
     // MARK: - Initialization
@@ -32,8 +30,6 @@ class DatabaseManager {
         
         // 初始化各个仓库
         self.recordingRepository = RecordingRepository(sqliteCore: sqliteCore)
-        self.inspirationRepository = InspirationRepository(sqliteCore: sqliteCore)
-        self.embeddingRepository = EmbeddingRepository(sqliteCore: sqliteCore)
         self.recordingDataRepository = RecordingDataRepository(sqliteCore: sqliteCore)
         
         // 初始化数据库
@@ -56,20 +52,18 @@ class DatabaseManager {
             // 创建所有表
             try await recordingDataRepository.createTable()  // 先创建录音数据表
             try await recordingRepository.createTable()
-            try await inspirationRepository.createTable()
-            try await embeddingRepository.createTable()
             
             // 初始统计
             let recordingDataCount = try await recordingDataRepository.count()
             let recordingCount = try await recordingRepository.count()
-            let inspirationCount = try await inspirationRepository.count()
-            let embeddingCount = try await embeddingRepository.count()
+            let thinkingCount = try await recordingRepository.getThinkingRecordings().count
+            let inspirationCount = try await recordingRepository.getInspirationRecordings().count
             
             print("📊 数据库初始化完成:")
             print("  - 原始录音数据: \(recordingDataCount)")
-            print("  - 录音分析记录: \(recordingCount)")
-            print("  - 灵感记录: \(inspirationCount)")
-            print("  - 向量记录: \(embeddingCount)")
+            print("  - 录音记录总数: \(recordingCount)")
+            print("  - 思考类型记录: \(thinkingCount)")
+            print("  - 灵感类型记录: \(inspirationCount)")
             
             // 清理无效记录
             if recordingCount > 0 {
@@ -157,8 +151,6 @@ class DatabaseManager {
     /// 删除录音记录
     func deleteRecording(id: UUID) -> Bool {
         return performSync {
-            // 同时删除相关的向量数据
-            let _ = try await self.embeddingRepository.deleteEmbeddings(for: id.uuidString)
             return try await self.recordingRepository.delete(id: id)
         }
     }
@@ -170,62 +162,52 @@ class DatabaseManager {
         }
     }
     
-    // MARK: - Inspiration Operations
+    // MARK: - Content Type Operations
     
-    /// 保存灵感数据
-    func saveInspiration(id: String, audioData: Data?, originalText: String, polishedText: String, tags: [String], embeddingVector: [Float]) -> Bool {
-        let inspiration = InspirationData(
-            id: id,
-            originalText: originalText,
-            polishedText: polishedText,
-            tags: tags,
-            audioData: audioData,
-            embeddingVector: embeddingVector
-        )
-        
+    /// 获取思考类型的记录
+    func getThinkingRecordings() -> [AudioRecording] {
         return performSync {
-            try await self.inspirationRepository.create(inspiration)
+            try await self.recordingRepository.getThinkingRecordings()
         }
     }
     
-    /// 加载所有灵感数据
-    func loadInspirations() -> [InspirationData] {
+    /// 获取灵感类型的记录
+    func getInspirationRecordings() -> [AudioRecording] {
         return performSync {
-            try await self.inspirationRepository.list()
+            try await self.recordingRepository.getInspirationRecordings()
         }
     }
     
-    /// 获取灵感数量
+    /// 更新记录的内容类型
+    func updateContentType(id: UUID, contentType: String) -> Bool {
+        return performSync {
+            try await self.recordingRepository.updateContentType(id: id, contentType: contentType)
+        }
+    }
+    
+    /// 获取灵感数量（兼容性方法）
     func getInspirationCount() -> Int {
         return performSync {
-            try await self.inspirationRepository.count()
+            print("dataprocess--- DatabaseManager.getInspirationCount(): 开始查询")
+            let inspirations = try await self.recordingRepository.getInspirationRecordings()
+            print("dataprocess--- DatabaseManager.getInspirationCount(): 返回 \(inspirations.count) 条灵感记录")
+            return inspirations.count
         }
     }
     
     // MARK: - Embedding Operations
     
-    /// 保存向量化结果
-    func saveEmbeddings(_ embeddingResult: VolcEngineEmbeddingService.EmbeddingResult) {
-        Task {
-            do {
-                let result = EmbeddingResult(
-                    recordingId: embeddingResult.recordingId,
-                    titleEmbedding: embeddingResult.titleEmbedding,
-                    tagsEmbeddings: embeddingResult.tagsEmbeddings,
-                    polishedTextEmbedding: embeddingResult.polishedTextEmbedding
-                )
-                
-                let _ = try await embeddingRepository.saveEmbeddings(result)
-            } catch {
-                print("❌ 保存向量数据失败: \(error)")
-            }
+    /// 更新记录的向量嵌入
+    func updateEmbeddingVector(id: UUID, embeddingVector: [Float]) -> Bool {
+        return performSync {
+            try await self.recordingRepository.updateEmbeddingVector(id: id, embeddingVector: embeddingVector)
         }
     }
     
-    /// 获取录音的向量数据
-    func getEmbeddings(for recordingId: String) -> [String: [Float]] {
-        return performSync {
-            try await self.embeddingRepository.getEmbeddings(for: recordingId)
+    /// 获取记录的向量嵌入
+    func getEmbeddingVector(id: UUID) -> [Float]? {
+        return performSyncOptional {
+            try await self.recordingRepository.getEmbeddingVector(id: id)
         }
     }
     
@@ -235,6 +217,36 @@ class DatabaseManager {
             try await self.recordingRepository.getRecordingsWithoutEmbeddings()
         }
     }
+    
+    /// 保存向量化结果
+    func saveEmbeddings(_ embeddingResult: VolcEngineEmbeddingService.EmbeddingResult) {
+        Task {
+            do {
+                guard let recordingId = UUID(uuidString: embeddingResult.recordingId) else {
+                    print("❌ 无效的录音ID: \(embeddingResult.recordingId)")
+                    return
+                }
+                
+                // 直接使用统一向量
+                if !embeddingResult.embedding.isEmpty {
+                    let success = try await self.recordingRepository.updateEmbeddingVector(
+                        id: recordingId,
+                        embeddingVector: embeddingResult.embedding
+                    )
+                    if success {
+                        print("✅ 成功保存录音 \(embeddingResult.recordingId) 的向量数据 (维度: \(embeddingResult.embedding.count))")
+                    }
+                } else {
+                    print("⚠️ 向量数据为空，跳过保存")
+                }
+                
+            } catch {
+                print("❌ 保存向量数据失败: \(error)")
+            }
+        }
+    }
+    
+    // 移除复杂的向量合并逻辑
     
     // MARK: - Utility Methods
     
@@ -266,8 +278,6 @@ class DatabaseManager {
             } else if T.self == Int.self {
                 return 0 as! T
             } else if T.self == Array<AudioRecording>.self {
-                return [] as! T
-            } else if T.self == Array<InspirationData>.self {
                 return [] as! T
             } else if T.self == Array<String>.self {
                 return [] as! T
@@ -318,11 +328,13 @@ extension DatabaseManager {
         
         // 获取统计信息
         let recordingCount = getRecordingCount()
-        let inspirationCount = getInspirationCount()
+        let thinkingCount = getThinkingRecordings().count
+        let inspirationCount = getInspirationRecordings().count
         
         debugInfo += "=== Statistics ===\n"
         debugInfo += "Total Recordings: \(recordingCount)\n"
-        debugInfo += "Total Inspirations: \(inspirationCount)\n\n"
+        debugInfo += "Thinking Records: \(thinkingCount)\n"
+        debugInfo += "Inspiration Records: \(inspirationCount)\n\n"
         
         // 获取录音记录
         debugInfo += "=== Recent Recordings ===\n"

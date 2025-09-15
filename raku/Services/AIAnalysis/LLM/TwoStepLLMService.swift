@@ -196,8 +196,8 @@ class TwoStepLLMService: NSObject, ObservableObject {
             
             // 检查是否为灵感类型
             if thoughtType == .insight {
-                // 灵感类型：执行embedding并保存
-                self.performInsightEmbedding(firstStepResult)
+                // 灵感类型：直接更新数据库，向量已在Pipeline中生成
+                self.updateInsightRecording(firstStepResult)
             } else {
                 // 其他类型：继续第二步
                 self.performSecondStepAnalysis(firstStepResult)
@@ -306,74 +306,67 @@ class TwoStepLLMService: NSObject, ObservableObject {
         }
     }
     
-    // MARK: - Insight Embedding处理
+    // MARK: - Insight 数据处理（不生成向量，向量已在Pipeline中生成）
     
-    private func performInsightEmbedding(_ firstStepResult: FirstStepAnalysis) {
-        // 使用当前录音ID，如果没有则生成新的
-        let inspirationId = currentRecordingId?.uuidString ?? UUID().uuidString
+    private func updateInsightRecording(_ firstStepResult: FirstStepAnalysis) {
+        print("🔄 处理灵感类型数据，更新数据库记录...")
         
-        // 生成embedding
-        let embeddingService = VolcEngineEmbeddingService.shared
-        embeddingService.generateEmbeddings(
-            for: inspirationId,
+        DispatchQueue.main.async {
+            self.isAnalyzing = false
+            self.currentStep = 0
+        }
+        
+        let databaseManager = DatabaseManager.shared
+        guard let recordingId = currentRecordingId,
+              var recording = databaseManager.getRecording(by: recordingId.uuidString) else {
+            print("❌ 未找到对应的录音记录: \(currentRecordingId?.uuidString ?? "nil")")
+            DispatchQueue.main.async {
+                self.delegate?.twoStepLLMService(self, didFailWithError: TwoStepLLMError.parseError)
+            }
+            return
+        }
+        
+        // 更新录音记录为灵感类型
+        print("dataprocess--- TwoStepLLMService.updateInsightRecording: ID=\(recording.id.uuidString.prefix(8)), 设置contentType=inspiration")
+        recording = AudioRecording(
+            id: recording.id,
+            timestamp: recording.timestamp,
+            duration: recording.duration,
+            transcription: recording.transcription,
             title: firstStepResult.title,
+            summary: firstStepResult.oneSentenceSummary ?? recording.summary,
             tags: firstStepResult.tags,
-            polishedText: firstStepResult.polishedText
-        ) { [weak self] result in
-            guard let self = self else { return }
+            audioData: recording.audioData,
+            enrichedContent: recording.enrichedContent,
+            polishedText: firstStepResult.polishedText,
+            contentType: "inspiration"
+        )
+        
+        let updateSuccess = databaseManager.updateRecording(recording)
+        
+        if updateSuccess {
+            print("✅ 灵感录音记录更新成功")
+            
+            // 构建最终结果
+            let finalResult = TwoStepAnalysisResult(
+                title: firstStepResult.title,
+                summary: firstStepResult.oneSentenceSummary ?? "",
+                thoughtType: firstStepResult.thoughtType,
+                tags: firstStepResult.tags,
+                enrichedContent: "灵感已保存，向量已生成", // 简单提示
+                originalText: firstStepResult.originalText,
+                polishedText: firstStepResult.polishedText,
+                timestamp: firstStepResult.timestamp
+            )
             
             DispatchQueue.main.async {
-                self.isAnalyzing = false
-                self.currentStep = 0
+                self.lastResult = finalResult
+                self.delegate?.twoStepLLMService(self, didCompleteFinalAnalysis: finalResult)
             }
-            
-            switch result {
-            case .success(let embeddingResult):
-                // 保存灵感数据到数据库
-                if let embedding = embeddingResult.titleEmbedding {
-                    let databaseManager = (DatabaseManager.shared as! DatabaseManager)
-                let success = databaseManager.saveInspiration(
-                        id: embeddingResult.recordingId,
-                        audioData: nil, // 不再传递音频数据，通过recording_id关联
-                        originalText: firstStepResult.originalText,
-                        polishedText: firstStepResult.polishedText,
-                        tags: firstStepResult.tags,
-                        embeddingVector: embedding
-                    )
-                    
-                    if success {
-                        print("✅ 灵感数据保存成功")
-                        
-                        // 构建最终结果（灵感类型不需要enrichedContent）
-                        let finalResult = TwoStepAnalysisResult(
-                            title: firstStepResult.title,
-                            summary: firstStepResult.oneSentenceSummary ?? "",
-                            thoughtType: firstStepResult.thoughtType,
-                            tags: firstStepResult.tags,
-                            enrichedContent: "灵感已保存并生成向量", // 简单提示
-                            originalText: firstStepResult.originalText,
-                            polishedText: firstStepResult.polishedText,
-                            timestamp: firstStepResult.timestamp
-                        )
-                        
-                        DispatchQueue.main.async {
-                            self.lastResult = finalResult
-                            self.delegate?.twoStepLLMService(self, didCompleteFinalAnalysis: finalResult)
-                        }
-                    } else {
-                        print("❌ 灵感数据保存失败")
-                        self.delegate?.twoStepLLMService(self, didFailWithError: TwoStepLLMError.parseError)
-                    }
-                } else {
-                    print("❌ 未能生成embedding")
-                    self.delegate?.twoStepLLMService(self, didFailWithError: TwoStepLLMError.parseError)
-                }
-                
-            case .failure(let error):
-                print("❌ Embedding生成失败: \(error)")
-                DispatchQueue.main.async {
-                    self.delegate?.twoStepLLMService(self, didFailWithError: TwoStepLLMError.parseError)
-                }
+        } else {
+            print("❌ 灵感录音记录更新失败")
+            DispatchQueue.main.async {
+                self.delegate?.twoStepLLMService(self, didFailWithError: TwoStepLLMError.parseError)
             }
         }
     }

@@ -48,12 +48,12 @@ protocol Repository {
 
 // MARK: - 查询过滤条件
 struct FilterCriteria {
-    let limit: Int?
-    let offset: Int?
-    let orderBy: String?
-    let ascending: Bool
-    let whereClause: String?
-    let parameters: [Any]?
+    var limit: Int?
+    var offset: Int?
+    var orderBy: String?
+    var ascending: Bool
+    var whereClause: String?
+    var parameters: [Any]?
     
     init(limit: Int? = nil, 
          offset: Int? = nil, 

@@ -359,6 +359,9 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
         
         print("📝 创建LLM处理后的最终录音记录，使用相同会话ID: \(recordingId.uuidString)")
         
+        let contentType = analysisResult.thoughtType == .insight ? "inspiration" : "thinking"
+        print("dataprocess--- AudioProcessingPipeline.createFinalRecording: ID=\(recordingId.uuidString.prefix(8)), thoughtType=\(analysisResult.thoughtType), 设置contentType=\(contentType)")
+        
         return AudioRecording(
             id: recordingId,  // 使用相同的ID
             timestamp: startTime,
@@ -369,7 +372,8 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
             tags: analysisResult.tags,
             audioData: nil,  // 不再在这里存储音频数据
             enrichedContent: analysisResult.enrichedContent,
-            polishedText: analysisResult.polishedText
+            polishedText: analysisResult.polishedText,
+            contentType: contentType
         )
     }
     
@@ -579,7 +583,9 @@ extension AudioProcessingPipeline: TwoStepLLMServiceDelegate {
         if let recordingId = currentRecordingId {
             updateManager.updateProcessingStatus(for: recordingId, stage: convertToUIStage(.llmAnalysisSecondStep), progress: 0.8)
             
-            // 更新录音数据（包含润色文本）
+            // 更新录音数据（包含润色文本和正确的内容类型）
+            let contentType = result.thoughtType == .insight ? "inspiration" : "thinking"
+            print("dataprocess--- AudioProcessingPipeline.didCompleteFirstStep: ID=\(recordingId.uuidString.prefix(8)), thoughtType=\(result.thoughtType), 设置contentType=\(contentType)")
             let updatedRecording = AudioRecording(
                 id: recordingId,
                 timestamp: recordingStartTime ?? Date(),
@@ -590,25 +596,28 @@ extension AudioProcessingPipeline: TwoStepLLMServiceDelegate {
                 tags: result.tags,
                 audioData: nil,  // 不再传递音频数据
                 enrichedContent: nil,
-                polishedText: result.polishedText ?? ""
+                polishedText: result.polishedText ?? "",
+                contentType: contentType
             )
             updateManager.updateRecording(updatedRecording)
             
-            // 在第一步完成后异步执行词嵌入处理
-            DispatchQueue.global(qos: .background).async {
-                VolcEngineEmbeddingService.shared.generateEmbeddings(
-                    for: recordingId.uuidString,
-                    title: result.title,
-                    tags: result.tags,
-                    polishedText: result.polishedText
-                ) { embeddingResult in
-                    switch embeddingResult {
-                    case .success(let embeddings):
-                        DatabaseManager.shared.saveEmbeddings(embeddings)
-                        print("[Pipeline] Successfully generated embeddings for recording \(recordingId)")
-                    case .failure(let error):
-                        print("[Pipeline] Failed to generate embeddings: \(error)")
-                    }
+            print("✅ 录音数据已更新，content_type设置为: \(contentType)")
+            
+            // 统一在第一步完成后生成向量（无论是thinking还是inspiration类型）
+            print("🔄 开始生成向量嵌入...")
+            VolcEngineEmbeddingService.shared.generateEmbeddings(
+                for: recordingId.uuidString,
+                title: result.title,
+                tags: result.tags,
+                polishedText: result.polishedText,
+                transcription: result.originalText
+            ) { embeddingResult in
+                switch embeddingResult {
+                case .success(let embeddings):
+                    DatabaseManager.shared.saveEmbeddings(embeddings)
+                    print("✅ [Pipeline] 向量生成成功，录音ID: \(recordingId)")
+                case .failure(let error):
+                    print("❌ [Pipeline] 向量生成失败: \(error)")
                 }
             }
         }

@@ -87,7 +87,7 @@ struct InspirationPoolCard: View {
 struct InspirationListView: View {
     let isDarkMode: Bool
     @Environment(\.presentationMode) var presentationMode
-    @State private var inspirations: [InspirationData] = []
+    @State private var inspirations: [AudioRecording] = []
     
     var body: some View {
         NavigationView {
@@ -156,7 +156,7 @@ struct InspirationListView: View {
     
     private func loadInspirations() {
         // 从数据库加载实际的灵感数据
-        inspirations = DatabaseManager.shared.loadInspirations()
+        inspirations = DatabaseManager.shared.getInspirationRecordings()
     }
 }
 
@@ -195,7 +195,7 @@ struct InspirationItem: Identifiable {
 
 // MARK: - 灵感行视图
 struct InspirationRowView: View {
-    let inspiration: InspirationData
+    let inspiration: AudioRecording
     let isDarkMode: Bool
     
     var body: some View {
@@ -227,7 +227,7 @@ struct InspirationRowView: View {
                 Spacer()
                 
                 // 时间
-                Text(formatDate(inspiration.createdAt))
+                Text(formatDate(inspiration.timestamp))
                     .font(.system(size: 12))
                     .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
             }

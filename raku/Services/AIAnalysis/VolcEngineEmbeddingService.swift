@@ -8,10 +8,10 @@ final class VolcEngineEmbeddingService {
     static let shared = VolcEngineEmbeddingService()
     
     private let apiKey: String
-    private let apiEndpoint = "https://ark.cn-beijing.volces.com/api/v3/embeddings"
-    private let model = "doubao-embedding-text-240715"
+    private let apiEndpoint = "https://ark.cn-beijing.volces.com/api/v3/embeddings/multimodal"
+    private let model = "doubao-embedding-vision-250615"
     private let maxTokensPerElement = 4096
-    private let maxBatchSize = 4
+    private let maxBatchSize = 1  // 新API每次只处理一个输入
     
     private let networkService: NetworkService
     private let processingQueue = DispatchQueue(label: "com.raku.embeddingService", qos: .background)
@@ -20,8 +20,31 @@ final class VolcEngineEmbeddingService {
     
     struct EmbeddingRequest: Encodable {
         let model: String
-        let input: [String]
+        let input: [InputItem]
         let encoding_format: String = "float"
+        let dimensions: Int = 1024  // 指定向量维度，与Python保持一致
+    }
+    
+    struct InputItem: Encodable {
+        let type: String
+        let text: String?
+        let image_url: ImageURL?
+        
+        init(text: String) {
+            self.type = "text"
+            self.text = text
+            self.image_url = nil
+        }
+        
+        init(imageURL: String) {
+            self.type = "image_url"
+            self.text = nil
+            self.image_url = ImageURL(url: imageURL)
+        }
+    }
+    
+    struct ImageURL: Encodable {
+        let url: String
     }
     
     struct EmbeddingResponse: Decodable {
@@ -29,13 +52,11 @@ final class VolcEngineEmbeddingService {
         let model: String
         let created: Int
         let object: String
-        let data: [EmbeddingData]
+        let data: EmbeddingData  // 新API返回单个data对象，不是数组
         let usage: Usage
         
         struct EmbeddingData: Decodable {
-            let index: Int
-            let embedding: [Float]
-            let object: String
+            let embedding: [Float]  // 直接包含embedding数组
         }
         
         struct Usage: Decodable {
@@ -46,9 +67,7 @@ final class VolcEngineEmbeddingService {
     
     struct EmbeddingResult {
         let recordingId: String
-        let titleEmbedding: [Float]?
-        let tagsEmbeddings: [[Float]]
-        let polishedTextEmbedding: [Float]?
+        let embedding: [Float]  // 简化为单个向量
     }
     
     // MARK: - Initialization
@@ -74,52 +93,86 @@ final class VolcEngineEmbeddingService {
     ///   - title: 标题文本
     ///   - tags: 标签数组
     ///   - polishedText: 润色后的文本
+    ///   - transcription: 原始转录文本（作为备选）
     ///   - completion: 完成回调
     func generateEmbeddings(
         for recordingId: String,
         title: String?,
         tags: [String],
         polishedText: String?,
+        transcription: String? = nil,
+        completion: @escaping (Result<EmbeddingResult, Error>) -> Void
+    ) {
+        // 生成统一的语义文本
+        let semanticText = generateSemanticText(
+            title: title,
+            tags: tags,
+            polishedText: polishedText,
+            transcription: transcription
+        )
+        
+        print("[EmbeddingService] 生成向量化:")
+        print("  录音ID: \(recordingId)")
+        print("  标题: \(title ?? "无")")
+        print("  标签: \(tags)")
+        print("  润色文本长度: \(polishedText?.count ?? 0)")
+        print("  转录文本长度: \(transcription?.count ?? 0)")
+        print("  最终语义文本长度: \(semanticText.count)")
+        
+        guard !semanticText.isEmpty else {
+            print("  ⚠️ 语义文本为空，跳过向量生成")
+            completion(.success(EmbeddingResult(recordingId: recordingId, embedding: [])))
+            return
+        }
+        
+        // 直接调用多模态API
+        generateMultimodalEmbeddings(
+            for: recordingId,
+            textInput: semanticText,
+            completion: completion
+        )
+    }
+    
+    /// 支持多模态输入的向量化方法
+    /// - Parameters:
+    ///   - recordingId: 录音记录ID
+    ///   - textInput: 文本输入
+    ///   - imageURL: 可选的图像URL（用于多模态嵌入）
+    ///   - completion: 完成回调
+    func generateMultimodalEmbeddings(
+        for recordingId: String,
+        textInput: String,
+        imageURL: String? = nil,
         completion: @escaping (Result<EmbeddingResult, Error>) -> Void
     ) {
         processingQueue.async { [weak self] in
             guard let self = self else { return }
             
-            // 生成统一的语义文本，与Python版本保持一致
-            let semanticText = self.generateSemanticText(
-                title: title,
-                tags: tags,
-                polishedText: polishedText,
-                recordingId: recordingId
-            )
+            var inputItems: [InputItem] = []
             
-            guard !semanticText.isEmpty else {
-                completion(.success(EmbeddingResult(
-                    recordingId: recordingId,
-                    titleEmbedding: nil,
-                    tagsEmbeddings: [],
-                    polishedTextEmbedding: nil
-                )))
+            // 添加文本输入
+            if !textInput.isEmpty {
+                inputItems.append(InputItem(text: textInput))
+            }
+            
+            // 添加图像输入（如果有的话）
+            if let imageURL = imageURL, !imageURL.isEmpty {
+                inputItems.append(InputItem(imageURL: imageURL))
+            }
+            
+            guard !inputItems.isEmpty else {
+                completion(.success(EmbeddingResult(recordingId: recordingId, embedding: [])))
                 return
             }
             
-            // 为统一语义文本生成向量
-            self.callEmbeddingAPI(inputs: [semanticText]) { result in
+            // 调用多模态API
+            self.callMultimodalEmbeddingAPI(inputs: inputItems) { result in
                 switch result {
                 case .success(let response):
-                    guard let embedding = response.data.first?.embedding else {
-                        completion(.failure(EmbeddingError.invalidResponse))
-                        return
-                    }
-                    
-                    // 将统一向量作为标题向量返回（保持向后兼容）
                     let result = EmbeddingResult(
                         recordingId: recordingId,
-                        titleEmbedding: embedding,
-                        tagsEmbeddings: [],
-                        polishedTextEmbedding: nil
+                        embedding: response.data.embedding
                     )
-                    
                     completion(.success(result))
                     
                 case .failure(let error):
@@ -152,7 +205,8 @@ final class VolcEngineEmbeddingService {
                     for: recordingId,
                     title: recording.title,
                     tags: recording.tags,
-                    polishedText: recording.polishedText
+                    polishedText: recording.polishedText,
+                    transcription: recording.transcription
                 ) { result in
                     switch result {
                     case .success(let embeddingResult):
@@ -178,7 +232,7 @@ final class VolcEngineEmbeddingService {
         title: String?,
         tags: [String],
         polishedText: String?,
-        recordingId: String
+        transcription: String?
     ) -> String {
         var components: [String] = []
         
@@ -193,57 +247,87 @@ final class VolcEngineEmbeddingService {
             components.append("标签：\(tagsString)")
         }
         
-        // 润色文本（如果有的话）
+        // 内容：优先使用润色文本，如果没有则使用原始转录
+        var contentText: String? = nil
         if let polishedText = polishedText, !polishedText.isEmpty {
-            // 限制文本长度，避免超出token限制
-            let truncatedText = String(polishedText.prefix(8000))
-            components.append("内容：\(truncatedText)")
+            contentText = polishedText
+        } else if let transcription = transcription, !transcription.isEmpty {
+            contentText = transcription
+            print("  ⚠️ 润色文本为空，使用原始转录文本")
         }
         
-        return components.joined(separator: " | ")
+        if let content = contentText {
+            // 限制文本长度，避免超出token限制
+            let truncatedText = String(content.prefix(8000))
+            components.append("内容：\(truncatedText)")
+        } else {
+            print("  ⚠️ 警告：没有可用的内容文本（润色文本和转录文本都为空）")
+        }
+        
+        let result = components.joined(separator: " | ")
+        
+        // 如果结果太短，可能导致向量相似
+        if result.count < 20 {
+            print("  ⚠️ 警告：语义文本太短: \(result)")
+        }
+        
+        return result
     }
     
-    private func processInBatches(
-        inputs: [String],
-        completion: @escaping (Result<[[Float]], Error>) -> Void
-    ) {
-        var allEmbeddings: [[Float]] = Array(repeating: [], count: inputs.count)
-        let group = DispatchGroup()
-        var errors: [Error] = []
-        
-        // 按批次处理
-        for batchStart in stride(from: 0, to: inputs.count, by: maxBatchSize) {
-            let batchEnd = min(batchStart + maxBatchSize, inputs.count)
-            let batch = Array(inputs[batchStart..<batchEnd])
-            
-            group.enter()
-            
-            callEmbeddingAPI(inputs: batch) { result in
-                switch result {
-                case .success(let response):
-                    // 将结果放入正确的位置
-                    for embeddingData in response.data {
-                        let globalIndex = batchStart + embeddingData.index
-                        allEmbeddings[globalIndex] = embeddingData.embedding
-                    }
-                case .failure(let error):
-                    errors.append(error)
-                }
-                group.leave()
-            }
-        }
-        
-        group.notify(queue: processingQueue) {
-            if !errors.isEmpty {
-                completion(.failure(errors.first!))
-            } else {
-                completion(.success(allEmbeddings))
-            }
-        }
-    }
+    // 移除复杂的批处理逻辑，新API每次只处理一个输入
     
     private func callEmbeddingAPI(
-        inputs: [String],
+        textInputs: [String],
+        completion: @escaping (Result<EmbeddingResponse, Error>) -> Void
+    ) {
+        guard let firstText = textInputs.first else {
+            completion(.failure(EmbeddingError.invalidRequest))
+            return
+        }
+        
+        // 新API每次只处理一个输入
+        let inputItems = [InputItem(text: firstText)]
+        
+        let requestBody = EmbeddingRequest(
+            model: model,
+            input: inputItems
+        )
+        
+        guard let jsonData = try? JSONEncoder().encode(requestBody) else {
+            completion(.failure(EmbeddingError.invalidRequest))
+            return
+        }
+        
+        let parameters: [String: Any]
+        do {
+            parameters = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any] ?? [:]
+        } catch {
+            completion(.failure(error))
+            return
+        }
+        
+        networkService.performJSONRequest(
+            url: apiEndpoint,
+            method: .POST,
+            parameters: parameters
+        ) { result in
+            switch result {
+            case .success(let data):
+                do {
+                    let embeddingResponse = try JSONDecoder().decode(EmbeddingResponse.self, from: data)
+                    completion(.success(embeddingResponse))
+                } catch {
+                    completion(.failure(EmbeddingError.invalidResponse))
+                }
+            case .failure(let networkError):
+                completion(.failure(self.convertNetworkError(networkError)))
+            }
+        }
+    }
+    
+    /// 调用多模态嵌入API
+    private func callMultimodalEmbeddingAPI(
+        inputs: [InputItem],
         completion: @escaping (Result<EmbeddingResponse, Error>) -> Void
     ) {
         let requestBody = EmbeddingRequest(

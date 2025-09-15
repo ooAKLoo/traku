@@ -31,10 +31,14 @@ final class VectorSearcher {
             
             switch result {
             case .success(let embeddingResult):
-                guard let queryEmbedding = embeddingResult.titleEmbedding else {
+                guard !embeddingResult.embedding.isEmpty else {
                     completion(.success([]))
                     return
                 }
+                
+                let queryEmbedding = embeddingResult.embedding
+                let queryPreview = queryEmbedding.prefix(5).map { String(format: "%.4f", $0) }.joined(separator: ", ")
+                print("vectorprocess--- 🔢 查询向量前5值: [\(queryPreview)]")
                 
                 // 从数据库获取所有录音
                 let recordings = DatabaseManager.shared.loadRecordings()
@@ -63,167 +67,100 @@ final class VectorSearcher {
         // 获取查询文本用于关键词匹配
         let query = self.lastQuery
         DispatchQueue.global(qos: .userInitiated).async {
-            var results: [(recording: AudioRecording, titleScore: Float, tagScore: Float, contentScore: Float, vectorScore: Float, textScore: Float, combinedScore: Float)] = []
+            var results: [SearchResult] = []
             
-            print("\n========== 向量搜索打分详情 ==========")
-            print("查询: \(query)")
-            print("查询向量维度: \(queryEmbedding.count)")
+            print("VectorSearcher--- ========== 向量搜索打分详情 ==========")
+            print("VectorSearcher--- 🔍 查询内容: \(query)")
+            print("VectorSearcher--- 🔢 查询向量维度: \(queryEmbedding.count)")
+            print("VectorSearcher--- 🏷️ 查询关键词: \(query.lowercased().components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty })")
+            print("VectorSearcher--- 📊 共找到 \(recordings.count) 条录音记录进行匹配")
             
             // 准备查询关键词（小写，分词）
             let queryWords = Set(query.lowercased().components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty })
             
-            for recording in recordings {
+            for (index, recording) in recordings.enumerated() {
                 let recordingId = recording.id.uuidString
-                let embeddings = DatabaseManager.shared.getEmbeddings(for: recordingId)
+                let embeddingVector = DatabaseManager.shared.getEmbeddingVector(id: recording.id)
                 
-                print("\n录音: \(recording.title)")
-                print("标签: \(recording.tags.joined(separator: ", "))")
+                print("VectorSearcher--- 📝 === 录音记录 \(index + 1)/\(recordings.count) ===")
+                print("VectorSearcher--- 🆔 ID: \(recordingId.prefix(8))...")
+                print("VectorSearcher--- 📋 标题: \(recording.title)")
+                print("VectorSearcher--- 🏷️ 标签: \(recording.tags.joined(separator: ", "))")
+                print("VectorSearcher--- 🎵 时长: \(String(format: "%.1f", recording.duration))秒")
                 
-                // 分别计算三个向量的相似度
-                var titleScore: Float = 0.0
-                var tagScore: Float = 0.0
-                var contentScore: Float = 0.0
-                
-                // 1. 标题向量得分
-                if let titleEmbedding = embeddings["title"] {
-                    titleScore = self.cosineSimilarityCalculator.calculate(
-                        vector1: queryEmbedding,
-                        vector2: titleEmbedding
-                    )
-                    print("  标题向量得分: \(String(format: "%.3f", titleScore))")
-                } else {
-                    print("  标题向量: 无")
-                }
-                
-                // 2. 标签向量得分（取所有tag向量的最高分）
-                var maxTagScore: Float = 0.0
-                var tagCount = 0
-                for (key, embedding) in embeddings {
-                    if key.starts(with: "tag_") {
-                        let score = self.cosineSimilarityCalculator.calculate(
-                            vector1: queryEmbedding,
-                            vector2: embedding
-                        )
-                        maxTagScore = max(maxTagScore, score)
-                        tagCount += 1
-                    }
-                }
-                tagScore = maxTagScore
-                if tagCount > 0 {
-                    print("  标签向量得分: \(String(format: "%.3f", tagScore)) (共\(tagCount)个标签向量)")
-                } else {
-                    print("  标签向量: 无")
-                }
-                
-                // 3. 内容向量得分
-                if let contentEmbedding = embeddings["polished_text"] {
-                    contentScore = self.cosineSimilarityCalculator.calculate(
-                        vector1: queryEmbedding,
-                        vector2: contentEmbedding
-                    )
-                    print("  内容向量得分: \(String(format: "%.3f", contentScore))")
-                } else {
-                    print("  内容向量: 无")
-                }
-                
-                // 计算综合向量得分（权重分配）
-                let hasTitle = titleScore > 0
-                let hasTag = tagScore > 0  
-                let hasContent = contentScore > 0
-                
+                // 计算统一向量的相似度
                 var vectorScore: Float = 0.0
                 
-                // 固定权重分配（4:3:3比例，总和为1.0）
-                let titleWeight: Float = 0.4    // 标题权重40%
-                let tagWeight: Float = 0.3      // 标签权重30%
-                let contentWeight: Float = 0.3  // 内容权重30%
-                
-                var actualWeights: [Float] = []
-                var actualScores: [Float] = []
-                
-                if hasTitle {
-                    vectorScore += titleScore * titleWeight
-                    actualWeights.append(titleWeight)
-                    actualScores.append(titleScore)
-                }
-                if hasTag {
-                    vectorScore += tagScore * tagWeight
-                    actualWeights.append(tagWeight)
-                    actualScores.append(tagScore)
-                }
-                if hasContent {
-                    vectorScore += contentScore * contentWeight
-                    actualWeights.append(contentWeight)
-                    actualScores.append(contentScore)
+                if let embedding = embeddingVector {
+                    vectorScore = self.cosineSimilarityCalculator.calculate(
+                        vector1: queryEmbedding,
+                        vector2: embedding
+                    )
+                    let embeddingPreview = embedding.prefix(5).map { String(format: "%.4f", $0) }.joined(separator: ", ")
+                    print("VectorSearcher--- 🎯 向量相似度: \(String(format: "%.4f", vectorScore)) (向量维度: \(embedding.count))")
+                    print("vectorprocess--- 📊 录音向量前5值: [\(embeddingPreview)]")
+                } else {
+                    print("VectorSearcher--- ❌ 无向量数据")
                 }
                 
-                if actualWeights.isEmpty {
-                    print("  无任何向量，跳过")
+                // 如果没有向量数据，跳过此记录
+                if embeddingVector == nil {
+                    print("VectorSearcher--- ⏭️ 跳过此记录（无向量数据）")
                     continue
                 }
                 
-                // 如果某些向量缺失，重新归一化权重
-                let totalActualWeight = actualWeights.reduce(0, +)
-                if totalActualWeight > 0 && totalActualWeight < 1.0 {
-                    vectorScore = vectorScore / totalActualWeight
-                    print("  权重归一化: \(String(format: "%.2f", totalActualWeight)) -> 1.0")
-                }
-                
-                // 打印权重详情
-                var weightInfo = "权重分配: "
-                if hasTitle { weightInfo += "标题(\(String(format: "%.1f", titleWeight*100))%) " }
-                if hasTag { weightInfo += "标签(\(String(format: "%.1f", tagWeight*100))%) " }
-                if hasContent { weightInfo += "内容(\(String(format: "%.1f", contentWeight*100))%) " }
-                print("  \(weightInfo)")
-                
-                print("  综合向量得分: \(String(format: "%.3f", vectorScore))")
-                
-                // 计算关键词匹配得分（类似Python的实现）
+                // 计算关键词匹配得分
                 let recordingText = (recording.title + " " + recording.tags.joined(separator: " ")).lowercased()
                 let recordingWords = Set(recordingText.components(separatedBy: .whitespacesAndNewlines).filter { !$0.isEmpty })
                 let commonWords = queryWords.intersection(recordingWords)
                 let textMatchScore = queryWords.isEmpty ? 0 : Float(commonWords.count) / Float(queryWords.count)
                 
-                print("  关键词匹配: \(commonWords.count)/\(queryWords.count) = \(String(format: "%.3f", textMatchScore))")
+                print("VectorSearcher--- 📊 关键词分析:")
+                print("VectorSearcher---    查询词汇: \(Array(queryWords).sorted())")
+                print("VectorSearcher---    录音词汇: \(Array(recordingWords).sorted())")
+                print("VectorSearcher---    匹配词汇: \(Array(commonWords).sorted())")
+                print("VectorSearcher---    匹配得分: \(commonWords.count)/\(queryWords.count) = \(String(format: "%.4f", textMatchScore))")
                 
-                // 综合得分：70%向量相似度 + 30%关键词匹配（与Python保持一致）
-                let combinedScore = vectorScore * 0.7 + textMatchScore * 0.3
+                // 综合得分：70%向量相似度 + 30%关键词匹配
+                let vectorWeight: Float = 0.7
+                let textWeight: Float = 0.3
+                let combinedScore = vectorScore * vectorWeight + textMatchScore * textWeight
                 
-                print("  最终综合得分: \(String(format: "%.3f", combinedScore)) (70%向量 + 30%关键词)")
+                print("VectorSearcher--- 🏆 综合得分计算:")
+                print("VectorSearcher---    向量得分: \(String(format: "%.4f", vectorScore)) × \(vectorWeight) = \(String(format: "%.4f", vectorScore * vectorWeight))")
+                print("VectorSearcher---    文本得分: \(String(format: "%.4f", textMatchScore)) × \(textWeight) = \(String(format: "%.4f", textMatchScore * textWeight))")
+                print("VectorSearcher---    最终得分: \(String(format: "%.4f", combinedScore))")
                 
                 if combinedScore > 0 {
-                    results.append((recording: recording, titleScore: titleScore, tagScore: tagScore, contentScore: contentScore, vectorScore: vectorScore, textScore: textMatchScore, combinedScore: combinedScore))
+                    let searchResult = SearchResult(
+                        recordingId: recording.id.uuidString,
+                        score: combinedScore,
+                        matchType: .vector,
+                        matchedSnippets: [],
+                        recording: recording
+                    )
+                    results.append(searchResult)
+                    print("VectorSearcher--- ✅ 加入候选结果 (得分: \(String(format: "%.4f", combinedScore)))")
+                } else {
+                    print("VectorSearcher--- ❌ 得分过低，不加入结果")
                 }
             }
             
             // 按分数降序排序
-            results.sort { $0.combinedScore > $1.combinedScore }
+            results.sort { $0.score > $1.score }
             
-            print("\n========== 排序后的前\(limit)个结果 ==========")
+            print("VectorSearcher--- ========== 排序后的前\(limit)个结果 ==========")
             for (index, result) in results.prefix(limit).enumerated() {
-                print("\(index + 1). \(result.recording.title)")
-                print("   标题向量得分: \(String(format: "%.3f", result.titleScore))")
-                print("   标签向量得分: \(String(format: "%.3f", result.tagScore))")
-                print("   内容向量得分: \(String(format: "%.3f", result.contentScore))")
-                print("   综合向量得分: \(String(format: "%.3f", result.vectorScore))")
-                print("   关键词得分: \(String(format: "%.3f", result.textScore))")
-                print("   最终综合得分: \(String(format: "%.3f", result.combinedScore)) (70%向量 + 30%关键词)")
-                print("   ---")
+                print("VectorSearcher--- 🏆 第\(index + 1)名: \(result.recording?.title ?? "未知标题")")
+                print("VectorSearcher---    最终得分: \(String(format: "%.4f", result.score))")
+                print("VectorSearcher---    录音ID: \(result.recordingId.prefix(8))...")
             }
-            print("=====================================\n")
+            print("VectorSearcher--- ===========================================")
+            print("VectorSearcher--- 📊 总计找到 \(results.count) 条匹配结果，返回前 \(min(limit, results.count)) 条")
             
-            // 转换为SearchResult格式
-            let searchResults = results.prefix(limit).map { result in
-                SearchResult(
-                    recordingId: result.recording.id.uuidString,
-                    score: result.combinedScore,
-                    matchType: .vector,
-                    matchedSnippets: [],
-                    recording: result.recording
-                )
-            }
-            
-            completion(.success(Array(searchResults)))
+            // 返回限制数量的结果
+            let limitedResults = Array(results.prefix(limit))
+            completion(.success(limitedResults))
         }
     }
 }

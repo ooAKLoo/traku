@@ -34,8 +34,9 @@ struct AudioRecording: Identifiable, Equatable, Codable, DatabaseModel {
     }
     var enrichedContent: String?
     var polishedText: String = ""  // 润色后的文本，默认为空
+    var contentType: String = "thinking"  // 内容类型：thinking 或 inspiration
     
-    init(id: UUID? = nil, timestamp: Date, duration: TimeInterval, transcription: String, title: String, summary: String, tags: [String], audioData: Data?, enrichedContent: String?, polishedText: String = "") {
+    init(id: UUID? = nil, timestamp: Date, duration: TimeInterval, transcription: String, title: String, summary: String, tags: [String], audioData: Data?, enrichedContent: String?, polishedText: String = "", contentType: String = "thinking") {
         self.id = id ?? UUID()
         self.timestamp = timestamp
         self.duration = duration
@@ -46,6 +47,7 @@ struct AudioRecording: Identifiable, Equatable, Codable, DatabaseModel {
         self.audioData = audioData
         self.enrichedContent = enrichedContent
         self.polishedText = polishedText
+        self.contentType = contentType
     }
     
     static func == (lhs: AudioRecording, rhs: AudioRecording) -> Bool {
@@ -55,7 +57,8 @@ struct AudioRecording: Identifiable, Equatable, Codable, DatabaseModel {
                lhs.summary == rhs.summary &&
                lhs.tags == rhs.tags &&
                lhs.enrichedContent == rhs.enrichedContent &&
-               lhs.polishedText == rhs.polishedText
+               lhs.polishedText == rhs.polishedText &&
+               lhs.contentType == rhs.contentType
     }
     
     // MARK: - Codable Support
@@ -64,6 +67,7 @@ struct AudioRecording: Identifiable, Equatable, Codable, DatabaseModel {
         case audioData = "audioData"
         case enrichedContent = "enriched_content"
         case polishedText = "polished_text"
+        case contentType = "content_type"
     }
     
     // MARK: - DatabaseModel Protocol Implementation
@@ -79,6 +83,7 @@ struct AudioRecording: Identifiable, Equatable, Codable, DatabaseModel {
         dict["audioData"] = audioData
         dict["enriched_content"] = enrichedContent
         dict["polished_text"] = polishedText
+        dict["content_type"] = contentType
         
         // 序列化 tags 为 JSON 字符串
         if let tagsData = try? JSONEncoder().encode(tags),
@@ -106,6 +111,7 @@ struct AudioRecording: Identifiable, Equatable, Codable, DatabaseModel {
         let audioData = dict["audioData"] as? Data
         let enrichedContent = dict["enriched_content"] as? String
         let polishedText = dict["polished_text"] as? String ?? ""
+        let contentType = dict["content_type"] as? String ?? "thinking"
         
         // 反序列化 tags
         var tags: [String] = []
@@ -124,7 +130,8 @@ struct AudioRecording: Identifiable, Equatable, Codable, DatabaseModel {
             tags: tags,
             audioData: audioData,
             enrichedContent: enrichedContent,
-            polishedText: polishedText
+            polishedText: polishedText,
+            contentType: contentType
         )
     }
 }
