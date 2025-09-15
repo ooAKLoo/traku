@@ -213,27 +213,37 @@ struct RecordingDetailView: View {
                             }
                             .padding(.bottom, 35)
                             
-                            // AI总结部分 - 黑体强调，无标题
+                            // 内容部分 - 根据类型显示不同内容
                             VStack(alignment: .leading, spacing: 24) {
                                 
-                                // 增强内容 - 使用分段Markdown渲染
-                                if let enrichedContent = viewModel.recording.enrichedContent, !enrichedContent.isEmpty {
-                                    MarkdownSectionView(
-                                        content: viewModel.modifiedEnrichedContent.isEmpty ? enrichedContent : viewModel.modifiedEnrichedContent,
-                                        headings: viewModel.headings,
-                                        selectedHeadingId: $viewModel.selectedHeadingId,
-                                        scrollProxy: scrollProxy,
-                                        onEditSection: { index, content in
-                                            isAnyFieldFocused = false
-                                            viewModel.editSection(at: index, content: content)
-                                        },
-                                        onDeleteSection: { index in
-                                            isAnyFieldFocused = false
-                                            viewModel.deleteSection(at: index)
-                                        }
+                                if viewModel.recording.contentType == "inspiration" {
+                                    // 灵感类型：显示相似的其他条目
+                                    SimilarInspirationView(
+                                        currentRecording: viewModel.recording,
+                                        isDarkMode: isDarkMode
                                     )
                                     .padding(.horizontal, 24)
                                     .padding(.top, 12)
+                                } else {
+                                    // 思考类型：显示AI总结
+                                    if let enrichedContent = viewModel.recording.enrichedContent, !enrichedContent.isEmpty {
+                                        MarkdownSectionView(
+                                            content: viewModel.modifiedEnrichedContent.isEmpty ? enrichedContent : viewModel.modifiedEnrichedContent,
+                                            headings: viewModel.headings,
+                                            selectedHeadingId: $viewModel.selectedHeadingId,
+                                            scrollProxy: scrollProxy,
+                                            onEditSection: { index, content in
+                                                isAnyFieldFocused = false
+                                                viewModel.editSection(at: index, content: content)
+                                            },
+                                            onDeleteSection: { index in
+                                                isAnyFieldFocused = false
+                                                viewModel.deleteSection(at: index)
+                                            }
+                                        )
+                                        .padding(.horizontal, 24)
+                                        .padding(.top, 12)
+                                    }
                                 }
                             }
                             
