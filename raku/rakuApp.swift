@@ -9,7 +9,11 @@ import SwiftUI
 
 @main
 struct rakuApp: App {
+    
     init() {
+        // 在应用启动时主动申请所需权限
+        requestPermissionsOnLaunch()
+        
         // 在应用启动时开始后台处理未向量化的录音记录
         startBackgroundEmbeddingProcessing()
     }
@@ -18,6 +22,15 @@ struct rakuApp: App {
         WindowGroup {
             ContentView()
                 .toastContainer()
+        }
+    }
+    
+    /// 在应用启动时请求权限
+    private func requestPermissionsOnLaunch() {
+        // 延迟1秒后请求权限，确保UI已经准备就绪
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+            print("[App] 🔐 开始请求应用所需权限...")
+            PermissionManager.shared.requestAllPermissions()
         }
     }
     

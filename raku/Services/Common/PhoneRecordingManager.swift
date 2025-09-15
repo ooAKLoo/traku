@@ -43,6 +43,16 @@ class PhoneRecordingManager: NSObject, ObservableObject {
     func startRecording() {
         guard !isRecording else { return }
         
+        // 检查权限状态
+        if !PermissionManager.shared.canStartRecording {
+            print("❌ 无麦克风权限，无法开始录音")
+            let error = NSError(domain: "PhoneRecordingManager", 
+                              code: 1001, 
+                              userInfo: [NSLocalizedDescriptionKey: "麦克风权限未授权"])
+            delegate?.phoneRecording(self, didFailWithError: error)
+            return
+        }
+        
         resetRecordingState()
         setupAndStartRecording()
     }
@@ -73,27 +83,30 @@ class PhoneRecordingManager: NSObject, ObservableObject {
         startRecordingTimer()
     }
     
-    /// 检查并请求录音权限
+    /// 检查录音权限（使用权限管理器）
     func checkAndRequestPermissions(completion: @escaping (Bool) -> Void) {
-        switch AVAudioSession.sharedInstance().recordPermission {
-        case .granted:
+        let permissionManager = PermissionManager.shared
+        
+        // 检查当前权限状态
+        if permissionManager.canStartRecording {
             print("✅ 麦克风权限已授权")
             completion(true)
-            
+            return
+        }
+        
+        // 如果权限未授权，引导用户到设置
+        switch AVAudioSession.sharedInstance().recordPermission {
         case .denied:
-            print("❌ 麦克风权限被拒绝")
+            print("❌ 麦克风权限被拒绝，请到设置中手动开启")
+            // 可以显示提示让用户去设置
             completion(false)
             
         case .undetermined:
-            print("🔔 请求麦克风权限")
-            AVAudioSession.sharedInstance().requestRecordPermission { granted in
-                DispatchQueue.main.async {
-                    print(granted ? "✅ 用户授权麦克风权限" : "❌ 用户拒绝麦克风权限")
-                    completion(granted)
-                }
-            }
+            print("🔔 麦克风权限未确定，请重新启动应用以申请权限")
+            // 这种情况理论上不应该出现，因为启动时已经申请了
+            permissionManager.requestMicrophonePermission(completion: completion)
             
-        @unknown default:
+        default:
             completion(false)
         }
     }
