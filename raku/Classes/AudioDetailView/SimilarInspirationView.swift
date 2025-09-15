@@ -328,7 +328,7 @@ struct SimilarInspirationItem: View {
     @State private var showingSpaceSelection = false
     
     var body: some View {
-        HStack {
+        HStack(spacing: 12) {
             // 选择按钮（批量模式下显示）
             if isSelectionMode {
                 Button(action: {
@@ -340,6 +340,8 @@ struct SimilarInspirationItem: View {
                         .animation(.easeInOut(duration: 0.2), value: isSelected)
                 }
                 .buttonStyle(PlainButtonStyle())
+                .padding(.leading, 18)
+                .padding(.vertical, 16)
             }
             
             // 主内容
@@ -360,6 +362,8 @@ struct SimilarInspirationItem: View {
                         )
                 }
                 .buttonStyle(PlainButtonStyle())
+                .padding(.trailing, 18)
+                .padding(.vertical, 16)
             }
         }
         .background(

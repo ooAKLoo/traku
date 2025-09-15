@@ -291,22 +291,17 @@ struct ArticleCard: View {
                 
                 // 内容
                 VStack(alignment: .leading, spacing: 8) {
-                    // 时间戳
-                    Text(formatTimestamp(recording.timestamp))
-                        .font(.system(size: 12))
-                        .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4))
-                    
-                    // 标题
-                    Text(recording.title)
+                    // 润色后的内容，如果没有则显示标题
+                    Text(recording.polishedText.isEmpty ? recording.title : recording.polishedText)
                         .font(.system(size: 15, weight: .medium))
                         .foregroundColor(isDarkMode ? .white : .black)
-                        .lineLimit(2)
-                    
-                    // 内容预览
-                    Text(recording.transcription)
-                        .font(.system(size: 14))
-                        .foregroundColor(isDarkMode ? .white.opacity(0.7) : .black.opacity(0.7))
                         .lineLimit(3)
+                        .multilineTextAlignment(.leading)
+                    
+                    // 显示创建时间
+                    Text(ArticleCard.formatDate(article.createdAt))
+                        .font(.system(size: 12, weight: .regular))
+                        .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
                 }
                 
                 Spacer()
@@ -332,9 +327,34 @@ struct ArticleCard: View {
         }
     }
     
-    private func formatTimestamp(_ date: Date) -> String {
+    // MARK: - Date Formatting
+    static func formatDate(_ date: Date) -> String {
         let formatter = DateFormatter()
-        formatter.dateFormat = "MM.dd HH:mm"
+        let now = Date()
+        let calendar = Calendar.current
+        
+        // 如果是今天
+        if calendar.isDate(date, inSameDayAs: now) {
+            formatter.dateFormat = "HH:mm"
+            return formatter.string(from: date)
+        }
+        
+        // 如果是昨天
+        if calendar.isDate(date, inSameDayAs: calendar.date(byAdding: .day, value: -1, to: now) ?? now) {
+            formatter.dateFormat = "HH:mm"
+            return "昨天 " + formatter.string(from: date)
+        }
+        
+        // 如果是今年
+        let dateYear = calendar.component(.year, from: date)
+        let currentYear = calendar.component(.year, from: now)
+        
+        if dateYear == currentYear {
+            formatter.dateFormat = "M月d日 HH:mm"
+        } else {
+            formatter.dateFormat = "yyyy年M月d日 HH:mm"
+        }
+        
         return formatter.string(from: date)
     }
 }
