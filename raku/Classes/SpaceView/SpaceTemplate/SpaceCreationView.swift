@@ -62,7 +62,7 @@ struct SpaceCreationView: View {
             )
             .navigationBarHidden(true)
         }
-        .presentationDetents([.medium, .large])
+        .presentationDetents([.large])
         .presentationDragIndicator(.hidden)
         .presentationBackground(isDarkMode ? Color.black : Color(uiColor: .systemBackground))
     }

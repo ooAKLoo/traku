@@ -35,7 +35,7 @@ struct SpaceTemplateSelectionView: View {
             .background(isDarkMode ? Color.black : Color.white)
             .navigationBarHidden(true)
         }
-        .presentationDetents([.medium, .large])
+        .presentationDetents([.large])
         .presentationDragIndicator(.hidden)
         .fullScreenCover(isPresented: $showingCustomSpaceView) {
             CustomSpaceConfigView(

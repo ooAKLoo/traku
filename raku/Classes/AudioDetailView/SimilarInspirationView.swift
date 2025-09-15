@@ -162,73 +162,49 @@ struct SimilarInspirationItem: View {
     let isDarkMode: Bool
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            // 标题和时间
-            HStack(alignment: .top) {
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(recording.title)
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundColor(isDarkMode ? .white : .black)
-                        .lineLimit(2)
-                        .multilineTextAlignment(.leading)
-                    
-                    Text(formatRecordingDate(recording.timestamp))
-                        .font(.system(size: 12))
-                        .foregroundColor(isDarkMode ? .white.opacity(0.5) : .gray)
-                }
-                
-                Spacer()
-                
-                // 时长
-                Text(formatDuration(recording.duration))
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundColor(isDarkMode ? .white.opacity(0.7) : .gray)
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 3)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(isDarkMode ? Color.white.opacity(0.1) : Color.gray.opacity(0.15))
-                    )
-            }
+        VStack(alignment: .leading, spacing: 12) {
+            // 标题
+            Text(recording.title)
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(isDarkMode ? .white : .black)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
             
-            // 标签
+            // 标签显示 - 显示所有标签
             if !recording.tags.isEmpty {
-                ScrollView(.horizontal, showsIndicators: false) {
-                    HStack(spacing: 6) {
-                        ForEach(recording.tags.prefix(3), id: \.self) { tag in
+                FlowLayout(spacing: 6) {
+                    ForEach(recording.tags, id: \.self) { tag in
+                        HStack(spacing: 4) {
+                            Circle()
+                                .fill(isDarkMode ? Color.blue.opacity(0.8) : Color.blue)
+                                .frame(width: 4, height: 4)
+                            
                             Text(tag)
                                 .font(.system(size: 10, weight: .medium))
-                                .foregroundColor(isDarkMode ? .white.opacity(0.8) : .gray)
-                                .padding(.horizontal, 6)
-                                .padding(.vertical, 2)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 4)
-                                        .fill(isDarkMode ? Color.blue.opacity(0.2) : Color.blue.opacity(0.15))
-                                )
+                                .foregroundColor(isDarkMode ? .white.opacity(0.7) : .black.opacity(0.6))
+                                .lineLimit(1)
                         }
+                        .padding(.horizontal, 6)
+                        .padding(.vertical, 3)
+                        .background(
+                            Capsule()
+                                .fill(isDarkMode ? Color.white.opacity(0.06) : Color.gray.opacity(0.1))
+                        )
                     }
-                    .padding(.horizontal, 1)
                 }
             }
-            
-            // 转写文本预览
-            if !recording.transcription.isEmpty {
-                Text(recording.transcription)
-                    .font(.system(size: 13))
-                    .foregroundColor(isDarkMode ? .white.opacity(0.6) : .gray)
-                    .lineLimit(2)
-                    .padding(.top, 2)
-            }
         }
-        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 18)
+        .padding(.vertical, 16)
         .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(isDarkMode ? Color.white.opacity(0.05) : Color.gray.opacity(0.08))
+            RoundedRectangle(cornerRadius: 16)
+                .fill(isDarkMode ? Color.white.opacity(0.08) : Color(hex: "EBEBE9").opacity(0.3))
         )
         .contentShape(Rectangle())
+        .scaleEffect(1.0) // 为后续交互动画预留
         .onTapGesture {
             // 点击跳转到对应的记录详情
-            // 这里可以添加导航逻辑
             print("点击查看相似灵感: \(recording.title)")
         }
     }
@@ -261,41 +237,142 @@ struct SimilarInspirationPlaceholder: View {
     let isDarkMode: Bool
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 0) {
+            // 主要内容区域
+            VStack(alignment: .leading, spacing: 12) {
+                // 标题占位符
+                RoundedRectangle(cornerRadius: 6)
+                    .fill(isDarkMode ? Color.white.opacity(0.12) : Color.gray.opacity(0.25))
+                    .frame(height: 20)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                
+                // 内容占位符
+                VStack(alignment: .leading, spacing: 8) {
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(isDarkMode ? Color.white.opacity(0.1) : Color.gray.opacity(0.2))
-                        .frame(height: 16)
+                        .fill(isDarkMode ? Color.white.opacity(0.08) : Color.gray.opacity(0.18))
+                        .frame(height: 14)
                         .frame(maxWidth: .infinity)
                     
                     RoundedRectangle(cornerRadius: 4)
-                        .fill(isDarkMode ? Color.white.opacity(0.05) : Color.gray.opacity(0.15))
-                        .frame(height: 12)
-                        .frame(width: 80)
+                        .fill(isDarkMode ? Color.white.opacity(0.08) : Color.gray.opacity(0.18))
+                        .frame(height: 14)
+                        .frame(width: .infinity * 0.7)
+                    
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(isDarkMode ? Color.white.opacity(0.08) : Color.gray.opacity(0.18))
+                        .frame(height: 14)
+                        .frame(width: .infinity * 0.5)
                 }
+            }
+            .padding(.horizontal, 18)
+            .padding(.top, 16)
+            .padding(.bottom, 12)
+            
+            // 底部信息栏占位符
+            HStack(spacing: 8) {
+                RoundedRectangle(cornerRadius: 4)
+                    .fill(isDarkMode ? Color.white.opacity(0.06) : Color.gray.opacity(0.15))
+                    .frame(width: 60, height: 12)
                 
                 Spacer()
                 
-                RoundedRectangle(cornerRadius: 8)
-                    .fill(isDarkMode ? Color.white.opacity(0.05) : Color.gray.opacity(0.15))
-                    .frame(width: 40, height: 20)
+                // 标签占位符
+                Capsule()
+                    .fill(isDarkMode ? Color.white.opacity(0.06) : Color.gray.opacity(0.12))
+                    .frame(width: 50, height: 20)
             }
-            
-            HStack(spacing: 6) {
-                ForEach(0..<2, id: \.self) { _ in
-                    RoundedRectangle(cornerRadius: 4)
-                        .fill(isDarkMode ? Color.blue.opacity(0.1) : Color.blue.opacity(0.1))
-                        .frame(width: 40, height: 16)
-                }
-            }
+            .padding(.horizontal, 18)
+            .padding(.bottom, 14)
         }
-        .padding(12)
         .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(isDarkMode ? Color.white.opacity(0.02) : Color.gray.opacity(0.05))
+            RoundedRectangle(cornerRadius: 16)
+                .fill(isDarkMode ? 
+                    LinearGradient(
+                        colors: [Color.white.opacity(0.06), Color.white.opacity(0.03)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ) :
+                    LinearGradient(
+                        colors: [Color.gray.opacity(0.08), Color.gray.opacity(0.03)],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    )
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(isDarkMode ? Color.white.opacity(0.06) : Color.black.opacity(0.04), lineWidth: 0.5)
+                )
         )
         .redacted(reason: .placeholder)
+    }
+}
+
+// MARK: - FlowLayout for tags
+struct FlowLayout: Layout {
+    let spacing: CGFloat
+    
+    init(spacing: CGFloat = 8) {
+        self.spacing = spacing
+    }
+    
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let rows = arrangeSubviews(proposal: proposal, subviews: subviews)
+        let totalHeight = rows.reduce(0) { result, row in
+            result + row.maxHeight + (result > 0 ? spacing : 0)
+        }
+        return CGSize(width: proposal.width ?? 0, height: totalHeight)
+    }
+    
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        let rows = arrangeSubviews(proposal: proposal, subviews: subviews)
+        var yOffset = bounds.minY
+        
+        for row in rows {
+            var xOffset = bounds.minX
+            for subview in row.subviews {
+                subview.place(at: CGPoint(x: xOffset, y: yOffset), proposal: ProposedViewSize(width: subview.sizeThatFits(.unspecified).width, height: row.maxHeight))
+                xOffset += subview.sizeThatFits(.unspecified).width + spacing
+            }
+            yOffset += row.maxHeight + spacing
+        }
+    }
+    
+    private func arrangeSubviews(proposal: ProposedViewSize, subviews: Subviews) -> [Row] {
+        let containerWidth = proposal.width ?? 0
+        var rows: [Row] = []
+        var currentRow = Row()
+        
+        for subview in subviews {
+            let subviewSize = subview.sizeThatFits(.unspecified)
+            
+            if currentRow.width + subviewSize.width + (currentRow.subviews.isEmpty ? 0 : spacing) <= containerWidth {
+                currentRow.addSubview(subview, size: subviewSize, spacing: currentRow.subviews.isEmpty ? 0 : spacing)
+            } else {
+                if !currentRow.subviews.isEmpty {
+                    rows.append(currentRow)
+                    currentRow = Row()
+                }
+                currentRow.addSubview(subview, size: subviewSize, spacing: 0)
+            }
+        }
+        
+        if !currentRow.subviews.isEmpty {
+            rows.append(currentRow)
+        }
+        
+        return rows
+    }
+    
+    private struct Row {
+        var subviews: [LayoutSubviews.Element] = []
+        var width: CGFloat = 0
+        var maxHeight: CGFloat = 0
+        
+        mutating func addSubview(_ subview: LayoutSubviews.Element, size: CGSize, spacing: CGFloat) {
+            subviews.append(subview)
+            width += size.width + spacing
+            maxHeight = max(maxHeight, size.height)
+        }
     }
 }
 
