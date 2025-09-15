@@ -63,13 +63,14 @@ class RecordingsListViewModel: ObservableObject {
         audioManager.updateRecording(updatedRecording)
     }
     
-    func createSpaceFromTemplate(_ template: SpaceTemplate) {
-        // TODO: 实现从模板创建空间的逻辑
-        print("📋 创建空间: \(template.title)")
-        print("📂 包含类别: \(template.categories.map { $0.name }.joined(separator: ", "))")
+    func onSpaceCreated(_ space: Space) {
+        print("✅ 空间创建成功: \(space.name)")
+        print("📝 描述: \(space.description)")
         
-        // 这里可以添加实际的空间创建逻辑
-        // 比如保存到数据库、更新UI状态等
+        // 这里可以添加后续逻辑，比如：
+        // - 显示成功提示
+        // - 刷新空间列表
+        // - 导航到新创建的空间
     }
     
     private func performSearch(query: String) {

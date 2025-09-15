@@ -11,7 +11,7 @@ import SwiftUI
 struct CustomSpaceConfigView: View {
     @Binding var isPresented: Bool
     let isDarkMode: Bool
-    let onSpaceCreated: (CustomSpace) -> Void
+    let onSpaceCreated: (Space) -> Void
     var isEmbedded: Bool = false
     
     @State private var spaceName = ""
@@ -374,15 +374,26 @@ struct CustomSpaceConfigView: View {
     private func createSpace() {
         guard canCreateSpace else { return }
         
-        let customSpace = CustomSpace(
+        // 创建空间
+        let space = Space(
             name: spaceName.trimmingCharacters(in: .whitespacesAndNewlines),
-            description: spaceDescription.trimmingCharacters(in: .whitespacesAndNewlines),
-            emoji: selectedEmoji,
-            categories: categories
+            description: spaceDescription.trimmingCharacters(in: .whitespacesAndNewlines)
         )
         
-        onSpaceCreated(customSpace)
-        isPresented = false
+        // 保存到数据库
+        if DatabaseManager.shared.createSpace(space) {
+            // 创建类别
+            for categoryItem in categories {
+                let category = Category(
+                    spaceId: space.id,
+                    name: categoryItem.name
+                )
+                _ = DatabaseManager.shared.createCategory(category)
+            }
+            
+            onSpaceCreated(space)
+            isPresented = false
+        }
     }
     
     private func colorName(for color: Color) -> String {

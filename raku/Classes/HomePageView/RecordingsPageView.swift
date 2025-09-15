@@ -107,8 +107,7 @@ struct RecordingsPageView: View {
                 FloatingRecordingCard(
                     audioManager: audioManager,
                     selectedFilter: viewModel.selectedFilter,
-                    isDarkMode: isDarkMode,
-                    showingSpaceTemplateSheet: $viewModel.showingSpaceTemplateSheet
+                    isDarkMode: isDarkMode
                 )
             }
             
@@ -123,11 +122,9 @@ struct RecordingsPageView: View {
             SpaceCreationView(
                 isPresented: $viewModel.showingSpaceTemplateSheet,
                 isDarkMode: isDarkMode,
-                onTemplateSelected: { template in
-                    viewModel.createSpaceFromTemplate(template)
-                },
-                onCustomSelected: {
-                    // 自定义空间创建逻辑
+                onSpaceCreated: { space in
+                    // 空间创建成功后的逻辑
+                    viewModel.onSpaceCreated(space)
                 }
             )
         }

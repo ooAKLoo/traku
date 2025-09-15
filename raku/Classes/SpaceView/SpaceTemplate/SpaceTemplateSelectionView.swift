@@ -12,8 +12,7 @@ struct SpaceTemplateSelectionView: View {
     @Binding var isPresented: Bool
     @State private var showingCustomSpaceView = false
     let isDarkMode: Bool
-    let onTemplateSelected: (SpaceTemplate) -> Void
-    let onCustomSelected: () -> Void
+    let onSpaceCreated: (Space) -> Void
     
     private let templates = SpaceTemplate.defaultTemplates
     
@@ -41,9 +40,9 @@ struct SpaceTemplateSelectionView: View {
             CustomSpaceConfigView(
                 isPresented: $showingCustomSpaceView,
                 isDarkMode: isDarkMode,
-                onSpaceCreated: { customSpace in
+                onSpaceCreated: { space in
+                    onSpaceCreated(space)
                     isPresented = false
-                    onCustomSelected()
                 }
             )
         }
@@ -87,8 +86,7 @@ struct SpaceTemplateSelectionView: View {
                         isDarkMode: isDarkMode,
                         onTap: {
                             withAnimation(.easeInOut(duration: 0.3)) {
-                                onTemplateSelected(template)
-                                isPresented = false
+                                createSpaceFromTemplate(template)
                             }
                         }
                     )
@@ -129,6 +127,30 @@ struct SpaceTemplateSelectionView: View {
             }
             .padding(.horizontal, 20)
             .padding(.bottom, 34)
+        }
+    }
+    
+    // MARK: - Methods
+    private func createSpaceFromTemplate(_ template: SpaceTemplate) {
+        // 创建空间
+        let space = Space(
+            name: template.title,
+            description: template.description
+        )
+        
+        // 保存到数据库
+        if DatabaseManager.shared.createSpace(space) {
+            // 创建类别
+            for categoryItem in template.categories {
+                let category = Category(
+                    spaceId: space.id,
+                    name: categoryItem.name
+                )
+                _ = DatabaseManager.shared.createCategory(category)
+            }
+            
+            onSpaceCreated(space)
+            isPresented = false
         }
     }
 }
@@ -288,8 +310,7 @@ struct SpaceTemplateSelectionView_Previews: PreviewProvider {
         SpaceTemplateSelectionView(
             isPresented: .constant(true),
             isDarkMode: false,
-            onTemplateSelected: { _ in },
-            onCustomSelected: {}
+            onSpaceCreated: { _ in }
         )
     }
 }

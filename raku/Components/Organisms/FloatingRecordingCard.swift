@@ -16,23 +16,24 @@ struct FloatingRecordingCard: View {
     
     let selectedFilter: String
     let isDarkMode: Bool
-    @Binding var showingSpaceTemplateSheet: Bool
     
-    init(audioManager: AudioManagerAdapter, selectedFilter: String = "", isDarkMode: Bool = false, showingSpaceTemplateSheet: Binding<Bool> = .constant(false)) {
+    init(audioManager: AudioManagerAdapter, selectedFilter: String = "", isDarkMode: Bool = false) {
         self.audioManager = audioManager
         self.selectedFilter = selectedFilter
         self.isDarkMode = isDarkMode
-        self._showingSpaceTemplateSheet = showingSpaceTemplateSheet
         self._viewModel = StateObject(wrappedValue: RecordingControlViewModel(audioManager: audioManager))
     }
     
     var body: some View {
-        VStack(spacing: 0) {
-            // 胶囊形状的录音控制区域
-            capsuleControlView
+        // 在Space模式下隐藏整个悬浮按钮
+        if selectedFilter != L("homepage_filter_space") {
+            VStack(spacing: 0) {
+                // 胶囊形状的录音控制区域
+                capsuleControlView
+            }
+            .padding(.horizontal, 20)
+            .padding(.bottom, 34)
         }
-        .padding(.horizontal, 20)
-        .padding(.bottom, 34)
     }
     
     // MARK: - 胶囊控制视图
@@ -90,18 +91,13 @@ struct FloatingRecordingCard: View {
         .onTapGesture {
             // 点击胶囊任意位置都可以切换状态（仅在待机时）
             if !viewModel.isRecording {
-                // 检查是否在space模式
-                if selectedFilter == L("homepage_filter_space") {
-                    showingSpaceTemplateSheet = true
-                } else {
-                    withAnimation(.interpolatingSpring(
-                        mass: 0.8,
-                        stiffness: 150.0,
-                        damping: 15.0,
-                        initialVelocity: 5.0
-                    )) {
-                        viewModel.startRecording()
-                    }
+                withAnimation(.interpolatingSpring(
+                    mass: 0.8,
+                    stiffness: 150.0,
+                    damping: 15.0,
+                    initialVelocity: 5.0
+                )) {
+                    viewModel.startRecording()
                 }
             }
         }
@@ -116,22 +112,10 @@ struct FloatingRecordingCard: View {
     // MARK: - 待机状态内容
     private var standbyStateContent: some View {
         VStack(spacing: 4) {
-            if selectedFilter == L("homepage_filter_space") {
-                // Space模式显示+按钮
-                Circle()
-                    .fill(isDarkMode ? Color.blue.opacity(0.15) : Color.blue.opacity(0.1))
-                    .frame(width: 40, height: 40)
-                    .overlay(
-                        Image(systemName: "plus")
-                            .font(.system(size: 18, weight: .medium))
-                            .foregroundColor(isDarkMode ? Color.blue.opacity(0.9) : Color.blue)
-                    )
-            } else {
-                // 默认模式显示麦克风
-                Image(systemName: "mic")
-                    .font(.system(size: 24, weight: .regular))
-                    .foregroundColor(.black)
-            }
+            // 显示麦克风图标
+            Image(systemName: "mic")
+                .font(.system(size: 24, weight: .regular))
+                .foregroundColor(.black)
         }
         .frame(width: 70, height: 70)
     }
@@ -149,28 +133,30 @@ struct FloatingRecordingCard_Previews: PreviewProvider {
                     FloatingRecordingCard(
                         audioManager: AudioManagerAdapter(skipDatabaseLoad: true),
                         selectedFilter: "标签",
-                        isDarkMode: false,
-                        showingSpaceTemplateSheet: .constant(false)
+                        isDarkMode: false
                     )
                 }
             }
             .previewDisplayName("录音模式")
             
-            // Space模式预览
+            // Space模式预览（隐藏状态）
             ZStack {
                 Color.black.ignoresSafeArea()
                 VStack {
                     Spacer()
                     
+                    Text("Space模式 - 悬浮按钮已隐藏")
+                        .foregroundColor(.white)
+                        .font(.caption)
+                    
                     FloatingRecordingCard(
                         audioManager: AudioManagerAdapter(skipDatabaseLoad: true),
                         selectedFilter: L("homepage_filter_space"),
-                        isDarkMode: true,
-                        showingSpaceTemplateSheet: .constant(false)
+                        isDarkMode: true
                     )
                 }
             }
-            .previewDisplayName("Space模式")
+            .previewDisplayName("Space模式（隐藏）")
         }
     }
 }

@@ -11,8 +11,7 @@ import SwiftUI
 struct SpaceCreationView: View {
     @Binding var isPresented: Bool
     let isDarkMode: Bool
-    let onTemplateSelected: (SpaceTemplate) -> Void
-    let onCustomSelected: () -> Void
+    let onSpaceCreated: (Space) -> Void
     
     @State private var selectedMode: CreationMode = .template
     @State private var showingCustomSpaceView = false
@@ -219,8 +218,7 @@ struct SpaceCreationView: View {
                             isDarkMode: isDarkMode,
                             onTap: {
                                 withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-                                    onTemplateSelected(template)
-                                    isPresented = false
+                                    createSpaceFromTemplate(template)
                                 }
                             }
                         )
@@ -260,10 +258,10 @@ struct SpaceCreationView: View {
             CustomSpaceConfigView(
                 isPresented: $isPresented,
                 isDarkMode: isDarkMode,
-                onSpaceCreated: { customSpace in
+                onSpaceCreated: { space in
                     withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
+                        onSpaceCreated(space)
                         isPresented = false
-                        onCustomSelected()
                     }
                 },
                 isEmbedded: true
@@ -274,6 +272,30 @@ struct SpaceCreationView: View {
             removal: .push(from: .trailing).combined(with: .opacity)
         ))
     }
+    
+    // MARK: - Methods
+    private func createSpaceFromTemplate(_ template: SpaceTemplate) {
+        // 创建空间
+        let space = Space(
+            name: template.title,
+            description: template.description
+        )
+        
+        // 保存到数据库
+        if DatabaseManager.shared.createSpace(space) {
+            // 创建类别
+            for categoryItem in template.categories {
+                let category = Category(
+                    spaceId: space.id,
+                    name: categoryItem.name
+                )
+                _ = DatabaseManager.shared.createCategory(category)
+            }
+            
+            onSpaceCreated(space)
+            isPresented = false
+        }
+    }
 }
 
 // MARK: - 预览
@@ -283,16 +305,14 @@ struct SpaceCreationView_Previews: PreviewProvider {
             SpaceCreationView(
                 isPresented: .constant(true),
                 isDarkMode: false,
-                onTemplateSelected: { _ in },
-                onCustomSelected: {}
+                onSpaceCreated: { _ in }
             )
             .previewDisplayName("Light Mode")
             
             SpaceCreationView(
                 isPresented: .constant(true),
                 isDarkMode: true,
-                onTemplateSelected: { _ in },
-                onCustomSelected: {}
+                onSpaceCreated: { _ in }
             )
             .previewDisplayName("Dark Mode")
             .preferredColorScheme(.dark)
