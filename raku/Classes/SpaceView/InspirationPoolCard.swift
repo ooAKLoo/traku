@@ -13,7 +13,6 @@ struct InspirationPoolCard: View {
     let onTap: () -> Void
     
     @State private var inspirationCount: Int = 0
-    @State private var isHovered = false
     
     var body: some View {
         VStack(spacing: 12) {
@@ -63,11 +62,6 @@ struct InspirationPoolCard: View {
                 )
         )
         .shadow(color: (isDarkMode ? Color.white : Color.black).opacity(0.05), radius: 8, x: 0, y: 4)
-        .scaleEffect(isHovered ? 1.02 : 1.0)
-        .animation(.easeInOut(duration: 0.2), value: isHovered)
-        .onHover { hovering in
-            isHovered = hovering
-        }
         .onTapGesture {
             onTap()
         }
@@ -145,6 +139,11 @@ struct InspirationListView: View {
                 showingBatchSpaceSelection = true
             }
         )
+        .onChange(of: isSelectionMode) { newValue in
+            if !newValue {
+                selectedInspirations.removeAll()
+            }
+        }
     }
     
     // MARK: - 背景渐变
@@ -225,26 +224,6 @@ struct InspirationListView: View {
                 
                 Spacer()
                 
-                // 批量操作按钮
-                if !inspirations.isEmpty {
-                    Button(action: {
-                        toggleSelectionMode()
-                    }) {
-                        Text(isSelectionMode ? "取消" : "批量")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(isDarkMode ? .white : .black)
-                            .padding(.horizontal, 16)
-                            .padding(.vertical, 8)
-                            .background(
-                                RoundedRectangle(cornerRadius: 20)
-                                    .fill(isDarkMode ? Color.white.opacity(0.1) : Color.gray.opacity(0.1))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 20)
-                                            .stroke(isDarkMode ? Color.white.opacity(0.2) : Color.gray.opacity(0.2), lineWidth: 1)
-                                    )
-                            )
-                    }
-                }
             }
             .padding(.horizontal, 20)
             
@@ -345,6 +324,18 @@ struct InspirationListView: View {
                         isSelected: selectedInspirations.contains(inspiration.id),
                         onSelectionToggle: {
                             toggleSelection(for: inspiration.id)
+                        },
+                        onLongPress: {
+                            if !isSelectionMode {
+                                toggleSelectionMode()
+                                toggleSelection(for: inspiration.id)
+                            }
+                        },
+                        onSwipeRight: {
+                            if !isSelectionMode {
+                                toggleSelectionMode()
+                                toggleSelection(for: inspiration.id)
+                            }
                         }
                     )
                     .transition(.asymmetric(
@@ -428,9 +419,36 @@ struct InspirationListView: View {
                 selectedInspirations.removeAll()
             }
         }
+        
+        // 立即更新浮窗数据
+        if isSelectionMode {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                let data = BatchSelectionData(
+                    selectedCount: selectedInspirations.count,
+                    totalCount: inspirations.count,
+                    actionTitle: "添加到空间",
+                    actionIcon: "plus.circle.fill",
+                    onSelectAll: {
+                        selectedInspirations = Set(inspirations.map { $0.id })
+                    },
+                    onDeselectAll: {
+                        selectedInspirations.removeAll()
+                    },
+                    onAction: {
+                        showingBatchSpaceSelection = true
+                    },
+                    onDismiss: {
+                        isSelectionMode = false
+                    }
+                )
+                GlobalPopupManager.shared.batchSelectionData = data
+            }
+        }
     }
     
     private func exitSelectionMode() {
+        // 立即隐藏浮窗
+        GlobalPopupManager.shared.hideBatchSelectionImmediately()
         withAnimation(.easeInOut(duration: 0.3)) {
             isSelectionMode = false
             selectedInspirations.removeAll()
@@ -494,39 +512,6 @@ struct StatCard: View {
     }
 }
 
-// MARK: - 灵感项数据模型
-struct InspirationItem: Identifiable {
-    let id: String
-    let originalText: String
-    let polishedText: String
-    let tags: [String]
-    let createdAt: Date
-    
-    static let mockData = [
-        InspirationItem(
-            id: UUID().uuidString,
-            originalText: "找合作伙伴不等于找朋友",
-            polishedText: "找合作伙伴不等于找朋友",
-            tags: ["商业", "合作"],
-            createdAt: Date()
-        ),
-        InspirationItem(
-            id: UUID().uuidString,
-            originalText: "人生得意须尽欢，莫使金樽空对月",
-            polishedText: "人生得意须尽欢，莫使金樽空对月",
-            tags: ["诗词", "人生"],
-            createdAt: Date().addingTimeInterval(-3600)
-        ),
-        InspirationItem(
-            id: UUID().uuidString,
-            originalText: "大道至简",
-            polishedText: "大道至简",
-            tags: ["哲学", "智慧"],
-            createdAt: Date().addingTimeInterval(-7200)
-        )
-    ]
-}
-
 // MARK: - 灵感行视图
 struct InspirationRowView: View {
     let inspiration: AudioRecording
@@ -534,8 +519,11 @@ struct InspirationRowView: View {
     var isSelectionMode: Bool = false
     var isSelected: Bool = false
     var onSelectionToggle: (() -> Void)?
+    var onLongPress: (() -> Void)?
+    var onSwipeRight: (() -> Void)?
     
     @State private var showingSpaceSelection = false
+    @State private var dragOffset: CGFloat = 0
     
     var body: some View {
         HStack {
@@ -578,6 +566,7 @@ struct InspirationRowView: View {
         )
         .scaleEffect(isSelected ? 0.98 : 1.0)
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isSelected)
+        .offset(x: dragOffset)
         .sheet(isPresented: $showingSpaceSelection) {
             SpaceSelectionView(
                 recording: inspiration,
@@ -590,6 +579,26 @@ struct InspirationRowView: View {
                 onSelectionToggle?()
             }
         }
+        .onLongPressGesture {
+            onLongPress?()
+        }
+        .gesture(
+            DragGesture()
+                .onChanged { value in
+                    if value.translation.width > 0 {
+                        dragOffset = min(value.translation.width, 50)
+                    }
+                }
+                .onEnded { value in
+                    withAnimation(.spring()) {
+                        dragOffset = 0
+                    }
+                    
+                    if value.translation.width > 80 {
+                        onSwipeRight?()
+                    }
+                }
+        )
     }
     
     // MARK: - 主内容
@@ -697,6 +706,8 @@ struct SpaceSelectionView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("取消") {
+                        // 立即隐藏浮窗
+                        GlobalPopupManager.shared.hideBatchSelectionImmediately()
                         isPresented = false
                     }
                     .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8))
@@ -716,6 +727,8 @@ struct SpaceSelectionView: View {
         }
         .alert("添加成功", isPresented: $showingSuccessMessage) {
             Button("确定") {
+                // 立即隐藏浮窗
+                GlobalPopupManager.shared.hideBatchSelectionImmediately()
                 isPresented = false
             }
         } message: {
@@ -1122,6 +1135,8 @@ struct BatchSpaceSelectionView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("取消") {
+                        // 立即隐藏浮窗
+                        GlobalPopupManager.shared.hideBatchSelectionImmediately()
                         isPresented = false
                     }
                     .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8))
@@ -1141,6 +1156,8 @@ struct BatchSpaceSelectionView: View {
         }
         .alert("批量添加完成", isPresented: $showingSuccessMessage) {
             Button("确定") {
+                // 立即隐藏浮窗
+                GlobalPopupManager.shared.hideBatchSelectionImmediately()
                 onCompleted()
                 isPresented = false
             }

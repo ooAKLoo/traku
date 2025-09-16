@@ -58,7 +58,10 @@ extension View {
                         actionIcon: actionIcon,
                         onSelectAll: onSelectAll,
                         onDeselectAll: onDeselectAll,
-                        onAction: onAction
+                        onAction: onAction,
+                        onDismiss: {
+                            isPresented.wrappedValue = false
+                        }
                     )
                     popupManager.showBatchSelection(data)
                 } else {
@@ -74,7 +77,10 @@ extension View {
                         actionIcon: actionIcon,
                         onSelectAll: onSelectAll,
                         onDeselectAll: onDeselectAll,
-                        onAction: onAction
+                        onAction: onAction,
+                        onDismiss: {
+                            isPresented.wrappedValue = false
+                        }
                     )
                     GlobalPopupManager.shared.batchSelectionData = data
                 }

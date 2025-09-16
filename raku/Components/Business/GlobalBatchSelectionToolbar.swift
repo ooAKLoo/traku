@@ -21,67 +21,46 @@ struct GlobalBatchSelectionToolbar: View {
     var body: some View {
         VStack(spacing: 0) {
             // 工具栏内容
-            HStack(spacing: 20) {
-                // 左侧：选择状态指示器
-                HStack(spacing: 12) {
-                    // 动态圆形指示器
-                    ZStack {
-                        Circle()
-                            .stroke(
-                                LinearGradient(
-                                    colors: [
-                                        Color.blue.opacity(0.3),
-                                        Color.blue.opacity(0.1)
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                ),
-                                lineWidth: 2
-                            )
-                            .frame(width: 42, height: 42)
-                        
-                        Circle()
-                            .fill(
-                                LinearGradient(
-                                    colors: [
-                                        Color.blue.opacity(0.15),
-                                        Color.blue.opacity(0.05)
-                                    ],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
-                            )
-                            .frame(width: 42, height: 42)
-                        
-                        Text("\(data.selectedCount)")
-                            .font(.system(size: 16, weight: .semibold, design: .rounded))
-                            .foregroundColor(.blue)
+            HStack(spacing: 16) {
+                // 左侧：全选/取消全选圆环按钮
+                Button(action: {
+                    if data.selectedCount == data.totalCount {
+                        data.onDeselectAll()
+                    } else {
+                        data.onSelectAll()
                     }
-//                    .scaleEffect(isShowing ? 1.0 : 0.8)
-//                    .animation(.spring(response: 0.4, dampingFraction: 0.6).delay(0.1), value: isShowing)
-                    
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text("已选择")
-                            .font(.system(size: 12, weight: .regular))
-                            .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
+                }) {
+                    ZStack {
+                        // 基础圆环
+                        Circle()
+                            .stroke(Color.gray.opacity(0.3), lineWidth: 2.5)
+                            .frame(width: 22, height: 22)
                         
-                        Button(action: {
-                            if data.selectedCount == data.totalCount {
-                                data.onDeselectAll()
-                            } else {
-                                data.onSelectAll()
-                            }
-                        }) {
-                            Text(data.selectedCount == data.totalCount ? "取消全选" : "全选")
-                                .font(.system(size: 14, weight: .medium))
+                        // 进度圆环（根据选择比例）
+                        if data.selectedCount > 0 {
+                            Circle()
+                                .trim(from: 0, to: CGFloat(data.selectedCount) / CGFloat(data.totalCount))
+                                .stroke(
+                                    Color.blue,
+                                    style: StrokeStyle(lineWidth: 2.5, lineCap: .round)
+                                )
+                                .frame(width: 22, height: 22)
+                                .rotationEffect(.degrees(-90))
+                        }
+                        
+                        // 全选时的对勾
+                        if data.selectedCount == data.totalCount {
+                            Image(systemName: "checkmark")
+                                .font(.system(size: 12, weight: .semibold))
                                 .foregroundColor(.blue)
                         }
                     }
+                    .frame(width: 32, height: 32)
                 }
                 
                 Spacer()
                 
-                // 右侧：操作按钮
+                // 中间：操作按钮（包含选择数量）
                 Button(action: {
                     withAnimation(.spring(response: 0.3, dampingFraction: 0.6)) {
                         buttonScale = 0.95
@@ -91,52 +70,68 @@ struct GlobalBatchSelectionToolbar: View {
                         data.onAction()
                     }
                 }) {
-                    HStack(spacing: 8) {
-                        Image(systemName: data.actionIcon)
-                            .font(.system(size: 15, weight: .semibold))
+                    HStack(spacing: 6) {
+                        // 选择数量显示
+                        Text(data.selectedCount > 99 ? "99+" : "\(data.selectedCount)")
+                            .font(.system(size: 12, weight: .bold, design: .rounded))
+                            .foregroundColor(data.selectedCount == 0 ? 
+                                           (isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5)) :
+                                           .white)
+                            .frame(width: 18, height: 18)
+                            .background(
+                                Circle()
+                                    .fill(data.selectedCount == 0 ? 
+                                          Color.gray.opacity(0.25) :
+                                          Color.blue)
+                            )
                         
                         Text(data.actionTitle)
-                            .font(.system(size: 15, weight: .semibold))
+                            .font(.system(size: 14, weight: .medium))
+                            .lineLimit(1)
                     }
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 20)
-                    .padding(.vertical, 12)
+                    .foregroundColor(data.selectedCount == 0 ? 
+                                   (isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4)) :
+                                   (isDarkMode ? .white.opacity(0.9) : .blue.opacity(0.9)))
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
                     .background(
-                        ZStack {
-                            // 背景渐变
-                            LinearGradient(
-                                colors: data.selectedCount == 0 ? 
-                                    [Color.gray, Color.gray.opacity(0.8)] :
-                                    [Color.blue, Color.blue.opacity(0.8)],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
+                        RoundedRectangle(cornerRadius: 20)
+                            .fill(data.selectedCount == 0 ? 
+                                  Color.gray.opacity(isDarkMode ? 0.2 : 0.15) :
+                                  Color.blue.opacity(isDarkMode ? 0.4 : 0.2))
+                            .overlay(
+                                RoundedRectangle(cornerRadius: 20)
+                                    .stroke(
+                                        data.selectedCount == 0 ? 
+                                        Color.clear :
+                                        Color.blue.opacity(isDarkMode ? 0.6 : 0.4),
+                                        lineWidth: 1
+                                    )
                             )
-                            
-                            // 光泽效果
-                            LinearGradient(
-                                colors: [
-                                    Color.white.opacity(data.selectedCount == 0 ? 0.1 : 0.2),
-                                    Color.white.opacity(0)
-                                ],
-                                startPoint: .top,
-                                endPoint: .center
-                            )
-                        }
-                        .clipShape(Capsule())
-                        .shadow(
-                            color: (data.selectedCount == 0 ? Color.gray : Color.blue).opacity(0.3),
-                            radius: 8,
-                            x: 0,
-                            y: 4
-                        )
                     )
                     .scaleEffect(buttonScale)
                     .animation(.spring(response: 0.3, dampingFraction: 0.6), value: buttonScale)
                 }
                 .disabled(data.selectedCount == 0)
+                
+                Spacer()
+                
+                // 右侧：取消按钮
+                Button(action: {
+                    data.onDismiss()
+                }) {
+                    Image(systemName: "xmark")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(isDarkMode ? .white.opacity(0.7) : .black.opacity(0.7))
+                        .frame(width: 36, height: 36)
+                        .background(
+                            Circle()
+                                .fill(isDarkMode ? Color.white.opacity(0.08) : Color.gray.opacity(0.08))
+                        )
+                }
             }
-            .padding(.horizontal, 24)
-            .padding(.vertical, 16)
+            .frame(height: 63)
+            .padding(.horizontal, 20)
             .background(
                 // 轻盈的背景效果
                 ZStack {
@@ -169,20 +164,20 @@ struct GlobalBatchSelectionToolbar: View {
                 }
                 .clipShape(RoundedRectangle(cornerRadius: 24))
                 .shadow(
-                    color: Color.black.opacity(isDarkMode ? 0.4 : 0.15),
-                    radius: 20,
+                    color: Color.black.opacity(isDarkMode ? 0.3 : 0.08),
+                    radius: 12,
                     x: 0,
-                    y: 10
+                    y: 4
                 )
                 .shadow(
-                    color: Color.black.opacity(0.1),
-                    radius: 1,
+                    color: Color.black.opacity(isDarkMode ? 0.15 : 0.04),
+                    radius: 32,
                     x: 0,
-                    y: 1
+                    y: 8
                 )
             )
         }
-        .offset(y: isShowing ? 0 : 150)
+        .offset(y: isShowing ? -10 : 150)
         .opacity(isShowing ? 1 : 0)
         .animation(.spring(response: 0.5, dampingFraction: 0.85, blendDuration: 0), value: isShowing)
         .onAppear {

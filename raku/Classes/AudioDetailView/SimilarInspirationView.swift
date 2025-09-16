@@ -4,7 +4,6 @@
 //
 
 import SwiftUI
-import Combine
 
 struct SimilarInspirationView: View {
     let currentRecording: AudioRecording
@@ -35,25 +34,6 @@ struct SimilarInspirationView: View {
                     ProgressView()
                         .scaleEffect(0.8)
                         .foregroundColor(isDarkMode ? .white.opacity(0.7) : .gray)
-                } else if !similarRecordings.isEmpty {
-                    // 批量操作按钮
-                    Button(action: {
-                        toggleSelectionMode()
-                    }) {
-                        Text(isSelectionMode ? "取消" : "批量")
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(isDarkMode ? .white : .black)
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 6)
-                            .background(
-                                RoundedRectangle(cornerRadius: 16)
-                                    .fill(isDarkMode ? Color.white.opacity(0.1) : Color.gray.opacity(0.1))
-                                    .overlay(
-                                        RoundedRectangle(cornerRadius: 16)
-                                            .stroke(isDarkMode ? Color.white.opacity(0.2) : Color.gray.opacity(0.2), lineWidth: 1)
-                                    )
-                            )
-                    }
                 }
             }
             
@@ -111,6 +91,18 @@ struct SimilarInspirationView: View {
                             },
                             onSelectionToggle: {
                                 toggleSelection(for: recording.id)
+                            },
+                            onLongPress: {
+                                if !isSelectionMode {
+                                    toggleSelectionMode()
+                                    toggleSelection(for: recording.id)
+                                }
+                            },
+                            onSwipeRight: {
+                                if !isSelectionMode {
+                                    toggleSelectionMode()
+                                    toggleSelection(for: recording.id)
+                                }
                             }
                         )
                     }
@@ -149,8 +141,12 @@ struct SimilarInspirationView: View {
                 showingBatchSpaceSelection = true
             }
         )
+        .onChange(of: isSelectionMode) { newValue in
+            if !newValue {
+                selectedInspirations.removeAll()
+            }
+        }
     }
-    
     
     // MARK: - 批量操作方法
     private func toggleSelectionMode() {
@@ -160,9 +156,36 @@ struct SimilarInspirationView: View {
                 selectedInspirations.removeAll()
             }
         }
+        
+        // 立即更新浮窗数据
+        if isSelectionMode {
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                let data = BatchSelectionData(
+                    selectedCount: selectedInspirations.count,
+                    totalCount: similarRecordings.count,
+                    actionTitle: "添加到空间",
+                    actionIcon: "plus.circle.fill",
+                    onSelectAll: {
+                        selectedInspirations = Set(similarRecordings.map { $0.id })
+                    },
+                    onDeselectAll: {
+                        selectedInspirations.removeAll()
+                    },
+                    onAction: {
+                        showingBatchSpaceSelection = true
+                    },
+                    onDismiss: {
+                        isSelectionMode = false
+                    }
+                )
+                GlobalPopupManager.shared.batchSelectionData = data
+            }
+        }
     }
     
     private func exitSelectionMode() {
+        // 立即隐藏浮窗
+        GlobalPopupManager.shared.hideBatchSelectionImmediately()
         withAnimation(.easeInOut(duration: 0.25)) {
             isSelectionMode = false
             selectedInspirations.removeAll()
@@ -193,6 +216,12 @@ struct SimilarInspirationView: View {
                     EmptyView()
                 }
                 .hidden()
+                .onChange(of: isNavigating) { navigating in
+                    // 当离开当前页面时立即隐藏批量选择浮窗
+                    if !navigating {
+                        GlobalPopupManager.shared.hideBatchSelectionImmediately()
+                    }
+                }
             } else {
                 EmptyView()
             }
@@ -278,8 +307,11 @@ struct SimilarInspirationItem: View {
     var isSelected: Bool = false
     let onTap: () -> Void
     var onSelectionToggle: (() -> Void)?
+    var onLongPress: (() -> Void)?
+    var onSwipeRight: (() -> Void)?
     
     @State private var showingSpaceSelection = false
+    @State private var dragOffset: CGFloat = 0
     
     var body: some View {
         HStack(spacing: 12) {
@@ -330,6 +362,7 @@ struct SimilarInspirationItem: View {
         .scaleEffect(isSelected ? 0.98 : 1.0)
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isSelected)
         .contentShape(Rectangle())
+        .offset(x: dragOffset)
         .sheet(isPresented: $showingSpaceSelection) {
             SpaceSelectionView(
                 recording: recording,
@@ -340,6 +373,26 @@ struct SimilarInspirationItem: View {
         .onTapGesture {
             onTap()
         }
+        .onLongPressGesture {
+            onLongPress?()
+        }
+        .gesture(
+            DragGesture()
+                .onChanged { value in
+                    if value.translation.width > 0 {
+                        dragOffset = min(value.translation.width, 50)
+                    }
+                }
+                .onEnded { value in
+                    withAnimation(.spring()) {
+                        dragOffset = 0
+                    }
+                    
+                    if value.translation.width > 80 {
+                        onSwipeRight?()
+                    }
+                }
+        )
     }
     
     private var contentView: some View {
@@ -380,27 +433,6 @@ struct SimilarInspirationItem: View {
         .padding(.vertical, 16)
     }
     
-    private func formatRecordingDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        let calendar = Calendar.current
-        
-        if calendar.isDate(date, inSameDayAs: Date()) {
-            formatter.dateFormat = "HH:mm"
-            return "今天 \(formatter.string(from: date))"
-        } else if calendar.isDate(date, inSameDayAs: calendar.date(byAdding: .day, value: -1, to: Date()) ?? Date()) {
-            formatter.dateFormat = "HH:mm"
-            return "昨天 \(formatter.string(from: date))"
-        } else {
-            formatter.dateFormat = "MM/dd HH:mm"
-            return formatter.string(from: date)
-        }
-    }
-    
-    private func formatDuration(_ duration: TimeInterval) -> String {
-        let minutes = Int(duration) / 60
-        let seconds = Int(duration) % 60
-        return "\(minutes):\(String(format: "%02d", seconds))"
-    }
 }
 
 // MARK: - 加载占位符
@@ -580,6 +612,8 @@ struct SimilarInspirationBatchView: View {
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("取消") {
+                        // 立即隐藏浮窗
+                        GlobalPopupManager.shared.hideBatchSelectionImmediately()
                         isPresented = false
                     }
                     .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8))
@@ -599,6 +633,8 @@ struct SimilarInspirationBatchView: View {
         }
         .alert("批量添加完成", isPresented: $showingSuccessMessage) {
             Button("确定") {
+                // 立即隐藏浮窗
+                GlobalPopupManager.shared.hideBatchSelectionImmediately()
                 onCompleted()
                 isPresented = false
             }

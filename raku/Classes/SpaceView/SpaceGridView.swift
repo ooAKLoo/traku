@@ -65,6 +65,12 @@ struct SpaceGridView: View {
         .sheet(isPresented: $showingInspirationList) {
             InspirationListView(isDarkMode: isDarkMode)
         }
+        .onChange(of: showingInspirationList) { isShowing in
+            // 当关闭灵感列表时立即隐藏批量选择浮窗
+            if !isShowing {
+                GlobalPopupManager.shared.hideBatchSelectionImmediately()
+            }
+        }
         .sheet(isPresented: $showingSpaceCreation) {
             SpaceCreationView(
                 isPresented: $showingSpaceCreation,

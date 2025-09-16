@@ -73,6 +73,7 @@ public struct BatchSelectionData {
     public let onSelectAll: () -> Void
     public let onDeselectAll: () -> Void
     public let onAction: () -> Void
+    public let onDismiss: () -> Void
     
     public init(
         selectedCount: Int,
@@ -81,7 +82,8 @@ public struct BatchSelectionData {
         actionIcon: String = "plus.circle.fill",
         onSelectAll: @escaping () -> Void,
         onDeselectAll: @escaping () -> Void,
-        onAction: @escaping () -> Void
+        onAction: @escaping () -> Void,
+        onDismiss: @escaping () -> Void
     ) {
         self.selectedCount = selectedCount
         self.totalCount = totalCount
@@ -90,6 +92,7 @@ public struct BatchSelectionData {
         self.onSelectAll = onSelectAll
         self.onDeselectAll = onDeselectAll
         self.onAction = onAction
+        self.onDismiss = onDismiss
     }
 }
 
@@ -172,6 +175,13 @@ class GlobalPopupManager: ObservableObject {
         
         // 延迟清理数据
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+            self.batchSelectionData = nil
+        }
+    }
+    
+    func hideBatchSelectionImmediately() {
+        DispatchQueue.main.async {
+            self.isBatchSelectionShowing = false
             self.batchSelectionData = nil
         }
     }

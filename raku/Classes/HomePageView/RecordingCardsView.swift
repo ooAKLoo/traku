@@ -101,6 +101,12 @@ struct RecordingCardsView: View {
                 ) {
                     EmptyView()
                 }
+                .onChange(of: isNavigating) { navigating in
+                    // 当离开 RecordingDetailView 时立即隐藏批量选择浮窗
+                    if !navigating {
+                        GlobalPopupManager.shared.hideBatchSelectionImmediately()
+                    }
+                }
                 .hidden()
                 .navigationViewStyle(StackNavigationViewStyle()) // 确保使用堆栈导航样式
             } else {
