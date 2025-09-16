@@ -44,7 +44,7 @@ struct SpaceDetailView: View {
             // 文章列表
             articleList
         }
-        .background(isDarkMode ? Color.black : Color(hex: "FAFAFA"))
+        .background(isDarkMode ? Color.black : Color.white)
         .navigationBarHidden(true)
         .onAppear {
             loadData()
@@ -119,7 +119,7 @@ struct SpaceDetailView: View {
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 12)
-        .background(isDarkMode ? Color.black : Color(hex: "FAFAFA"))
+//        .background(isDarkMode ? Color.black : Color.white)
     }
     
     // MARK: - 分类TabBar
@@ -155,7 +155,7 @@ struct SpaceDetailView: View {
             .padding(.horizontal, 20)
             .padding(.vertical, 8)
         }
-        .background(isDarkMode ? Color.black : Color(hex: "FAFAFA"))
+//        .background(isDarkMode ? Color.black : Color(hex: "FAFAFA"))
     }
     
     // MARK: - 文章列表
@@ -367,7 +367,7 @@ struct ArticleCard: View {
             .padding(.leading, 20)
             .background(
                 Rectangle()
-                    .fill(isDarkMode ? Color.black : Color(hex: "FAFAFA"))
+                    .fill(isDarkMode ? Color.black : Color.white)
             )
             .offset(x: offset)
             .gesture(

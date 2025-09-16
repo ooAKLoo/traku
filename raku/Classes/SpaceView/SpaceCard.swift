@@ -14,65 +14,72 @@ struct SpaceCard: View {
     let onTap: () -> Void
     let onDelete: () -> Void
     
-    private let cardHeight: CGFloat = 120
+    @State private var isPressed = false
+    @State private var isHovered = false
     
     var body: some View {
         Button(action: onTap) {
-            mainCard
+            VStack(alignment: .leading, spacing: 12) {
+                // 标题
+                HStack {
+                    Text(space.name)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(isDarkMode ? .white : .black)
+                        .lineLimit(2)
+                    
+                    Spacer()
+                }
+                
+                // 描述
+                if !space.description.isEmpty {
+                    Text(space.description)
+                        .font(.system(size: 13))
+                        .foregroundColor(isDarkMode ? .white.opacity(0.7) : .black.opacity(0.7))
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                }
+                
+                Spacer()
+                
+                // 底部信息
+                HStack {
+                    HStack(spacing: 4) {
+                        Image(systemName: "calendar")
+                            .font(.system(size: 10))
+                            .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
+                        
+                        Text(formatDate(space.createdAt))
+                            .font(.system(size: 11))
+                            .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
+                    }
+                    
+                    Spacer()
+                }
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            .frame(height: 120)
+            .padding(16)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(isDarkMode ? Color(hex: "1A1A1A") : Color.white)
+                    .shadow(
+                        color: isDarkMode ? Color.black.opacity(0.3) : Color.black.opacity(0.1),
+                        radius: 8,
+                        x: 0,
+                        y: 4
+                    )
+            )
+            .scaleEffect(isPressed ? 0.95 : (isHovered ? 1.02 : 1.0))
+            .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isPressed)
+            .animation(.easeInOut(duration: 0.2), value: isHovered)
         }
         .buttonStyle(PlainButtonStyle())
-        .frame(height: cardHeight)
-    }
-    
-    
-    // MARK: - 主卡片
-    private var mainCard: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack {
-                Text(space.name)
-                    .font(.headline)
-                    .foregroundColor(isDarkMode ? .white : .black)
-                    .lineLimit(1)
-                
-                Spacer()
-            }
-            
-            if !space.description.isEmpty {
-                Text(space.description)
-                    .font(.caption)
-                    .foregroundColor(isDarkMode ? .gray : .secondary)
-                    .lineLimit(2)
-            }
-            
-            Spacer()
-            
-            HStack {
-                Text("创建于 \(formatDate(space.createdAt))")
-                    .font(.caption2)
-                    .foregroundColor(isDarkMode ? .gray : .secondary)
-                
-                Spacer()
-            }
+        .onHover { hovering in
+            isHovered = hovering
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(isDarkMode ? Color.gray.opacity(0.2) : Color.white)
-                .shadow(
-                    color: isDarkMode ? .clear : .black.opacity(0.1),
-                    radius: 8,
-                    x: 0,
-                    y: 2
-                )
-        )
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(
-                    isDarkMode ? Color.gray.opacity(0.3) : Color.clear,
-                    lineWidth: 1
-                )
-        )
+        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
+            isPressed = pressing
+        }) {}
     }
     
     // MARK: - Helper Methods

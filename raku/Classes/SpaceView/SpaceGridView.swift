@@ -27,9 +27,9 @@ struct SpaceGridView: View {
                 .padding(.horizontal, 20)
                 
                 LazyVGrid(columns: [
-                    GridItem(.flexible(), spacing: 16),
-                    GridItem(.flexible(), spacing: 16)
-                ], spacing: 16) {
+                    GridItem(.flexible(), spacing: 12),
+                    GridItem(.flexible(), spacing: 12)
+                ], spacing: 20) {
                     // 添加空间按钮
                     AddSpaceCard(isDarkMode: isDarkMode) {
                         showingSpaceCreation = true
@@ -115,40 +115,63 @@ struct AddSpaceCard: View {
     let isDarkMode: Bool
     let onTap: () -> Void
     
-    private let cardHeight: CGFloat = 120
+    @State private var isPressed = false
+    @State private var isHovered = false
+    
     
     var body: some View {
         Button(action: onTap) {
-            VStack(spacing: 12) {
-                Image(systemName: "plus.circle.fill")
-                    .font(.system(size: 32))
-                    .foregroundColor(isDarkMode ? .white.opacity(0.7) : .black.opacity(0.7))
+            VStack(spacing: 16) {
+                ZStack {
+                    Circle()
+                        .fill(isDarkMode ? Color.white.opacity(0.06) : Color.black.opacity(0.03))
+                        .frame(width: 48, height: 48)
+                        .scaleEffect(isHovered ? 1.05 : 1.0)
+                    
+                    Image(systemName: "plus")
+                        .font(.system(size: 20, weight: .light))
+                        .foregroundColor(isDarkMode ? .white.opacity(0.7) : .black.opacity(0.6))
+                }
                 
                 Text("添加空间")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8))
+                    .font(.system(size: 15, weight: .medium))
+                    .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.7))
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
-            .frame(height: cardHeight)
+            .frame(height: 120)
+            .padding(16)
             .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(isDarkMode ? Color.gray.opacity(0.1) : Color.white)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(
-                                isDarkMode ? Color.gray.opacity(0.3) : Color.gray.opacity(0.2),
-                                style: StrokeStyle(lineWidth: 2, dash: [4])
-                            )
-                    )
-                    .shadow(
-                        color: isDarkMode ? .clear : .black.opacity(0.1),
-                        radius: 8,
-                        x: 0,
-                        y: 2
-                    )
+                ZStack {
+                    // 背景渐变
+                    RoundedRectangle(cornerRadius: 16)
+                        .fill(LinearGradient(
+                            colors: [
+                                isDarkMode ? Color.white.opacity(0.08) : Color(hex: "F8F8F8"),
+                                isDarkMode ? Color.white.opacity(0.03) : Color(hex: "FEFEFE")
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ))
+                    
+                    // 虚线边框
+                    RoundedRectangle(cornerRadius: 16)
+                        .stroke(
+                            isDarkMode ? Color.white.opacity(0.2) : Color.black.opacity(0.15),
+                            style: StrokeStyle(lineWidth: 2, dash: [6, 4])
+                        )
+                }
             )
+            .scaleEffect(isPressed ? 0.95 : (isHovered ? 1.02 : 1.0))
+            .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isPressed)
+            .animation(.easeInOut(duration: 0.2), value: isHovered)
         }
         .buttonStyle(PlainButtonStyle())
+        .onHover { hovering in
+            isHovered = hovering
+        }
+        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
+            isPressed = pressing
+        }) {}
     }
 }
 

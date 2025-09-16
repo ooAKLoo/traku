@@ -13,66 +13,120 @@ struct InspirationPoolCard: View {
     let onTap: () -> Void
     
     @State private var inspirationCount: Int = 0
+    @State private var isPressed = false
+    @State private var isHovered = false
+    @State private var sparkleRotation = 0.0
     
     var body: some View {
-        VStack(spacing: 12) {
-            HStack {
-                // 图标
-                Image(systemName: "sparkles")
-                    .font(.system(size: 22, weight: .medium))
-                    .foregroundColor(isDarkMode ? .yellow : .orange)
+        Button(action: onTap) {
+            HStack(spacing: 16) {
+                // 灵动的图标容器
+                ZStack {
+                    // 背景光晕效果
+                    Circle()
+                        .fill(
+                            RadialGradient(
+                                colors: [
+                                    (isDarkMode ? Color.yellow.opacity(0.15) : Color.orange.opacity(0.2)),
+                                    (isDarkMode ? Color.yellow.opacity(0.05) : Color.orange.opacity(0.05)),
+                                    Color.clear
+                                ],
+                                center: .center,
+                                startRadius: 5,
+                                endRadius: 25
+                            )
+                        )
+                        .frame(width: 50, height: 50)
+                        .blur(radius: 3)
+                        .scaleEffect(isHovered ? 1.2 : 1.0)
+                        .animation(.easeInOut(duration: 0.3), value: isHovered)
+                    
+                    Circle()
+                        .fill(isDarkMode ? Color(hex: "2A2A2A") : Color.white)
+                        .frame(width: 42, height: 42)
+                        .shadow(color: (isDarkMode ? Color.yellow : Color.orange).opacity(0.2), radius: 8, x: 0, y: 2)
+                    
+                    Image(systemName: "sparkles")
+                        .font(.system(size: 20, weight: .medium))
+                        .foregroundColor(isDarkMode ? Color(hex: "FFD700") : Color(hex: "FF8C00"))
+                        .rotationEffect(.degrees(sparkleRotation))
+                        .scaleEffect(isHovered ? 1.1 : 1.0)
+                }
                 
-                // 标题
-                VStack(alignment: .leading, spacing: 4) {
+                // 内容
+                VStack(alignment: .leading, spacing: 6) {
                     Text("灵感资源池")
-                        .font(.system(size: 18, weight: .semibold))
+                        .font(.system(size: 17, weight: .semibold))
                         .foregroundColor(isDarkMode ? .white : .black)
                     
-                    Text("共 \(inspirationCount) 条灵感")
-                        .font(.system(size: 14))
-                        .foregroundColor(isDarkMode ? .white.opacity(0.7) : .black.opacity(0.6))
+                    HStack(spacing: 4) {
+                        Image(systemName: "star.fill")
+                            .font(.system(size: 10))
+                            .foregroundColor(isDarkMode ? Color.yellow.opacity(0.6) : Color.orange.opacity(0.6))
+                        
+                        Text("\(inspirationCount) 条闪光时刻")
+                            .font(.system(size: 13))
+                            .foregroundColor(isDarkMode ? .white.opacity(0.7) : .black.opacity(0.6))
+                    }
                 }
                 
                 Spacer()
                 
-                // 箭头
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 16, weight: .medium))
+                // 动态箭头
+                Image(systemName: "arrow.right.circle")
+                    .font(.system(size: 20, weight: .light))
                     .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.4))
+                    .offset(x: isHovered ? 3 : 0)
             }
             .padding(.horizontal, 20)
-            .padding(.vertical, 16)
+            .padding(.vertical, 18)
+            .background(
+                RoundedRectangle(cornerRadius: 20)
+                    .fill(isDarkMode ? Color(hex: "1A1A1A") : Color.white)
+                    .shadow(
+                        color: (isDarkMode ? Color.yellow : Color.orange).opacity(0.1),
+                        radius: 16,
+                        x: 0,
+                        y: 8
+                    )
+            )
+            .scaleEffect(isPressed ? 0.96 : 1.0)
+            .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isPressed)
         }
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(isDarkMode ? Color.white.opacity(0.1) : Color.white)
-                .overlay(
-                    RoundedRectangle(cornerRadius: 16)
-                        .strokeBorder(
-                            LinearGradient(
-                                gradient: Gradient(colors: [
-                                    isDarkMode ? Color.yellow.opacity(0.3) : Color.orange.opacity(0.3),
-                                    isDarkMode ? Color.orange.opacity(0.3) : Color.yellow.opacity(0.3)
-                                ]),
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            ),
-                            lineWidth: 1.5
-                        )
-                )
-        )
-        .shadow(color: (isDarkMode ? Color.white : Color.black).opacity(0.05), radius: 8, x: 0, y: 4)
-        .onTapGesture {
-            onTap()
+        .buttonStyle(PlainButtonStyle())
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.2)) {
+                isHovered = hovering
+            }
+            if hovering {
+                withAnimation(.easeInOut(duration: 0.8).repeatForever(autoreverses: true)) {
+                    sparkleRotation = 10
+                }
+            } else {
+                withAnimation(.easeInOut(duration: 0.3)) {
+                    sparkleRotation = 0
+                }
+            }
         }
+        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
+            isPressed = pressing
+        }) {}
         .onAppear {
             loadInspirationCount()
+            // 初始动画
+            withAnimation(.easeOut(duration: 0.6).delay(0.2)) {
+                isHovered = true
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.8) {
+                withAnimation(.easeOut(duration: 0.4)) {
+                    isHovered = false
+                }
+            }
         }
     }
     
     // 从数据库加载灵感数量
     private func loadInspirationCount() {
-        // 从数据库查询实际的灵感数量
         inspirationCount = DatabaseManager.shared.getInspirationCount()
     }
 }
@@ -91,6 +145,9 @@ struct InspirationListView: View {
     @State private var selectedInspirations: Set<UUID> = []
     @State private var showingBatchSpaceSelection = false
     @State private var filterType: FilterType = .all  // 筛选类型
+    @State private var emptyAnimationScale: CGFloat = 1.0
+    @State private var emptyAnimationOpacity: Double = 0.3
+    @State private var emptyIconRotation: Double = 0
     
     enum FilterType {
         case all
@@ -99,22 +156,17 @@ struct InspirationListView: View {
     }
     
     var body: some View {
-        ZStack {
-            // 背景渐变
-            backgroundGradient
-                .ignoresSafeArea()
+        VStack(spacing: 0) {
+            // 顶部拖拽指示器
+            dragIndicator
             
-            VStack(spacing: 0) {
-                // 顶部拖拽指示器
-                dragIndicator
-                
-                // 标题区域
-                headerSection
-                
-                // 内容区域
-                contentSection
-            }
+            // 标题区域
+            headerSection
+            
+            // 内容区域
+            contentSection
         }
+        .background(isDarkMode ? Color.black : Color.white)
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.hidden)
         .presentationBackground(isDarkMode ? Color.black : Color.white)
@@ -146,125 +198,92 @@ struct InspirationListView: View {
         }
     }
     
-    // MARK: - 背景渐变
-    private var backgroundGradient: some View {
-        LinearGradient(
-            colors: [
-                isDarkMode ? Color.black : Color.white,
-                isDarkMode ? Color.gray.opacity(0.1) : Color.gray.opacity(0.02)
-            ],
-            startPoint: .top,
-            endPoint: .bottom
-        )
-    }
-    
     // MARK: - 拖拽指示器
     private var dragIndicator: some View {
-        VStack {
-            RoundedRectangle(cornerRadius: 3)
-                .fill(isDarkMode ? Color.white.opacity(0.3) : Color.black.opacity(0.2))
-                .frame(width: 36, height: 5)
-                .shadow(color: isDarkMode ? Color.white.opacity(0.1) : Color.black.opacity(0.05), radius: 1, y: 1)
-        }
-        .padding(.top, 8)
-        .padding(.bottom, 16)
+        RoundedRectangle(cornerRadius: 2.5)
+            .fill(isDarkMode ? Color.white.opacity(0.2) : Color.black.opacity(0.15))
+            .frame(width: 36, height: 5)
+            .padding(.top, 8)
+            .padding(.bottom, 16)
     }
     
     // MARK: - 标题区域
     private var headerSection: some View {
-        VStack(spacing: 24) {
-            // 主标题和操作按钮
-            HStack {
+        VStack(spacing: 20) {
+            // 主标题
+            HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 8) {
                     HStack(spacing: 12) {
                         Image(systemName: "sparkles")
-                            .font(.system(size: 28, weight: .medium))
-                            .foregroundColor(isDarkMode ? .yellow : .orange)
-                            .scaleEffect(1.1)
+                            .font(.system(size: 24, weight: .medium))
+                            .foregroundColor(isDarkMode ? Color(hex: "FFD700") : Color(hex: "FF8C00"))
+                            .shadow(color: (isDarkMode ? Color.yellow : Color.orange).opacity(0.5), radius: 4)
                         
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text("灵感资源池")
-                                .font(.system(size: 28, weight: .bold, design: .rounded))
-                                .foregroundColor(isDarkMode ? .white : .black)
-                                .tracking(-0.5)
-                            
-                            if filterType != .all {
-                                Text(filterType == .used ? "已使用的灵感" : "未使用的灵感")
-                                    .font(.system(size: 13, weight: .medium))
-                                    .foregroundColor(filterType == .used ? 
-                                                   (isDarkMode ? .green : .green) : 
-                                                   (isDarkMode ? .orange : .orange))
-                            }
-                        }
+                        Text("灵感资源池")
+                            .font(.system(size: 26, weight: .bold))
+                            .foregroundColor(isDarkMode ? .white : .black)
                     }
                     
                     HStack(spacing: 8) {
-                        Text("收集与整理你的思维火花")
-                            .font(.system(size: 15, weight: .regular))
-                            .foregroundColor(isDarkMode ? Color.white.opacity(0.6) : Color.black.opacity(0.5))
+                        Circle()
+                            .fill(isDarkMode ? Color.green.opacity(0.8) : Color.green)
+                            .frame(width: 6, height: 6)
                         
-                        if filterType != .all {
-                            Text("·")
-                                .font(.system(size: 15, weight: .regular))
-                                .foregroundColor(isDarkMode ? Color.white.opacity(0.4) : Color.black.opacity(0.4))
-                            
-                            Button(action: {
-                                withAnimation(.easeInOut(duration: 0.3)) {
-                                    filterType = .all
-                                    updateFilteredInspirations()
-                                }
-                            }) {
-                                Text("查看全部")
-                                    .font(.system(size: 14, weight: .medium))
-                                    .foregroundColor(.blue)
-                            }
-                        }
+                        Text("\(allInspirations.count) 条闪光时刻")
+                            .font(.system(size: 14))
+                            .foregroundColor(isDarkMode ? Color.white.opacity(0.7) : Color.black.opacity(0.6))
+                            .italic()
                     }
                 }
                 
                 Spacer()
-                
             }
             .padding(.horizontal, 20)
             
-            
-            // 统计信息
+            // 筛选选项
             if !isSelectionMode {
-                HStack(spacing: 20) {
-                    StatCard(
-                        title: "已使用",
-                        value: "\(stats.used)",
-                        icon: "checkmark.circle.fill",
-                        color: isDarkMode ? .green : .green,
-                        isDarkMode: isDarkMode,
-                        isSelected: filterType == .used,
-                        onTap: {
-                            withAnimation(.easeInOut(duration: 0.3)) {
-                                filterType = filterType == .used ? .all : .used
-                                updateFilteredInspirations()
-                            }
+                HStack(spacing: 12) {
+                    FilterButton(
+                        title: "全部",
+                        isSelected: filterType == .all,
+                        isDarkMode: isDarkMode
+                    ) {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            filterType = .all
+                            updateFilteredInspirations()
                         }
-                    )
+                    }
                     
-                    StatCard(
-                        title: "未使用",
-                        value: "\(stats.unused)",
-                        icon: "circle.fill",
-                        color: isDarkMode ? .orange : .orange,
-                        isDarkMode: isDarkMode,
-                        isSelected: filterType == .unused,
-                        onTap: {
-                            withAnimation(.easeInOut(duration: 0.3)) {
-                                filterType = filterType == .unused ? .all : .unused
-                                updateFilteredInspirations()
-                            }
+                    FilterButton(
+                        title: "已使用",
+                        count: stats.used,
+                        isSelected: filterType == .used,
+                        isDarkMode: isDarkMode
+                    ) {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            filterType = .used
+                            updateFilteredInspirations()
                         }
-                    )
+                    }
+                    
+                    FilterButton(
+                        title: "未使用",
+                        count: stats.unused,
+                        isSelected: filterType == .unused,
+                        isDarkMode: isDarkMode
+                    ) {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            filterType = .unused
+                            updateFilteredInspirations()
+                        }
+                    }
+                    
+                    Spacer()
                 }
                 .padding(.horizontal, 20)
             }
         }
-        .padding(.bottom, 20)
+        .padding(.bottom, 12)
     }
     
     
@@ -281,32 +300,65 @@ struct InspirationListView: View {
     
     // MARK: - 空状态视图
     private var emptyStateView: some View {
-        VStack(spacing: 24) {
+        VStack {
             Spacer()
             
-            VStack(spacing: 20) {
+            VStack(spacing: 24) {
+                // 灵动的图标组合
                 ZStack {
-                    Circle()
-                        .fill(isDarkMode ? Color.white.opacity(0.05) : Color.gray.opacity(0.08))
-                        .frame(width: 120, height: 120)
+                    // 背景光环
+                    ForEach(0..<3) { index in
+                        Circle()
+                            .stroke(
+                                LinearGradient(
+                                    colors: [
+                                        (isDarkMode ? Color.yellow : Color.orange).opacity(0.2 - Double(index) * 0.05),
+                                        Color.clear
+                                    ],
+                                    startPoint: .top,
+                                    endPoint: .bottom
+                                ),
+                                lineWidth: 1
+                            )
+                            .frame(width: CGFloat(60 + index * 20), height: CGFloat(60 + index * 20))
+                            .scaleEffect(emptyAnimationScale)
+                            .opacity(emptyAnimationOpacity)
+                            .animation(
+                                Animation.easeInOut(duration: 2.5)
+                                    .repeatForever(autoreverses: true)
+                                    .delay(Double(index) * 0.3),
+                                value: emptyAnimationScale
+                            )
+                    }
                     
                     Image(systemName: "sparkles")
-                        .font(.system(size: 48, weight: .light))
-                        .foregroundColor(isDarkMode ? .white.opacity(0.3) : .black.opacity(0.3))
+                        .font(.system(size: 36, weight: .light))
+                        .foregroundColor(isDarkMode ? Color.yellow.opacity(0.5) : Color.orange.opacity(0.6))
+                        .rotationEffect(.degrees(emptyIconRotation))
+                        .animation(
+                            Animation.easeInOut(duration: 4)
+                                .repeatForever(autoreverses: true),
+                            value: emptyIconRotation
+                        )
                 }
                 
                 VStack(spacing: 8) {
-                    Text("暂无灵感记录")
+                    Text("灵感池空空如也")
                         .font(.system(size: 18, weight: .medium))
-                        .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8))
+                        .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.7))
                     
-                    Text("开始录制你的第一个想法吧")
+                    Text("记录你的第一个闪光时刻吧 ✨")
                         .font(.system(size: 14))
                         .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
-                        .multilineTextAlignment(.center)
                 }
             }
+            .onAppear {
+                emptyAnimationScale = 1.2
+                emptyAnimationOpacity = 0.5
+                emptyIconRotation = 15
+            }
             
+            Spacer()
             Spacer()
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -315,8 +367,9 @@ struct InspirationListView: View {
     // MARK: - 灵感列表内容
     private var inspirationListContent: some View {
         ScrollView(showsIndicators: false) {
-            LazyVStack(spacing: 16) {
-                ForEach(inspirations, id: \.id) { inspiration in
+            LazyVStack(spacing: 4) {
+                ForEach(inspirations.indices, id: \.self) { index in
+                    let inspiration = inspirations[index]
                     InspirationRowView(
                         inspiration: inspiration, 
                         isDarkMode: isDarkMode,
@@ -339,15 +392,16 @@ struct InspirationListView: View {
                         }
                     )
                     .transition(.asymmetric(
-                        insertion: .scale(scale: 0.9).combined(with: .opacity),
-                        removal: .scale(scale: 0.9).combined(with: .opacity)
+                        insertion: .scale(scale: 0.95).combined(with: .opacity).combined(with: .offset(y: 20)),
+                        removal: .scale(scale: 0.95).combined(with: .opacity)
                     ))
+                    .animation(.spring(response: 0.4, dampingFraction: 0.8).delay(Double(index) * 0.05), value: inspirations.count)
+                    .padding()
                 }
             }
-            .padding(.horizontal, 20)
+            .padding(.vertical, 8)
             .padding(.bottom, 34)
         }
-        .animation(.easeInOut(duration: 0.3), value: inspirations.count)
         .sheet(isPresented: $showingBatchSpaceSelection) {
             BatchSpaceSelectionView(
                 recordings: selectedInspirations.compactMap { id in
@@ -464,52 +518,116 @@ struct InspirationListView: View {
     }
 }
 
-// MARK: - 统计卡片
-struct StatCard: View {
+
+// MARK: - 筛选按钮
+struct FilterButton: View {
     let title: String
-    let value: String
-    let icon: String
-    let color: Color
+    var count: Int?
+    let isSelected: Bool
     let isDarkMode: Bool
-    var isSelected: Bool = false
-    var onTap: (() -> Void)?
+    let action: () -> Void
+    
+    @State private var isHovered = false
     
     var body: some View {
-        Button(action: {
-            onTap?()
-        }) {
-            VStack(spacing: 8) {
-                HStack(spacing: 6) {
-                    Image(systemName: icon)
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(isSelected ? .white : color)
-                    
-                    Text(value)
-                        .font(.system(size: 18, weight: .bold, design: .rounded))
-                        .foregroundColor(isSelected ? .white : (isDarkMode ? .white : .black))
-                }
-                
-                Text(title)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(isSelected ? .white.opacity(0.9) : (isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6)))
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 12)
-            .padding(.horizontal, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 12)
-                    .fill(isSelected ? color : (isDarkMode ? Color.white.opacity(0.06) : Color.gray.opacity(0.06)))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 12)
-                            .stroke(isSelected ? color : color.opacity(0.2), lineWidth: isSelected ? 2 : 1)
-                    )
-            )
-            .shadow(color: color.opacity(isDarkMode ? 0.1 : 0.05), radius: 4, x: 0, y: 2)
-            .scaleEffect(isSelected ? 0.98 : 1.0)
-            .animation(.easeInOut(duration: 0.2), value: isSelected)
+        Button(action: action) {
+            buttonContent
+                .foregroundColor(textColor)
+                .padding(.horizontal, 16)
+                .padding(.vertical, 8)
+//                .background(buttonBackground)
+                .scaleEffect(isHovered ? 1.05 : 1.0)
+                .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isHovered)
+                .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isSelected)
         }
         .buttonStyle(PlainButtonStyle())
+        .onHover { hovering in
+            isHovered = hovering
+        }
     }
+    
+    // MARK: - 子视图组件
+    private var buttonContent: some View {
+        HStack(spacing: 6) {
+            selectionIndicator
+            titleText
+            countBadge
+        }
+    }
+    
+    @ViewBuilder
+    private var selectionIndicator: some View {
+        if isSelected {
+            Circle()
+                .fill(indicatorColor)
+                .frame(width: 6, height: 6)
+                .transition(.scale.combined(with: .opacity))
+        }
+    }
+    
+    private var titleText: some View {
+        Text(title)
+            .font(.system(size: 14, weight: isSelected ? .semibold : .regular))
+    }
+    
+    @ViewBuilder
+    private var countBadge: some View {
+        if let count = count {
+            Text("\(count)")
+                .font(.system(size: 12, weight: .medium))
+                .padding(.horizontal, 6)
+                .padding(.vertical, 2)
+                .background(countBadgeBackground)
+        }
+    }
+    
+//    private var buttonBackground: some View {
+//        RoundedRectangle(cornerRadius: 20)
+//            .fill(backgroundColor)
+//            .overlay(borderOverlay)
+//    }
+    
+//    private var borderOverlay: some View {
+//        RoundedRectangle(cornerRadius: 20)
+//            .stroke(borderColor, lineWidth: 1)
+//    }
+    
+    // MARK: - 计算属性
+    private var indicatorColor: Color {
+        isDarkMode ? Color.yellow : Color.orange
+    }
+    
+    private var textColor: Color {
+        if isSelected {
+            return isDarkMode ? .white : .black
+        } else {
+            return isDarkMode ? .white.opacity(0.6) : .black.opacity(0.5)
+        }
+    }
+    
+    private var countBadgeBackground: some View {
+        let selectedColor = isDarkMode ? Color.yellow.opacity(0.2) : Color.orange.opacity(0.2)
+        let unselectedColor = isDarkMode ? Color.white.opacity(0.08) : Color.black.opacity(0.06)
+        let badgeColor = isSelected ? selectedColor : unselectedColor
+        
+        return Capsule().fill(badgeColor)
+    }
+    
+    private var backgroundColor: Color {
+        if isSelected {
+            return isDarkMode ? Color.white.opacity(0.08) : Color(hex: "F5F5F2")
+        } else {
+            return Color.clear
+        }
+    }
+    
+//    private var borderColor: Color {
+//        if isSelected {
+//            return isDarkMode ? Color.yellow.opacity(0.3) : Color.orange.opacity(0.3)
+//        } else {
+//            return isDarkMode ? Color.white.opacity(0.1) : Color.black.opacity(0.08)
+//        }
+//    }
 }
 
 // MARK: - 灵感行视图
@@ -524,49 +642,28 @@ struct InspirationRowView: View {
     
     @State private var showingSpaceSelection = false
     @State private var dragOffset: CGFloat = 0
+    @State private var isHovered = false
     
     var body: some View {
-        HStack {
-            // 选择按钮（批量模式下显示）
-            if isSelectionMode {
-                Button(action: {
-                    onSelectionToggle?()
-                }) {
-                    Image(systemName: isSelected ? "checkmark.circle.fill" : "circle")
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundColor(isSelected ? .blue : (isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4)))
-                        .animation(.easeInOut(duration: 0.2), value: isSelected)
-                }
-                .buttonStyle(PlainButtonStyle())
-            }
+        HStack(spacing: 16) {
+            leadingElement
             
-            contentView
+            // 主内容
+            contentSection
             
-            // 添加到空间按钮（单条模式下显示）
-            if !isSelectionMode {
-                Button(action: {
-                    showingSpaceSelection = true
-                }) {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 20, weight: .medium))
-                        .foregroundColor(isDarkMode ? .blue.opacity(0.8) : .blue)
-                        .background(
-                            Circle()
-                                .fill(isDarkMode ? Color.white.opacity(0.1) : Color.white)
-                                .frame(width: 32, height: 32)
-                        )
-                }
-                .buttonStyle(PlainButtonStyle())
-            }
+            trailingElement
         }
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(isSelected ? (isDarkMode ? Color.blue.opacity(0.1) : Color.blue.opacity(0.05)) : Color.clear)
-                .animation(.easeInOut(duration: 0.2), value: isSelected)
-        )
-        .scaleEffect(isSelected ? 0.98 : 1.0)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 18)
+        .background(backgroundShape)
+//        .overlay(overlayBorder)
+        .scaleEffect(isHovered ? 1.01 : 1.0)
+        .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isHovered)
         .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isSelected)
         .offset(x: dragOffset)
+        .onHover { hovering in
+            isHovered = hovering
+        }
         .sheet(isPresented: $showingSpaceSelection) {
             SpaceSelectionView(
                 recording: inspiration,
@@ -582,91 +679,179 @@ struct InspirationRowView: View {
         .onLongPressGesture {
             onLongPress?()
         }
-        .simultaneousGesture(
-            DragGesture(minimumDistance: 10)
-                .onChanged { value in
-                    // 只在水平方向上且水平位移大于垂直位移时处理
-                    if value.translation.width > 0 && abs(value.translation.width) > abs(value.translation.height) {
-                        dragOffset = min(value.translation.width, 50)
-                    }
-                }
-                .onEnded { value in
-                    withAnimation(.spring()) {
-                        dragOffset = 0
-                    }
-                    
-                    // 只在明显的水平右滑手势时触发
-                    if value.translation.width > 80 && abs(value.translation.width) > abs(value.translation.height) * 2 {
-                        onSwipeRight?()
-                    }
-                }
-        )
+        .simultaneousGesture(dragGesture)
     }
     
-    // MARK: - 主内容
-    private var contentView: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            inspirationText
-            tagsAndTime
+    // MARK: - 子视图组件
+    @ViewBuilder
+    private var leadingElement: some View {
+        if isSelectionMode {
+            selectionButton
         }
-        .padding(16)
-        .background(cardBackground)
+//        else {
+//            inspirationDot
+//        }
     }
     
-    // MARK: - 灵感文本
-    private var inspirationText: some View {
-        Text(inspiration.polishedText)
-            .font(.system(size: 16, weight: .medium))
-            .foregroundColor(isDarkMode ? .white : .black)
-            .lineLimit(3)
-            .multilineTextAlignment(.leading)
-    }
-    
-    // MARK: - 标签和时间
-    private var tagsAndTime: some View {
-        HStack {
-            tagsView
-            Spacer()
-            timeView
+    private var selectionButton: some View {
+        Button(action: {
+            onSelectionToggle?()
+        }) {
+            let iconName = isSelected ? "checkmark.circle.fill" : "circle"
+            let iconColor = isSelected ? Color.blue : (isDarkMode ? Color.white.opacity(0.3) : Color.black.opacity(0.3))
+            
+            Image(systemName: iconName)
+                .font(.system(size: 20, weight: .regular))
+                .foregroundColor(iconColor)
+                .scaleEffect(isSelected ? 1.1 : 1.0)
+                .animation(.spring(response: 0.3, dampingFraction: 0.8), value: isSelected)
         }
+        .buttonStyle(PlainButtonStyle())
     }
     
-    // MARK: - 标签视图
-    private var tagsView: some View {
-        HStack(spacing: 6) {
-            ForEach(inspiration.tags, id: \.self) { tag in
-                tagItem(tag)
+//    private var inspirationDot: some View {
+//        let dotColor = isDarkMode ? Color.yellow : Color.orange
+//        
+//        return Circle()
+//            .fill(
+//                RadialGradient(
+//                    colors: [
+//                        dotColor.opacity(0.8),
+//                        dotColor.opacity(0.3)
+//                    ],
+//                    center: .center,
+//                    startRadius: 1,
+//                    endRadius: 4
+//                )
+//            )
+//            .frame(width: 8, height: 8)
+//            .shadow(color: dotColor.opacity(0.6), radius: 4)
+//            .scaleEffect(isHovered ? 1.3 : 1.0)
+//            .animation(.easeInOut(duration: 0.2), value: isHovered)
+//    }
+    
+    private var contentSection: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text(inspiration.polishedText)
+                .font(.system(size: 17, weight: .regular))
+                .foregroundColor(isDarkMode ? .white : .black)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+                .italic()
+            
+            HStack(spacing: 12) {
+                tagsSection
+                Spacer()
+                timeSection
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+    
+    @ViewBuilder
+    private var tagsSection: some View {
+        if !inspiration.tags.isEmpty {
+            HStack(spacing: 6) {
+                ForEach(inspiration.tags.prefix(2), id: \.self) { tag in
+                    tagView(tag)
+                }
+                
+                if inspiration.tags.count > 2 {
+                    extraTagsView
+                }
             }
         }
     }
     
-    // MARK: - 单个标签
-    private func tagItem(_ tag: String) -> some View {
-        Text(tag)
-            .font(.system(size: 12))
-            .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.7))
+    private func tagView(_ tag: String) -> some View {
+        Text("#\(tag)")
+            .font(.system(size: 12, weight: .medium))
+            .foregroundColor(isDarkMode ? Color.blue.opacity(0.8) : Color.blue)
             .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(tagItemBackground)
+            .padding(.vertical, 3)
+            .background(
+                Capsule()
+                    .fill(isDarkMode ? Color.blue.opacity(0.1) : Color.blue.opacity(0.08))
+            )
     }
     
-    // MARK: - 标签背景
-    private var tagItemBackground: some View {
-        RoundedRectangle(cornerRadius: 4)
-            .fill(isDarkMode ? Color.white.opacity(0.15) : Color.black.opacity(0.08))
-    }
-    
-    // MARK: - 时间视图
-    private var timeView: some View {
-        Text(formatDate(inspiration.timestamp))
+    private var extraTagsView: some View {
+        Text("+\(inspiration.tags.count - 2)")
             .font(.system(size: 12))
-            .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
+            .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4))
+            .padding(.horizontal, 6)
+            .padding(.vertical, 2)
+            .background(
+                Capsule()
+                    .fill(isDarkMode ? Color.white.opacity(0.05) : Color.black.opacity(0.03))
+            )
     }
     
-    // MARK: - 卡片背景
-    private var cardBackground: some View {
-        RoundedRectangle(cornerRadius: 12)
-            .fill(isDarkMode ? Color.white.opacity(0.08) : Color.white)
+    private var timeSection: some View {
+        Text(formatDate(inspiration.timestamp))
+            .font(.system(size: 12, weight: .regular))
+            .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4))
+    }
+    
+    @ViewBuilder
+    private var trailingElement: some View {
+        if !isSelectionMode {
+            addButton
+        }
+    }
+    
+    private var addButton: some View {
+        Button(action: {
+            showingSpaceSelection = true
+        }) {
+            ZStack {
+                Circle()
+                    .fill(isDarkMode ? Color.white.opacity(0.06) : Color.black.opacity(0.04))
+                    .frame(width: 32, height: 32)
+                    .scaleEffect(isHovered ? 1.1 : 1.0)
+                
+                Image(systemName: "plus")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.4))
+            }
+        }
+        .buttonStyle(PlainButtonStyle())
+    }
+    
+    private var backgroundShape: some View {
+        let selectedColor = isDarkMode ? Color.yellow.opacity(0.06) : Color.orange.opacity(0.03)
+        let hoveredColor = isDarkMode ? Color.white.opacity(0.02) : Color.black.opacity(0.01)
+        let backgroundColor = isSelected ? selectedColor : (isHovered ? hoveredColor : Color.clear)
+        
+        return RoundedRectangle(cornerRadius: 16)
+            .fill(backgroundColor)
+    }
+    
+    private var overlayBorder: some View {
+        let borderColor = isSelected ? 
+            (isDarkMode ? Color.yellow.opacity(0.2) : Color.orange.opacity(0.2)) : 
+            Color.clear
+        
+        return RoundedRectangle(cornerRadius: 16)
+            .stroke(borderColor, lineWidth: 1)
+    }
+    
+    private var dragGesture: some Gesture {
+        DragGesture(minimumDistance: 10)
+            .onChanged { value in
+                if value.translation.width > 0 && abs(value.translation.width) > abs(value.translation.height) {
+                    dragOffset = min(value.translation.width, 50)
+                }
+            }
+            .onEnded { value in
+                withAnimation(.spring()) {
+                    dragOffset = 0
+                }
+                
+                if value.translation.width > 80 && abs(value.translation.width) > abs(value.translation.height) * 2 {
+                    onSwipeRight?()
+                }
+            }
     }
     
     private func formatDate(_ date: Date) -> String {

@@ -106,22 +106,22 @@ struct SpaceTemplateSelectionView: View {
             Button(action: {
                 showingCustomSpaceView = true
             }) {
-                HStack(spacing: 12) {
+                HStack(spacing: 10) {
                     Image(systemName: "plus.circle")
-                        .font(.system(size: 20, weight: .medium))
+                        .font(.system(size: 18, weight: .light))
                     
                     Text("自定义空间")
-                        .font(.system(size: 18, weight: .medium))
+                        .font(.system(size: 16, weight: .medium))
                 }
-                .foregroundColor(isDarkMode ? Color.blue.opacity(0.9) : Color.blue)
+                .foregroundColor(isDarkMode ? Color.blue.opacity(0.8) : Color.blue.opacity(0.8))
                 .frame(maxWidth: .infinity)
-                .frame(height: 50)
+                .frame(height: 48)
                 .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .stroke(isDarkMode ? Color.blue.opacity(0.3) : Color.blue.opacity(0.3), lineWidth: 1.5)
+                    RoundedRectangle(cornerRadius: 14)
+                        .stroke(isDarkMode ? Color.blue.opacity(0.2) : Color.blue.opacity(0.2), lineWidth: 1)
                         .background(
-                            RoundedRectangle(cornerRadius: 12)
-                                .fill(isDarkMode ? Color.blue.opacity(0.05) : Color.blue.opacity(0.05))
+                            RoundedRectangle(cornerRadius: 14)
+                                .fill(isDarkMode ? Color.blue.opacity(0.03) : Color.blue.opacity(0.03))
                         )
                 )
             }
@@ -165,22 +165,23 @@ struct TemplateCard: View {
     
     var body: some View {
         Button(action: onTap) {
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 14) {
                 // 标题和描述
-                VStack(alignment: .leading, spacing: 6) {
-                    HStack(spacing: 8) {
-                        Text(template.title)
-                            .font(.system(size: 17, weight: .semibold))
-                            .foregroundColor(isDarkMode ? .white : .black)
-                            .lineLimit(1)
-                        
+                VStack(alignment: .leading, spacing: 8) {
+                    HStack(spacing: 10) {
                         Text(template.emoji)
-                            .font(.system(size: 24))
+                            .font(.system(size: 22))
+                            .opacity(0.9)
+                        
+                        Text(template.title)
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(isDarkMode ? .white.opacity(0.9) : .black.opacity(0.85))
+                            .lineLimit(1)
                     }
                     
                     Text(template.description)
-                        .font(.system(size: 13))
-                        .foregroundColor(isDarkMode ? .white.opacity(0.7) : .black.opacity(0.7))
+                        .font(.system(size: 12, weight: .regular))
+                        .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
                         .lineLimit(2)
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
@@ -192,29 +193,37 @@ struct TemplateCard: View {
                     isDarkMode: isDarkMode
                 )
 
-                Spacer(minLength: 2)
+                Spacer(minLength: 4)
             }
-            .padding(14)
+            .padding(16)
             .frame(height: 180)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
-                RoundedRectangle(cornerRadius: 16)
-                    .fill(isDarkMode ? Color.gray.opacity(0.1) : Color.gray.opacity(0.05))
+                RoundedRectangle(cornerRadius: 18)
+                    .fill(isDarkMode ? Color.white.opacity(0.04) : Color.black.opacity(0.02))
                     .overlay(
-                        RoundedRectangle(cornerRadius: 16)
+                        RoundedRectangle(cornerRadius: 18)
                             .stroke(
-                                isDarkMode ? Color.white.opacity(0.1) : Color.black.opacity(0.05),
-                                lineWidth: 1
+                                isDarkMode ? Color.white.opacity(0.06) : Color.black.opacity(0.04),
+                                lineWidth: 0.5
                             )
                     )
             )
-            .scaleEffect(isPressed ? 0.95 : 1.0)
-            .animation(.easeInOut(duration: 0.1), value: isPressed)
+            .scaleEffect(isPressed ? 0.98 : 1.0)
+            .animation(.easeOut(duration: 0.15), value: isPressed)
         }
         .buttonStyle(PlainButtonStyle())
-        .onLongPressGesture(minimumDuration: 0, maximumDistance: .infinity, pressing: { pressing in
-            isPressed = pressing
-        }, perform: {})
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 0)
+                .onChanged { _ in
+                    if !isPressed {
+                        isPressed = true
+                    }
+                }
+                .onEnded { _ in
+                    isPressed = false
+                }
+        )
     }
 }
 
@@ -224,59 +233,11 @@ struct CategoryPreviewView: View {
     let isDarkMode: Bool
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
-            ForEach(createRows(), id: \.self) { row in
-                HStack(alignment: .top, spacing: 6) {
-                    ForEach(row, id: \.name) { category in
-                        CategoryTag(category: category, isDarkMode: isDarkMode)
-                    }
-                    Spacer()
-                }
+        FlowLayout(spacing: 4) {
+            ForEach(categories, id: \.name) { category in
+                CategoryTag(category: category, isDarkMode: isDarkMode)
             }
         }
-    }
-    
-    // 创建行数组
-    private func createRows() -> [[TemplateCategoryItem]] {
-        var rows: [[TemplateCategoryItem]] = []
-        var currentRow: [TemplateCategoryItem] = []
-        var currentRowWidth: CGFloat = 0
-        let maxWidth: CGFloat = 155 // 增加卡片内容区域宽度估算 (原130 -> 155)
-        
-        for category in categories {
-            let itemWidth = estimateItemWidth(category: category)
-            let spacingWidth: CGFloat = currentRow.isEmpty ? 0 : 6
-            
-            if currentRowWidth + spacingWidth + itemWidth <= maxWidth {
-                currentRow.append(category)
-                currentRowWidth += spacingWidth + itemWidth
-            } else {
-                if !currentRow.isEmpty {
-                    rows.append(currentRow)
-                    currentRow = [category]
-                    currentRowWidth = itemWidth
-                } else {
-                    // 如果单个项目就超宽，还是要加入
-                    currentRow.append(category)
-                    rows.append(currentRow)
-                    currentRow = []
-                    currentRowWidth = 0
-                }
-            }
-        }
-        
-        if !currentRow.isEmpty {
-            rows.append(currentRow)
-        }
-        
-        return rows
-    }
-    
-    // 估算单个类别标签的宽度
-    private func estimateItemWidth(category: TemplateCategoryItem) -> CGFloat {
-        // emoji宽度(约10) + 间距(4) + 文字宽度 + 左右padding(12)
-        let textWidth = CGFloat(category.name.count * 6) // 每个字符约6pt
-        return 10 + 4 + textWidth + 12
     }
 }
 
@@ -286,20 +247,21 @@ struct CategoryTag: View {
     let isDarkMode: Bool
     
     var body: some View {
-        HStack(spacing: 4) {
+        HStack(spacing: 3) {
             Text(category.emoji)
                 .font(.system(size: 10))
+                .opacity(0.8)
             
             Text(category.name)
                 .font(.system(size: 10, weight: .medium))
-                .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
+                .foregroundColor(isDarkMode ? .white.opacity(0.55) : .black.opacity(0.55))
                 .lineLimit(1)
         }
-        .padding(.horizontal, 6)
+        .padding(.horizontal, 5)
         .padding(.vertical, 2)
         .background(
-            RoundedRectangle(cornerRadius: 6)
-                .fill(category.color.opacity(0.15))
+            RoundedRectangle(cornerRadius: 8)
+                .fill(category.color.opacity(isDarkMode ? 0.08 : 0.1))
         )
     }
 }
