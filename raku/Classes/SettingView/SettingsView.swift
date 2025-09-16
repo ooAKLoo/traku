@@ -17,6 +17,7 @@ struct SettingsView: View {
     @State private var showingLanguageSelector = false
     @State private var showingHelpView = false
     @State private var showingDataImport = false
+    @State private var showingTagManagement = false
     @ObservedObject private var localizationManager = LocalizationManager.shared
     
     var body: some View {
@@ -89,6 +90,9 @@ struct SettingsView: View {
                         SettingsRowView(icon: "person.circle", title: L("settings_account"), isDarkMode: isDarkMode, action: {})
                         SettingsRowView(icon: "bell", title: L("settings_notifications"), isDarkMode: isDarkMode, action: {})
                         SettingsRowView(icon: "lock", title: L("settings_privacy_title"), isDarkMode: isDarkMode, action: {})
+                        SettingsRowView(icon: "tag", title: "标签管理", isDarkMode: isDarkMode, action: {
+                            showingTagManagement = true
+                        })
                         SettingsRowView(icon: "square.and.arrow.down", title: "数据导入", isDarkMode: isDarkMode, action: {
                             showingDataImport = true
                         })
@@ -138,6 +142,9 @@ struct SettingsView: View {
         }
         .sheet(isPresented: $showingDataImport) {
             DataImportProgressView(isDarkMode: isDarkMode, isPresented: $showingDataImport)
+        }
+        .sheet(isPresented: $showingTagManagement) {
+            TagManagementView(isDarkMode: isDarkMode)
         }
         .onReceive(NotificationCenter.default.publisher(for: .languageDidChange)) { _ in
             // 当语言变更时，强制刷新视图
