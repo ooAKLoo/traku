@@ -8,6 +8,77 @@
 
 import SwiftUI
 
+// MARK: - 独立的选择圆环组件
+struct SelectionRingView: View {
+    let selectedCount: Int
+    let totalCount: Int
+    let onToggle: () -> Void
+    
+    @State private var animatedProgress: CGFloat
+    
+    private var progress: CGFloat {
+        totalCount > 0 ? CGFloat(selectedCount) / CGFloat(totalCount) : 0
+    }
+    
+    init(selectedCount: Int, totalCount: Int, onToggle: @escaping () -> Void) {
+        self.selectedCount = selectedCount
+        self.totalCount = totalCount
+        self.onToggle = onToggle
+        
+        // 初始化时就设置正确的进度值，避免从0开始的动画
+        let initialProgress = totalCount > 0 ? CGFloat(selectedCount) / CGFloat(totalCount) : 0
+        self._animatedProgress = State(initialValue: initialProgress)
+    }
+    
+    private var isFullySelected: Bool {
+        selectedCount == totalCount && totalCount > 0
+    }
+    
+    var body: some View {
+        Button(action: onToggle) {
+            ZStack {
+                // 背景圆环
+                Circle()
+                    .stroke(Color.gray.opacity(0.3), lineWidth: 2.5)
+                
+                // 进度圆环 - 使用缓变动效
+                Circle()
+                    .trim(from: 0, to: animatedProgress)
+                    .stroke(
+                        Color.blue,
+                        style: StrokeStyle(lineWidth: 2.5, lineCap: .round)
+                    )
+                    .rotationEffect(.degrees(-90))
+                    .opacity(selectedCount > 0 ? 1 : 0)
+                    .animation(.easeInOut(duration: 0.6), value: animatedProgress)
+                
+                // 数字显示（白底蓝字）
+                if selectedCount > 0 && !isFullySelected {
+                    Text(selectedCount > 99 ? "99+" : "\(selectedCount)")
+                        .font(.system(size: 10, weight: .bold, design: .rounded))
+                        .foregroundColor(.blue)
+                        .frame(width: 20, height: 20)
+                }
+                
+                // 对勾
+                if isFullySelected {
+                    Image(systemName: "checkmark")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundColor(.blue)
+                }
+            }
+            .frame(width: 26, height: 26)
+        }
+        .frame(width: 36, height: 36)
+        .onChange(of: progress) { newProgress in
+            // 当进度变化时，触发缓变动效
+            withAnimation(.easeInOut(duration: 0.6)) {
+                animatedProgress = newProgress
+            }
+        }
+    }
+}
+
 // MARK: - 全局批量选择工具栏
 struct GlobalBatchSelectionToolbar: View {
     let data: BatchSelectionData
@@ -23,40 +94,17 @@ struct GlobalBatchSelectionToolbar: View {
             // 工具栏内容
             HStack(spacing: 16) {
                 // 左侧：全选/取消全选圆环按钮
-                Button(action: {
-                    if data.selectedCount == data.totalCount {
-                        data.onDeselectAll()
-                    } else {
-                        data.onSelectAll()
-                    }
-                }) {
-                    ZStack {
-                        // 基础圆环
-                        Circle()
-                            .stroke(Color.gray.opacity(0.3), lineWidth: 2.5)
-                            .frame(width: 22, height: 22)
-                        
-                        // 进度圆环（根据选择比例）
-                        if data.selectedCount > 0 {
-                            Circle()
-                                .trim(from: 0, to: CGFloat(data.selectedCount) / CGFloat(data.totalCount))
-                                .stroke(
-                                    Color.blue,
-                                    style: StrokeStyle(lineWidth: 2.5, lineCap: .round)
-                                )
-                                .frame(width: 22, height: 22)
-                                .rotationEffect(.degrees(-90))
-                        }
-                        
-                        // 全选时的对勾
+                SelectionRingView(
+                    selectedCount: data.selectedCount,
+                    totalCount: data.totalCount,
+                    onToggle: {
                         if data.selectedCount == data.totalCount {
-                            Image(systemName: "checkmark")
-                                .font(.system(size: 12, weight: .semibold))
-                                .foregroundColor(.blue)
+                            data.onDeselectAll()
+                        } else {
+                            data.onSelectAll()
                         }
                     }
-                    .frame(width: 32, height: 32)
-                }
+                )
                 
                 Spacer()
                 
@@ -71,8 +119,8 @@ struct GlobalBatchSelectionToolbar: View {
                     }
                 }) {
                     HStack(spacing: 6) {
-                        // 选择数量显示
-                        Text(data.selectedCount > 99 ? "99+" : "\(data.selectedCount)")
+                        // Plus按钮
+                        Image(systemName: "plus")
                             .font(.system(size: 12, weight: .bold, design: .rounded))
                             .foregroundColor(data.selectedCount == 0 ? 
                                            (isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5)) :
@@ -181,6 +229,7 @@ struct GlobalBatchSelectionToolbar: View {
         .opacity(isShowing ? 1 : 0)
         .animation(.spring(response: 0.5, dampingFraction: 0.85, blendDuration: 0), value: isShowing)
         .onAppear {
+            // 浮窗弹出动画
             withAnimation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.1)) {
                 isShowing = true
             }
@@ -215,5 +264,3 @@ struct RoundedCorner: Shape {
         return Path(path.cgPath)
     }
 }
-
-
