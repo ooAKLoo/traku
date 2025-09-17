@@ -28,13 +28,13 @@ struct WeatherIconView: View {
     
     var body: some View {
         ZStack {
-            // 背景光晕效果
+            // 背景光晕效果 - 白色
             if showBackground {
                 Circle()
                     .fill(
                         RadialGradient(
                             gradient: Gradient(colors: [
-                                weatherType.colors.secondary.opacity(isDarkMode ? 0.2 : 0.15),
+                                Color.white.opacity(isDarkMode ? 0.15 : 0.1),
                                 Color.clear
                             ]),
                             center: .center,
@@ -45,24 +45,15 @@ struct WeatherIconView: View {
                     .frame(width: size * 1.6, height: size * 1.6)
             }
             
-            // 天气图标
+            // 天气图标 - 白色
             Image(systemName: weatherType.rawValue)
                 .font(.system(size: size, weight: .ultraLight))
-                .foregroundStyle(
-                    LinearGradient(
-                        gradient: Gradient(colors: [
-                            weatherType.colors.primary.opacity(isDarkMode ? 0.4 : 0.3),
-                            weatherType.colors.secondary.opacity(isDarkMode ? 0.35 : 0.25)
-                        ]),
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    )
-                )
+                .foregroundColor(.white.opacity(isDarkMode ? 0.6 : 0.5))
                 .shadow(
-                    color: weatherType.colors.primary.opacity(isDarkMode ? 0.15 : 0.1),
-                    radius: 3,
+                    color: Color.black.opacity(isDarkMode ? 0.2 : 0.1),
+                    radius: 1,
                     x: 0,
-                    y: 2
+                    y: 0.5
                 )
         }
         .animation(.easeInOut(duration: 0.3), value: weatherType)
@@ -122,14 +113,14 @@ struct WeatherIconView_Previews: PreviewProvider {
                 
                 HStack(spacing: 30) {
                     VStack(spacing: 8) {
-                        WeatherIconView(weatherType: .sunset, isDarkMode: true, size: 16)
+                        WeatherIconView(weatherType: .sunny, isDarkMode: true, size: 16)
                         Text("16pt")
                             .font(.caption)
                             .foregroundColor(.white.opacity(0.7))
                     }
                     
                     VStack(spacing: 8) {
-                        WeatherIconView(weatherType: .night, isDarkMode: true, size: 24)
+                        WeatherIconView(weatherType: .cloudy, isDarkMode: true, size: 24)
                         Text("24pt")
                             .font(.caption)
                             .foregroundColor(.white.opacity(0.7))

@@ -121,17 +121,24 @@ struct HomeContentCardView: View {
             }
             
             // 卡片内容
-            ZStack(alignment: .topTrailing) {
-                HStack(alignment: .top, spacing: 15) {
+            HStack(alignment: .top, spacing: 15) {
                     // 卡片内容 - 两行布局
                     VStack(alignment: .leading, spacing: 16) {
                         // 第一行：时间戳和标题
                         VStack(alignment: .leading, spacing: 8) {
-                            // 时间戳和处理状态
+                            // 时间戳、天气图标和处理状态
                             HStack(spacing: 8) {
                                 Text(recording.timestamp.smartFormatted)
                                     .font(.system(size: 11, weight: .regular))
                                     .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
+                                
+//                                // 天气图标 - 与时间戳等高
+//                                WeatherIconView(
+//                                    weatherType: weatherType,
+//                                    isDarkMode: isDarkMode,
+//                                    size: 16,
+//                                    showBackground: false
+//                                )
                                 
                                 // 处理状态显示
                                 if processingStage != .idle {
@@ -155,7 +162,6 @@ struct HomeContentCardView: View {
                                 .foregroundColor(isDarkMode ? .white : .black)
                                 .lineLimit(1)
                                 .truncationMode(.tail)
-                                .padding(.trailing, 50) // 为天气图标预留空间
                         }
                         
                         // 第二行：标签和时长
@@ -180,27 +186,13 @@ struct HomeContentCardView: View {
                             
                             Spacer()
                             
-                            // 时长信息
-                            HStack(spacing: 4) {
-                                Image(systemName: "waveform")
-                                    .font(.system(size: 11, weight: .medium))
-                                Text(L("recording_duration_format", Int(recording.duration)))
-                                    .font(.system(size: 11, weight: .medium))
-                            }
-                            .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(
-                                RoundedRectangle(cornerRadius: 6)
-                                    .fill(isDarkMode ? Color.white.opacity(0.08) : Color.black.opacity(0.03))
-                            )
                         }
                     }
                     .padding(.vertical,16)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(
                     RoundedRectangle(cornerRadius: 12)
-                        .fill(isDarkMode ? Color.white.opacity(0.05) : Color.white)
+                        .fill(isDarkMode ? Color.black : Color.white)
 //                        .shadow(
 //                            color: Color.black.opacity(isDarkMode ? 0.3 : 0.05),
 //                            radius: (isHovered && !isDragging) ? 8 : 4,
@@ -210,17 +202,6 @@ struct HomeContentCardView: View {
                 )
                 .scaleEffect((isHovered && !isDragging) ? 1.01 : 1.0)
                 .animation(.easeInOut(duration: 0.2), value: isHovered && !isDragging)
-                }
-                
-                // 天气图标overlay - 右上角装饰
-                WeatherIconView(
-                    weatherType: weatherType,
-                    isDarkMode: isDarkMode,
-                    size: 24,
-                    showBackground: true
-                )
-                .padding(.top, 16)
-                .padding(.trailing, 16)
             }
             .offset(x: offset)
             .simultaneousGesture(
