@@ -16,7 +16,9 @@ struct HomepageMainView: View {
     @StateObject private var viewModel: HomeContentViewModel
     
     init() {
-        self._viewModel = StateObject(wrappedValue: HomeContentViewModel(audioManager: AudioRecordingService()))
+        let audioManager = AudioRecordingService()
+        self._audioManager = StateObject(wrappedValue: audioManager)
+        self._viewModel = StateObject(wrappedValue: HomeContentViewModel(audioManager: audioManager))
     }
     
     init(audioManager: AudioRecordingService) {

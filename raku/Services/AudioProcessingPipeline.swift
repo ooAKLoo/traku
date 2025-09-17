@@ -211,6 +211,10 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
         let initialRecording = createInitialRecording(audioData: nil, duration: duration) // 不传递音频数据
         print("📝 创建初始录音记录，ID: \(initialRecording.id)")
         
+        // 首先保存到数据库进行持久化
+        let saveRecordingSuccess = DatabaseManager.shared.saveRecording(initialRecording)
+        print("💾 保存初始录音记录到数据库: \(saveRecordingSuccess ? "成功" : "失败")")
+        
         // 更新录音数据到实时管理器
         updateManager.updateRecording(initialRecording)
         

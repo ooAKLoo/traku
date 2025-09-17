@@ -572,6 +572,8 @@ extension AudioRecordingService: AudioProcessingPipelineDelegate {
         // 创建初始录音记录（录音完成后立即创建）
         if !recordings.contains(where: { $0.id == recording.id }) {
             recordings.insert(recording, at: 0)
+            objectWillChange.send() // 强制触发 UI 更新
+            print("✅ 初始录音记录已添加到列表并触发UI更新 - ID: \(recording.id)")
         }
     }
     
@@ -585,14 +587,21 @@ extension AudioRecordingService: AudioProcessingPipelineDelegate {
     
     func pipeline(_ pipeline: AudioProcessingPipeline, didCompleteFinalAnalysis recording: AudioRecording) {
         // 完整处理完成，生成最终录音记录
+        
+        // 首先保存/更新最终录音记录到数据库
+        let saveSuccess = DatabaseManager.shared.saveOrUpdateRecording(recording)
+        print("💾 保存最终录音记录到数据库: \(saveSuccess ? "成功" : "失败")")
+        
         if let existingIndex = recordings.firstIndex(where: { $0.id == recording.id }) {
             // 更新现有记录
             recordings[existingIndex] = recording
-            objectWillChange.send()
+            print("✅ 更新现有录音记录并触发UI更新 - ID: \(recording.id)")
         } else {
             // 添加新记录
             recordings.insert(recording, at: 0)
+            print("✅ 添加新录音记录并触发UI更新 - ID: \(recording.id)")
         }
+        objectWillChange.send() // 确保触发更新
     }
     
     func pipeline(_ pipeline: AudioProcessingPipeline, didFailWithError error: AudioProcessingError) {
