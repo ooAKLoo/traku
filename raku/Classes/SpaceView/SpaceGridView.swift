@@ -142,16 +142,9 @@ struct AddSpaceCard: View {
             .padding(16)
             .background(
                 ZStack {
-                    // 背景渐变
+                    // 纯色背景
                     RoundedRectangle(cornerRadius: 16)
-                        .fill(LinearGradient(
-                            colors: [
-                                isDarkMode ? Color.white.opacity(0.08) : Color(hex: "F8F8F8"),
-                                isDarkMode ? Color.white.opacity(0.03) : Color(hex: "FEFEFE")
-                            ],
-                            startPoint: .topLeading,
-                            endPoint: .bottomTrailing
-                        ))
+                        .fill(isDarkMode ? Color.white.opacity(0.05) : Color.white)
                     
                     // 虚线边框
                     RoundedRectangle(cornerRadius: 16)
