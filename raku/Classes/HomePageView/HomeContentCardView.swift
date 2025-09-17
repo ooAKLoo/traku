@@ -1,5 +1,5 @@
 //
-//  RecordingCardView.swift
+//  HomeContentCardView.swift
 //  raku
 //
 //  Created by 杨东举 on 2025/8/26.
@@ -9,7 +9,7 @@ import SwiftUI
 
 
 
-struct RecordingCardView: View {
+struct HomeContentCardView: View {
     let recording: AudioRecording
     let isDarkMode: Bool
     let onDelete: () -> Void
@@ -196,7 +196,7 @@ struct RecordingCardView: View {
                             )
                         }
                     }
-                .padding(16)
+                    .padding(.vertical,16)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(
                     RoundedRectangle(cornerRadius: 12)
@@ -272,11 +272,11 @@ struct RecordingCardView: View {
                 if let status = processingRecordings[recording.id] {
                     processingStage = status.stage
                     processingProgress = status.progress
-                    print("📱 RecordingCardView: 更新状态 - \(recording.id): \(status.stage)")
+                    print("📱 HomeContentCardView: 更新状态 - \(recording.id): \(status.stage)")
                 } else {
                     // 当处理状态被清除时，重置为 idle
                     if processingStage != .idle {
-                        print("📱 RecordingCardView: 重置状态为idle - \(recording.id)")
+                        print("📱 HomeContentCardView: 重置状态为idle - \(recording.id)")
                     }
                     processingStage = .idle
                     processingProgress = 0.0
@@ -294,7 +294,7 @@ struct RecordingCardView: View {
 
 
 // MARK: - Preview
-struct RecordingCardView_Previews: PreviewProvider {
+struct HomeContentCardView_Previews: PreviewProvider {
     static let sampleRecording = AudioRecording(
         timestamp: Date(),
         duration: 45.5,
@@ -333,7 +333,7 @@ struct RecordingCardView_Previews: PreviewProvider {
     static var previews: some View {
         Group {
             // 浅色模式单个卡片
-            RecordingCardView(
+            HomeContentCardView(
                 recording: sampleRecording,
                 isDarkMode: false,
                 onDelete: {},
@@ -345,7 +345,7 @@ struct RecordingCardView_Previews: PreviewProvider {
             .previewDisplayName("Light Mode - Single Card")
             
             // 深色模式单个卡片
-            RecordingCardView(
+            HomeContentCardView(
                 recording: sampleRecording,
                 isDarkMode: true,
                 onDelete: {},
@@ -365,7 +365,7 @@ struct RecordingCardView_Previews: PreviewProvider {
                 .previewDisplayName("Dark Mode - Interactive List")
             
             // iPad 预览
-            RecordingCardView(
+            HomeContentCardView(
                 recording: sampleRecording,
                 isDarkMode: true,
                 onDelete: {},
@@ -419,7 +419,7 @@ struct RecordingListPreview: View {
         ScrollView {
             VStack(spacing: 12) {
                 ForEach(recordings, id: \.id) { recording in
-                    RecordingCardView(
+                    HomeContentCardView(
                         recording: recording,
                         isDarkMode: isDarkMode,
                         onDelete: {

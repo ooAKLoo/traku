@@ -1,0 +1,274 @@
+//
+//  HomepageMainView.swift
+//  raku
+//
+//  首页主视图 - 合并了原ContentView和RecordingsPageView
+//
+
+import SwiftUI
+import AVFoundation
+import Combine
+
+// MARK: - 首页主视图
+struct HomepageMainView: View {
+    @StateObject private var audioManager = AudioRecordingService()
+    @AppStorage("isDarkMode") private var isDarkMode = false
+    @StateObject private var viewModel: HomeContentViewModel
+    
+    init() {
+        self._viewModel = StateObject(wrappedValue: HomeContentViewModel(audioManager: AudioRecordingService()))
+    }
+    
+    init(audioManager: AudioRecordingService) {
+        self._audioManager = StateObject(wrappedValue: audioManager)
+        self._viewModel = StateObject(wrappedValue: HomeContentViewModel(audioManager: audioManager))
+    }
+    
+    var body: some View {
+        NavigationView {
+            ZStack {
+                // 极简背景
+                (isDarkMode ? Color.black : Color.appBackground)
+                    .ignoresSafeArea()
+                
+                VStack(spacing: 0) {
+                    // 顶部导航栏
+                    HomepageHeaderView(
+                        audioManager: audioManager,
+                        isDarkMode: isDarkMode,
+                        selectedFilter: $viewModel.selectedFilter,
+                        showingSettings: $viewModel.showingSettings,
+                        hoveredFilter: $viewModel.hoveredFilter,
+                        searchText: $viewModel.searchText,
+                        showingConnectionConfig: $viewModel.showingConnectionConfig
+                    )
+                    .onChange(of: viewModel.selectedFilter) { newFilter in
+                        viewModel.onFilterChanged(newFilter)
+                    }
+                    .onChange(of: viewModel.searchText) { newValue in
+                        viewModel.onSearchTextChanged(newValue)
+                    }
+                    
+                    // 标签过滤 TabBar（当选择"标签"时显示在 header 下面）
+                    if viewModel.selectedFilter == L("homepage_filter_tag") {
+                        RecordingTagFilter(
+                            allRecordings: audioManager.recordings,
+                            selectedTag: $viewModel.selectedTag
+                        )
+                        .transition(.asymmetric(
+                            insertion: .move(edge: .top).combined(with: .opacity),
+                            removal: .move(edge: .top).combined(with: .opacity)
+                        ))
+                    }
+                    
+                    // 搜索状态指示器
+                    if viewModel.isSearching && !viewModel.searchText.isEmpty {
+                        HStack {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                            Text("搜索中...")
+                                .font(.system(size: 14))
+                                .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
+                        }
+                        .padding(.vertical, 8)
+                    }
+                    
+                    // 搜索结果为空时的提示
+                    if !viewModel.searchText.isEmpty && viewModel.searchResults.isEmpty && !viewModel.isSearching {
+                        VStack(spacing: 12) {
+                            Image(systemName: "magnifyingglass")
+                                .font(.system(size: 32))
+                                .foregroundColor(isDarkMode ? .white.opacity(0.3) : .black.opacity(0.3))
+                            
+                            Text("未找到相关内容")
+                                .font(.system(size: 16, weight: .medium))
+                                .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
+                            
+                            if let error = viewModel.searchError {
+                                Text(error.localizedDescription)
+                                    .font(.system(size: 14))
+                                    .foregroundColor(.red.opacity(0.8))
+                                    .multilineTextAlignment(.center)
+                                    .padding(.horizontal, 20)
+                            }
+                        }
+                        .frame(maxWidth: .infinity, maxHeight: .infinity)
+                        .padding(.top, 60)
+                    }
+                    
+                    // 录音列表
+                    if !(!viewModel.searchText.isEmpty && viewModel.searchResults.isEmpty && !viewModel.isSearching) {
+                        HomeContentListView(
+                            filteredRecordings: viewModel.filteredRecordings,
+                            isDarkMode: isDarkMode,
+                            selectedFilter: viewModel.selectedFilter,
+                            onDelete: viewModel.deleteRecording,
+                            audioManager: audioManager,
+                            onRecordingUpdated: viewModel.updateRecording
+                        )
+                    }
+                }
+                
+                // 悬浮录音控制卡片
+                VStack {
+                    Spacer()
+                    FloatingRecordingCard(
+                        audioManager: audioManager,
+                        selectedFilter: viewModel.selectedFilter,
+                        isDarkMode: isDarkMode
+                    )
+                }
+            }
+            .sheet(isPresented: $viewModel.showingSettings) {
+                SettingsView()
+            }
+            .sheet(isPresented: $viewModel.showingConnectionConfig) {
+                ConnectionConfigView(audioManager: audioManager)
+            }
+            .sheet(isPresented: $viewModel.showingSpaceTemplateSheet) {
+                SpaceCreationView(
+                    isPresented: $viewModel.showingSpaceTemplateSheet,
+                    isDarkMode: isDarkMode,
+                    onSpaceCreated: { space in
+                        // 空间创建成功后的逻辑
+                        viewModel.onSpaceCreated(space)
+                    }
+                )
+            }
+        }
+        .preferredColorScheme(isDarkMode ? .dark : .light)
+    }
+}
+
+// MARK: - 预览专用的 AudioManager
+class PreviewAudioManager: AudioRecordingService {
+    private var shouldSkipDatabaseInit = true
+    
+    override init(skipDatabaseLoad: Bool = true) {
+        print("📱 PreviewAudioManager: 初始化预览数据管理器")
+        super.init(skipDatabaseLoad: skipDatabaseLoad)
+        
+        // 清空从数据库加载的数据，使用示例数据
+        self.recordings = []
+        self.recordings = [
+            AudioRecording(
+                timestamp: Date(),
+                duration: 185.5,
+                transcription: "这是一段会议录音的转写内容，讨论了关于新产品开发的进度和计划。我们需要在下个季度完成主要功能的开发，并准备进行用户测试。团队决定采用敏捷开发方法，每两周进行一次迭代评审。",
+                title: "产品开发会议讨论",
+                summary: "确定了Q2的开发目标，包括核心功能完成、用户界面优化和测试计划制定。",
+                tags: ["会议", "产品", "开发"],
+                audioData: "mock audio data".data(using: .utf8),
+                enrichedContent: """
+                ## 明确目标
+                > 3个月内完成1个科技艺术项目原型，实现AI生成艺术作品并线下展览
+                
+                ## 行动清单
+                - [ ] **优先级高**：调研科技艺术趋势与用户需求
+                - [ ] **优先级高**：确定技术实现方案与艺术形式
+                - [ ] **优先级中**：收集艺术素材与训练数据
+                - [ ] **优先级低**：寻找技术与艺术合作资源
+                
+                ## 时间规划
+                **短期（1周内）**：每日2小时调研科技艺术案例，周末输出趋势报告与用户需求分析
+                **中期（1月内）**：前2周完成技术方案设计（含AI模型选型），后2周收集艺术素材与训练数据
+                **长期（3月内）**：第3-6周开发AI生成模型并测试优化，第7-8周筹备线下展览（布展/宣传）
+                """
+            ),
+            AudioRecording(
+                timestamp: Date().addingTimeInterval(-3600),
+                duration: 45.2,
+                transcription: "今天的学习笔记，主要学习了SwiftUI的高级动画技巧。包括自定义转场动画、弹簧动画的参数调节，以及如何优化动画性能。",
+                title: "SwiftUI动画技巧学习",
+                summary: "掌握了转场动画和弹簧动画的实现方法，了解了动画性能优化的关键点。",
+                tags: ["学习", "SwiftUI", "动画"],
+                audioData: "mock audio data".data(using: .utf8),
+                enrichedContent: """
+                ## 学习要点
+                
+                ### 转场动画
+                - asymmetric 转场的使用
+                - move 和 opacity 的组合效果
+                
+                ### 弹簧动画
+                - response 和 dampingFraction 参数调节
+                - 不同场景下的最佳参数选择
+                """
+            ),
+            AudioRecording(
+                timestamp: Date().addingTimeInterval(-7200),
+                duration: 126.8,
+                transcription: "团队周会录音，讨论了本周的工作进展和下周的计划安排。产品团队完成了新功能的设计稿，开发团队修复了几个重要的bug。",
+                title: "团队周会总结",
+                summary: "产品设计按计划完成，开发进度良好，下周将开始新功能开发。",
+                tags: ["团队", "周会", "进度"],
+                audioData: "mock audio data".data(using: .utf8),
+                enrichedContent: nil
+            ),
+            AudioRecording(
+                timestamp: Date().addingTimeInterval(-10800),
+                duration: 89.3,
+                transcription: "个人想法记录：关于如何提升用户体验的一些思考，包括界面设计的简化、交互流程的优化，以及反馈机制的改进。",
+                title: "用户体验优化思考",
+                summary: "从界面、交互、反馈三个维度提出了改进建议。",
+                tags: ["个人", "用户体验", "思考"],
+                audioData: "mock audio data".data(using: .utf8),
+                enrichedContent: """
+                ## 用户体验优化方案
+                
+                ### 界面设计
+                - 减少不必要的视觉元素
+                - 提高对比度和可读性
+                
+                ### 交互优化
+                - 简化操作步骤
+                - 提供快捷操作方式
+                
+                ### 反馈机制
+                - 及时的视觉反馈
+                - 清晰的状态提示
+                """
+            )
+        ]
+        
+        // 设置连接状态
+        self.isConnected = true
+        print("📱 PreviewAudioManager: 已加载 \(self.recordings.count) 条示例录音数据")
+    }
+}
+
+// MARK: - Preview
+// 预览专用的 HomepageMainView 包装器，可以覆盖 isDarkMode 设置
+struct PreviewHomepageMainView: View {
+    let forcedDarkMode: Bool
+    @StateObject private var audioManager = PreviewAudioManager()
+    
+    var body: some View {
+        HomepageMainView(audioManager: audioManager)
+            .environment(\.colorScheme, forcedDarkMode ? .dark : .light)
+    }
+}
+
+struct HomepageMainView_Previews: PreviewProvider {
+    static var previews: some View {
+        Group {
+            // 浅色模式预览
+            PreviewHomepageMainView(forcedDarkMode: false)
+                .previewDisplayName("Light Mode")
+            
+            // 深色模式预览
+            PreviewHomepageMainView(forcedDarkMode: true)
+                .previewDisplayName("Dark Mode")
+            
+            // iPad 预览
+            PreviewHomepageMainView(forcedDarkMode: true)
+                .previewDevice(PreviewDevice(rawValue: "iPad Pro (12.9-inch) (6th generation)"))
+                .previewDisplayName("iPad Pro - Dark")
+            
+            // 小屏幕设备预览
+            PreviewHomepageMainView(forcedDarkMode: false)
+                .previewDevice(PreviewDevice(rawValue: "iPhone SE (3rd generation)"))
+                .previewDisplayName("iPhone SE - Light")
+        }
+    }
+}

@@ -20,7 +20,7 @@ struct rakuApp: App {
     
     var body: some Scene {
         WindowGroup {
-            ContentView()
+            HomepageMainView()
                 .toastContainer()
                 .globalPopup()
         }

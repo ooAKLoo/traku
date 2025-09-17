@@ -1,5 +1,5 @@
 //
-//  RecordingCardsView.swift
+//  HomeContentListView.swift
 //  raku
 //
 //  Created by 杨东举 on 2025/8/26.
@@ -8,7 +8,7 @@
 import SwiftUI
 
 // MARK: - 录音卡片列表视图
-struct RecordingCardsView: View {
+struct HomeContentListView: View {
     let filteredRecordings: [AudioRecording]
     let isDarkMode: Bool
     let selectedFilter: String  // 新增：当前选择的筛选类型
@@ -73,7 +73,7 @@ struct RecordingCardsView: View {
     
     @ViewBuilder
     private func cardView(for recording: AudioRecording) -> some View {
-        RecordingCardView(
+        HomeContentCardView(
             recording: recording,
             isDarkMode: isDarkMode,
             onDelete: { onDelete(recording) },
@@ -132,7 +132,7 @@ struct RecordingCardsView: View {
 }
 
 // MARK: - Preview
-struct RecordingCardsView_Previews: PreviewProvider {
+struct HomeContentListView_Previews: PreviewProvider {
     static var previews: some View {
         let sampleRecordings = [
             AudioRecording(
@@ -169,7 +169,7 @@ struct RecordingCardsView_Previews: PreviewProvider {
         
         Group {
             // 浅色模式预览
-            RecordingCardsView(
+            HomeContentListView(
                 filteredRecordings: sampleRecordings,
                 isDarkMode: false,
                 selectedFilter: "标签",
@@ -180,7 +180,7 @@ struct RecordingCardsView_Previews: PreviewProvider {
             .previewDisplayName("Light Mode")
             
             // 深色模式预览
-            RecordingCardsView(
+            HomeContentListView(
                 filteredRecordings: sampleRecordings,
                 isDarkMode: true,
                 selectedFilter: "标签",
@@ -192,7 +192,7 @@ struct RecordingCardsView_Previews: PreviewProvider {
             .preferredColorScheme(.dark)
             
             // 空间主题预览
-            RecordingCardsView(
+            HomeContentListView(
                 filteredRecordings: sampleRecordings,
                 isDarkMode: true,
                 selectedFilter: L("homepage_filter_space"),
@@ -204,7 +204,7 @@ struct RecordingCardsView_Previews: PreviewProvider {
             .preferredColorScheme(.dark)
             
             // 空列表预览
-            RecordingCardsView(
+            HomeContentListView(
                 filteredRecordings: [],
                 isDarkMode: false,
                 selectedFilter: "标签",

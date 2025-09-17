@@ -1,5 +1,5 @@
 //
-//  RecordingsListViewModel.swift
+//  HomeContentViewModel.swift
 //  raku
 //
 //  Created by 杨东举 on 2025/8/26.
@@ -9,7 +9,7 @@ import Foundation
 import Combine
 
 @MainActor
-class RecordingsListViewModel: ObservableObject {
+class HomeContentViewModel: ObservableObject {
     @Published var selectedFilter = L("homepage_filter_tag")
     @Published var showingSettings = false
     @Published var hoveredFilter: String? = nil

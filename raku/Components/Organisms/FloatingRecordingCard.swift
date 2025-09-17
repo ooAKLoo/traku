@@ -11,7 +11,7 @@ import Combine
 // MARK: - 悬浮录音控制卡片（模块组件）
 struct FloatingRecordingCard: View {
     @ObservedObject var audioManager: AudioRecordingService
-    @StateObject private var viewModel: RecordingControlViewModel
+    @StateObject private var viewModel: HomeControlsViewModel
     @Namespace private var heroNamespace
     
     let selectedFilter: String
@@ -21,7 +21,7 @@ struct FloatingRecordingCard: View {
         self.audioManager = audioManager
         self.selectedFilter = selectedFilter
         self.isDarkMode = isDarkMode
-        self._viewModel = StateObject(wrappedValue: RecordingControlViewModel(audioManager: audioManager))
+        self._viewModel = StateObject(wrappedValue: HomeControlsViewModel(audioManager: audioManager))
     }
     
     var body: some View {

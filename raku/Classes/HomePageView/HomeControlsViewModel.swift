@@ -1,5 +1,5 @@
 //
-//  RecordingControlViewModel.swift
+//  HomeControlsViewModel.swift
 //  raku
 //
 //  Created by 杨东举 on 2025/8/26.
@@ -10,7 +10,7 @@ import Combine
 
 // MARK: - 录音控制业务逻辑ViewModel
 @MainActor
-class RecordingControlViewModel: ObservableObject {
+class HomeControlsViewModel: ObservableObject {
     @Published var isRecording = false
     @Published var recordingTime: TimeInterval = 0
     

@@ -35,5 +35,6 @@ extension Color {
     }
     
     /// 应用专用的背景颜色
-    static let appBackground = Color(hex: "F5F5F5")
+//    static let appBackground = Color(hex: "F5F5F5")
+    static let appBackground = Color.white
 }
