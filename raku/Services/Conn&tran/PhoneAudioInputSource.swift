@@ -41,6 +41,11 @@ class PhoneAudioInputSource: AudioInputSource {
         phoneRecordingManager.stopRecording()
     }
     
+    func cancelRecording() {
+        // 对于手机录音，取消录音等同于停止录音
+        phoneRecordingManager.stopRecording()
+    }
+    
     func pauseRecording() {
         phoneRecordingManager.pauseRecording()
     }

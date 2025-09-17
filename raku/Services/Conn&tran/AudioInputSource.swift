@@ -44,6 +44,7 @@ protocol AudioInputSource: AnyObject {
     // MARK: - Recording Control
     func startRecording()
     func stopRecording()
+    func cancelRecording()
     func pauseRecording()
     func resumeRecording()
     
@@ -115,6 +116,11 @@ class AudioInputManager: ObservableObject {
     /// 停止录音
     func stopRecording() {
         activeSource?.stopRecording()
+    }
+    
+    /// 取消录音（不保存）
+    func cancelRecording() {
+        activeSource?.cancelRecording()
     }
     
     /// 暂停录音

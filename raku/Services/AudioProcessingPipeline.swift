@@ -153,6 +153,12 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
         print("🔄 AudioProcessingPipeline.processRecording: 接收数据，大小: \(audioData.count / 1024) KB，时长: \(duration)秒")
         print("🔄 当前状态检查 - isProcessing: \(isProcessing), currentStage: \(currentStage)")
         
+        // 如果录音已被取消（currentRecordingId为nil且不在处理中），忽略数据
+        if !isProcessing && currentRecordingId == nil {
+            print("🚫 录音已取消，忽略接收到的音频数据")
+            return
+        }
+        
         // 如果pipeline未处于正确状态，重新启动处理流程
         if !isProcessing || currentStage != .recording {
             print("⚠️ Pipeline状态不正确，重新启动处理流程")
@@ -222,6 +228,30 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
         isPaused = false
         currentStage = .idle
         progress = 0.0
+    }
+    
+    /// 取消录音（不保存）
+    func cancelRecording() {
+        print("🚫 开始取消录音流程")
+        
+        // 停止所有正在进行的服务
+        speechService.stopRecognition()
+        llmService.stopAnalysis()
+        
+        // 重置状态
+        isProcessing = false
+        isPaused = false
+        currentStage = .idle
+        progress = 0.0
+        
+        // 清理当前录音数据
+        currentRecordingData = nil
+        currentDuration = 0
+        recordingStartTime = nil
+        currentRecordingId = nil
+        
+        print("🚫 录音已取消，未保存任何数据，不会进行ASR处理")
+        // 注意：这里不调用 delegate?.pipeline 的失败回调，避免触发其他处理流程
     }
     
     /// 暂停录音

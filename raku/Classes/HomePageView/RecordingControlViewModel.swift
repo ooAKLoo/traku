@@ -60,6 +60,13 @@ class RecordingControlViewModel: ObservableObject {
         audioManager.stopRecording()
     }
     
+    /// 取消录音（不保存）
+    func cancelRecording() {
+        isRecording = false
+        stopTimer()
+        audioManager.cancelRecording()
+    }
+    
     // MARK: - 私有方法
     
     /// 启动计时器

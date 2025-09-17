@@ -137,6 +137,12 @@ class AudioManagerAdapter: ObservableObject {
         audioInputManager.stopRecording()
     }
     
+    /// 取消录音（不保存）
+    func cancelRecording() {
+        processingPipeline.cancelRecording()
+        audioInputManager.cancelRecording()
+    }
+    
     /// 暂停录音
     func pauseRecording() {
         processingPipeline.pauseRecording()

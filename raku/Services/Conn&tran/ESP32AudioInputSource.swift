@@ -43,6 +43,11 @@ class ESP32AudioInputSource: AudioInputSource {
         esp32Service.stopRecording()
     }
     
+    func cancelRecording() {
+        // 对于ESP32，取消录音等同于停止录音
+        esp32Service.stopRecording()
+    }
+    
     func pauseRecording() {
         // ESP32暂不支持暂停，可以实现为停止录音
         esp32Service.pauseRecording()

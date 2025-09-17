@@ -38,75 +38,106 @@ struct FloatingRecordingCard: View {
     
     // MARK: - 胶囊控制视图
     private var capsuleControlView: some View {
-        ZStack {
-            // 背景胶囊
-            Capsule()
-                .fill(Color.white)
-                .frame(
-                    width: viewModel.isRecording ? 220 : 70,
-                    height: 70
-                )
-                .shadow(color: Color.black.opacity(0.1), radius: 8)
-            
-            // 前景内容
-            Group {
-                if viewModel.isRecording {
-                    // 录音状态的内容布局
-                    RecordingControlPanel(
-                        recordingTime: viewModel.recordingTime,
-                        isPaused: viewModel.isPaused,
-                        onTogglePause: {
-                            withAnimation(.interpolatingSpring(
-                                mass: 0.6,
-                                stiffness: 200.0,
-                                damping: 12.0
-                            )) {
-                                viewModel.togglePause()
-                            }
-                        },
-                        onStop: {
-                            withAnimation(.interpolatingSpring(
-                                mass: 1.0,
-                                stiffness: 120.0,
-                                damping: 18.0
-                            )) {
-                                viewModel.stopRecording()
-                            }
-                        }
+        HStack(spacing: 12) {
+            // 主录音胶囊
+            ZStack {
+                // 背景胶囊
+                Capsule()
+                    .fill(Color.white)
+                    .frame(
+                        width: viewModel.isRecording ? 220 : 70,
+                        height: 70
                     )
-                    .transition(.asymmetric(
-                        insertion: .opacity.combined(with: .scale(scale: 0.8)),
-                        removal: .opacity.combined(with: .scale(scale: 1.2))
-                    ))
-                } else {
-                    // 待机状态的内容
-                    standbyStateContent
+                    .shadow(color: Color.black.opacity(0.1), radius: 8)
+                
+                // 前景内容
+                Group {
+                    if viewModel.isRecording {
+                        // 录音状态的内容布局（移除了取消按钮）
+                        RecordingControlPanel(
+                            recordingTime: viewModel.recordingTime,
+                            isPaused: viewModel.isPaused,
+                            onTogglePause: {
+                                withAnimation(.interpolatingSpring(
+                                    mass: 0.6,
+                                    stiffness: 200.0,
+                                    damping: 12.0
+                                )) {
+                                    viewModel.togglePause()
+                                }
+                            },
+                            onStop: {
+                                withAnimation(.interpolatingSpring(
+                                    mass: 1.0,
+                                    stiffness: 120.0,
+                                    damping: 18.0
+                                )) {
+                                    viewModel.stopRecording()
+                                }
+                            }
+                        )
                         .transition(.asymmetric(
-                            insertion: .scale(scale: 0.5).combined(with: .opacity),
-                            removal: .scale(scale: 2.0).combined(with: .opacity)
+                            insertion: .opacity.combined(with: .scale(scale: 0.8)),
+                            removal: .opacity.combined(with: .scale(scale: 1.2))
                         ))
+                    } else {
+                        // 待机状态的内容
+                        standbyStateContent
+                            .transition(.asymmetric(
+                                insertion: .scale(scale: 0.5).combined(with: .opacity),
+                                removal: .scale(scale: 2.0).combined(with: .opacity)
+                            ))
+                    }
                 }
             }
-        }
-        .onTapGesture {
-            // 点击胶囊任意位置都可以切换状态（仅在待机时）
-            if !viewModel.isRecording {
-                withAnimation(.interpolatingSpring(
-                    mass: 0.8,
-                    stiffness: 150.0,
-                    damping: 15.0,
-                    initialVelocity: 5.0
-                )) {
-                    viewModel.startRecording()
+            .onTapGesture {
+                // 点击胶囊任意位置都可以切换状态（仅在待机时）
+                if !viewModel.isRecording {
+                    withAnimation(.interpolatingSpring(
+                        mass: 0.8,
+                        stiffness: 150.0,
+                        damping: 15.0,
+                        initialVelocity: 5.0
+                    )) {
+                        viewModel.startRecording()
+                    }
                 }
             }
+            .animation(.interpolatingSpring(
+                mass: 1.0,
+                stiffness: 120.0,
+                damping: 18.0
+            ), value: viewModel.isRecording)
+            .animation(.easeInOut(duration: 0.3), value: viewModel.isPaused)
+            
+            // 取消按钮（只在录音时显示）
+            if viewModel.isRecording {
+                Button(action: {
+                    withAnimation(.interpolatingSpring(
+                        mass: 1.0,
+                        stiffness: 120.0,
+                        damping: 18.0
+                    )) {
+                        viewModel.cancelRecording()
+                    }
+                }) {
+                    ZStack {
+                        Circle()
+                            .fill(Color.white)
+                            .frame(width: 50, height: 50)
+                            .shadow(color: Color.black.opacity(0.1), radius: 4)
+                        
+                        Image(systemName: "xmark")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(.black.opacity(0.7))
+                    }
+                }
+                .transition(.asymmetric(
+                    insertion: .scale(scale: 0.5).combined(with: .opacity),
+                    removal: .scale(scale: 1.2).combined(with: .opacity)
+                ))
+            }
         }
-        .animation(.interpolatingSpring(
-            mass: 1.0,
-            stiffness: 120.0,
-            damping: 18.0
-        ), value: viewModel.isRecording)
-        .animation(.easeInOut(duration: 0.3), value: viewModel.isPaused)
     }
     
     // MARK: - 待机状态内容
