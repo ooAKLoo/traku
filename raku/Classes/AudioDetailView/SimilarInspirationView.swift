@@ -8,7 +8,7 @@ import SwiftUI
 struct SimilarInspirationView: View {
     let currentRecording: AudioRecording
     let isDarkMode: Bool
-    let audioManager: AudioManagerAdapter
+    let audioManager: AudioRecordingService
     let onRecordingUpdated: ((AudioRecording) -> Void)?
     
     @State private var similarRecordings: [AudioRecording] = []
@@ -869,7 +869,7 @@ struct SimilarInspirationView_Previews: PreviewProvider {
                 contentType: "inspiration"
             ),
             isDarkMode: true,
-            audioManager: AudioManagerAdapter(),
+            audioManager: AudioRecordingService(),
             onRecordingUpdated: nil
         )
         .padding()

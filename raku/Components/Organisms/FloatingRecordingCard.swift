@@ -10,14 +10,14 @@ import Combine
 
 // MARK: - 悬浮录音控制卡片（模块组件）
 struct FloatingRecordingCard: View {
-    @ObservedObject var audioManager: AudioManagerAdapter
+    @ObservedObject var audioManager: AudioRecordingService
     @StateObject private var viewModel: RecordingControlViewModel
     @Namespace private var heroNamespace
     
     let selectedFilter: String
     let isDarkMode: Bool
     
-    init(audioManager: AudioManagerAdapter, selectedFilter: String = "", isDarkMode: Bool = false) {
+    init(audioManager: AudioRecordingService, selectedFilter: String = "", isDarkMode: Bool = false) {
         self.audioManager = audioManager
         self.selectedFilter = selectedFilter
         self.isDarkMode = isDarkMode
@@ -162,7 +162,7 @@ struct FloatingRecordingCard_Previews: PreviewProvider {
                     Spacer()
                     
                     FloatingRecordingCard(
-                        audioManager: AudioManagerAdapter(skipDatabaseLoad: true),
+                        audioManager: AudioRecordingService(skipDatabaseLoad: true),
                         selectedFilter: "标签",
                         isDarkMode: false
                     )
@@ -181,7 +181,7 @@ struct FloatingRecordingCard_Previews: PreviewProvider {
                         .font(.caption)
                     
                     FloatingRecordingCard(
-                        audioManager: AudioManagerAdapter(skipDatabaseLoad: true),
+                        audioManager: AudioRecordingService(skipDatabaseLoad: true),
                         selectedFilter: L("homepage_filter_space"),
                         isDarkMode: true
                     )

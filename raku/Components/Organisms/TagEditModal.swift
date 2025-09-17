@@ -17,7 +17,7 @@ struct TagEditModal: View {
     // 添加录音记录参数用于数据库持久化
     let recording: AudioRecording?
     // 添加音频管理器引用用于刷新UI
-    let audioManager: AudioManagerAdapter?
+    let audioManager: AudioRecordingService?
     @State private var isSaving = false
     @State private var showingSaveError = false
     @State private var saveErrorMessage = ""

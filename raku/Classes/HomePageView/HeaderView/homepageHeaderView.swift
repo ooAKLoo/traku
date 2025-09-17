@@ -9,7 +9,7 @@ import SwiftUI
 
 // MARK: - 顶部导航栏视图
 struct HomepageHeaderView: View {
-    @ObservedObject var audioManager: AudioManagerAdapter
+    @ObservedObject var audioManager: AudioRecordingService
     let isDarkMode: Bool
     @Binding var selectedFilter: String
     @Binding var showingSettings: Bool
@@ -222,7 +222,7 @@ struct HomepageHeaderView: View {
 
 #Preview("Light Mode") {
     HomepageHeaderView(
-        audioManager: AudioManagerAdapter(skipDatabaseLoad: true),
+        audioManager: AudioRecordingService(skipDatabaseLoad: true),
         isDarkMode: false,
         selectedFilter: .constant("标签"),
         showingSettings: .constant(false),
@@ -234,7 +234,7 @@ struct HomepageHeaderView: View {
 
 #Preview("Dark Mode") {
     HomepageHeaderView(
-        audioManager: AudioManagerAdapter(skipDatabaseLoad: true),
+        audioManager: AudioRecordingService(skipDatabaseLoad: true),
         isDarkMode: true,
         selectedFilter: .constant("标签"),
         showingSettings: .constant(false),

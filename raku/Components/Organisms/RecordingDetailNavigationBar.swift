@@ -9,7 +9,7 @@ import SwiftUI
 
 // MARK: - 录音详情页导航栏复合组件
 struct RecordingDetailNavigationBar: View {
-    @ObservedObject var audioManager: AudioManagerAdapter
+    @ObservedObject var audioManager: AudioRecordingService
     let recording: AudioRecording
     let isDarkMode: Bool
     let onDismiss: () -> Void

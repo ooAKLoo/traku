@@ -9,19 +9,20 @@ import Foundation
 import Combine
 
 // MARK: - 录音控制业务逻辑ViewModel
+@MainActor
 class RecordingControlViewModel: ObservableObject {
     @Published var isRecording = false
     @Published var recordingTime: TimeInterval = 0
     
     private var timer: Timer?
-    private let audioManager: AudioManagerAdapter
+    private let audioManager: AudioRecordingService
     
     // 计算属性：从AudioManager获取暂停状态
     var isPaused: Bool {
         audioManager.isPaused
     }
     
-    init(audioManager: AudioManagerAdapter) {
+    init(audioManager: AudioRecordingService) {
         self.audioManager = audioManager
     }
     
@@ -32,24 +33,38 @@ class RecordingControlViewModel: ObservableObject {
         isRecording = true
         startTimer()
         
-        // 根据连接状态调用对应的录音方法
-        if audioManager.isConnected {
-            audioManager.startRecording()
-        } else {
-            audioManager.startPhoneRecording()
+        Task {
+            do {
+                // 根据连接状态调用对应的录音方法
+                if audioManager.isConnected {
+                    try await audioManager.startRecording()
+                } else {
+                    try await audioManager.startPhoneRecording()
+                }
+            } catch {
+                isRecording = false
+                stopTimer()
+                print("录音启动失败: \(error)")
+            }
         }
     }
     
     /// 暂停/恢复录音
     func togglePause() {
-        if isPaused {
-            // 当前是暂停状态，恢复录音
-            audioManager.resumeRecording()
-            startTimer()
-        } else {
-            // 当前是录音状态，暂停录音
-            audioManager.pauseRecording()
-            timer?.invalidate()
+        Task {
+            do {
+                if audioManager.isPaused {
+                    // 当前是暂停状态，恢复录音
+                    try await audioManager.resumeRecording()
+                    startTimer()
+                } else {
+                    // 当前是录音状态，暂停录音
+                    try await audioManager.pauseRecording()
+                    timer?.invalidate()
+                }
+            } catch {
+                print("暂停/恢复录音失败: \(error)")
+            }
         }
     }
     
@@ -57,14 +72,18 @@ class RecordingControlViewModel: ObservableObject {
     func stopRecording() {
         isRecording = false
         stopTimer()
-        audioManager.stopRecording()
+        Task {
+            _ = await audioManager.stopRecording()
+        }
     }
     
     /// 取消录音（不保存）
     func cancelRecording() {
         isRecording = false
         stopTimer()
-        audioManager.cancelRecording()
+        Task {
+            await audioManager.cancelRecording()
+        }
     }
     
     // MARK: - 私有方法
@@ -75,7 +94,8 @@ class RecordingControlViewModel: ObservableObject {
         if !isPaused && recordingTime == 0 {
             recordingTime = 0
         }
-        timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { _ in
+        timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { [weak self] _ in
+            guard let self = self else { return }
             // 只有在未暂停状态下才增加时间
             if !self.audioManager.isPaused {
                 self.recordingTime += 0.1

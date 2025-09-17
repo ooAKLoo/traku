@@ -8,6 +8,7 @@
 import Foundation
 import Combine
 
+@MainActor
 class RecordingsListViewModel: ObservableObject {
     @Published var selectedFilter = L("homepage_filter_tag")
     @Published var showingSettings = false
@@ -20,9 +21,9 @@ class RecordingsListViewModel: ObservableObject {
     @Published var searchError: SearchError?
     @Published var showingSpaceTemplateSheet = false
     
-    private let audioManager: AudioManagerAdapter
+    private let audioManager: AudioRecordingService
     
-    init(audioManager: AudioManagerAdapter) {
+    init(audioManager: AudioRecordingService) {
         self.audioManager = audioManager
     }
     
@@ -33,6 +34,7 @@ class RecordingsListViewModel: ObservableObject {
         if !searchText.isEmpty && !searchResults.isEmpty {
             recordings = searchResults.compactMap { $0.recording }
         } else {
+            // 现在可以安全访问，因为都在MainActor中
             recordings = audioManager.recordings
         }
         

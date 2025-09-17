@@ -11,11 +11,11 @@ import Combine
 
 // MARK: - 录音页面视图
 struct RecordingsPageView: View {
-    @ObservedObject var audioManager: AudioManagerAdapter
+    @ObservedObject var audioManager: AudioRecordingService
     let isDarkMode: Bool
     @StateObject private var viewModel: RecordingsListViewModel
     
-    init(audioManager: AudioManagerAdapter, isDarkMode: Bool) {
+    init(audioManager: AudioRecordingService, isDarkMode: Bool) {
         self.audioManager = audioManager
         self.isDarkMode = isDarkMode
         self._viewModel = StateObject(wrappedValue: RecordingsListViewModel(audioManager: audioManager))

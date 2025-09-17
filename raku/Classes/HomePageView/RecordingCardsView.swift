@@ -13,7 +13,7 @@ struct RecordingCardsView: View {
     let isDarkMode: Bool
     let selectedFilter: String  // 新增：当前选择的筛选类型
     let onDelete: (AudioRecording) -> Void
-    let audioManager: AudioManagerAdapter
+    let audioManager: AudioRecordingService
     let onRecordingUpdated: ((AudioRecording) -> Void)?
     
     @State private var selectedRecording: AudioRecording? = nil
@@ -174,7 +174,7 @@ struct RecordingCardsView_Previews: PreviewProvider {
                 isDarkMode: false,
                 selectedFilter: "标签",
                 onDelete: { _ in print("Delete recording") },
-                audioManager: AudioManagerAdapter(skipDatabaseLoad: true),
+                audioManager: AudioRecordingService(skipDatabaseLoad: true),
                 onRecordingUpdated: nil
             )
             .previewDisplayName("Light Mode")
@@ -185,7 +185,7 @@ struct RecordingCardsView_Previews: PreviewProvider {
                 isDarkMode: true,
                 selectedFilter: "标签",
                 onDelete: { _ in print("Delete recording") },
-                audioManager: AudioManagerAdapter(skipDatabaseLoad: true),
+                audioManager: AudioRecordingService(skipDatabaseLoad: true),
                 onRecordingUpdated: nil
             )
             .previewDisplayName("Dark Mode")
@@ -197,7 +197,7 @@ struct RecordingCardsView_Previews: PreviewProvider {
                 isDarkMode: true,
                 selectedFilter: L("homepage_filter_space"),
                 onDelete: { _ in print("Delete recording") },
-                audioManager: AudioManagerAdapter(skipDatabaseLoad: true),
+                audioManager: AudioRecordingService(skipDatabaseLoad: true),
                 onRecordingUpdated: nil
             )
             .previewDisplayName("Space Theme")
@@ -209,7 +209,7 @@ struct RecordingCardsView_Previews: PreviewProvider {
                 isDarkMode: false,
                 selectedFilter: "标签",
                 onDelete: { _ in print("Delete recording") },
-                audioManager: AudioManagerAdapter(skipDatabaseLoad: true),
+                audioManager: AudioRecordingService(skipDatabaseLoad: true),
                 onRecordingUpdated: nil
             )
             .previewDisplayName("Empty List")

@@ -8,7 +8,7 @@
 import SwiftUI
 
 struct ConnectionConfigView: View {
-    @ObservedObject var audioManager: AudioManagerAdapter
+    @ObservedObject var audioManager: AudioRecordingService
     @Environment(\.dismiss) private var dismiss
     @AppStorage("isDarkMode") private var isDarkMode = true
     
@@ -140,7 +140,9 @@ struct ConnectionConfigView: View {
                 if audioManager.isConnected {
                     ToolbarItem(placement: .navigationBarTrailing) {
                         Button("断开") {
-                            audioManager.disconnectFromDevice()
+                            Task {
+                                await audioManager.disconnectFromDevice()
+                            }
                         }
                         .foregroundColor(.red)
                     }
@@ -156,8 +158,23 @@ struct ConnectionConfigView: View {
         isConnecting = true
         print("正在连接ESP32设备: \(manualIP):\(manualPort)")
         
-        // 直接连接到指定IP和端口
-        audioManager.connectToESP32(ip: manualIP, port: Int(manualPort) ?? 81)
+        // 创建ESP32设备对象并连接
+        let device = ESP32Recorder.ESP32Device(
+            name: "ESP32设备",
+            ipAddress: manualIP,
+            port: Int(manualPort) ?? 81
+        )
+        
+        Task {
+            do {
+                try await audioManager.connectToESP32(device: device)
+            } catch {
+                print("连接失败: \(error)")
+                await MainActor.run {
+                    isConnecting = false
+                }
+            }
+        }
         
         // 使用更短的检查间隔来监听连接状态
         checkConnectionStatus()
@@ -169,17 +186,19 @@ struct ConnectionConfigView: View {
         Timer.scheduledTimer(withTimeInterval: 1.0, repeats: true) { timer in
             checkCount += 1
             
-            print("检查连接状态 [\(checkCount)/15]: isConnected=\(audioManager.isConnected), status=\(audioManager.connectionStatus)")
-            
-            if audioManager.isConnected {
-                print("连接成功！关闭连接配置窗口")
-                isConnecting = false
-                timer.invalidate()
-                dismiss()
-            } else if checkCount >= 15 {
-                print("连接超时，停止检查")
-                isConnecting = false
-                timer.invalidate()
+            Task { @MainActor in
+                print("检查连接状态 [\(checkCount)/15]: isConnected=\(audioManager.isConnected), status=\(audioManager.connectionStatus)")
+                
+                if audioManager.isConnected {
+                    print("连接成功！关闭连接配置窗口")
+                    isConnecting = false
+                    timer.invalidate()
+                    dismiss()
+                } else if checkCount >= 15 {
+                    print("连接超时，停止检查")
+                    isConnecting = false
+                    timer.invalidate()
+                }
             }
         }
     }

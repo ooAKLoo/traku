@@ -113,12 +113,26 @@ class VolcEngineSpeechService: NSObject, ObservableObject {
     
     /// 处理录音音频数据
     func processRecordingAudio(_ audioData: Data, duration: TimeInterval) {
-        // 将原始PCM数据转换为WAV格式
-        let wavData = createWAVFile(from: audioData)
+        print("🎤 处理音频数据，大小: \(audioData.count) bytes, 时长: \(duration)秒")
+        
+        // 检查是否已经是WAV格式
+        let isWAVFormat = audioData.count > 4 && 
+                         audioData.prefix(4) == Data([0x52, 0x49, 0x46, 0x46]) // "RIFF"
+        
+        let finalAudioData: Data
+        if isWAVFormat {
+            // 已经是WAV格式，直接使用
+            finalAudioData = audioData
+            print("🎤 检测到WAV格式音频")
+        } else {
+            // 原始PCM数据，需要添加WAV头
+            finalAudioData = createWAVFile(from: audioData)
+            print("🎤 将PCM数据转换为WAV格式")
+        }
         
         // 开始语音识别
         startRecognition()
-        sendAudioData(wavData)
+        sendAudioData(finalAudioData)
     }
     
     /// 创建WAV文件头

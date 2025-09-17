@@ -12,7 +12,7 @@ import Combine
 
 // MARK: - 主视图
 struct ContentView: View {
-    @StateObject private var audioManager = AudioManagerAdapter()
+    @StateObject private var audioManager = AudioRecordingService()
     @AppStorage("isDarkMode") private var isDarkMode = false
     
     var body: some View {
@@ -34,7 +34,7 @@ struct ContentView: View {
 
 
 // MARK: - 预览专用的 AudioManager
-class PreviewAudioManager: AudioManagerAdapter {
+class PreviewAudioManager: AudioRecordingService {
     private var shouldSkipDatabaseInit = true
     
     init() {

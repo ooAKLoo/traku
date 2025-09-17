@@ -11,6 +11,7 @@ import UIKit
 import SwiftUI
 
 // MARK: - 录音详情页面ViewModel
+@MainActor
 class RecordingDetailViewModel: ObservableObject {
     // MARK: - Published Properties
     @Published var recording: AudioRecording
@@ -31,7 +32,7 @@ class RecordingDetailViewModel: ObservableObject {
     @Published var isPresented = false
     
     // MARK: - Internal Properties  
-    let audioManager: AudioManagerAdapter
+    let audioManager: AudioRecordingService
     private let updateManager = RecordingUpdateManager.shared
     private var cancellables = Set<AnyCancellable>()
     
@@ -40,7 +41,7 @@ class RecordingDetailViewModel: ObservableObject {
     var onDismiss: (() -> Void)?
     
     // MARK: - Initialization
-    init(recording: AudioRecording, audioManager: AudioManagerAdapter, onRecordingUpdated: ((AudioRecording) -> Void)? = nil) {
+    init(recording: AudioRecording, audioManager: AudioRecordingService, onRecordingUpdated: ((AudioRecording) -> Void)? = nil) {
         self.recording = recording
         self.audioManager = audioManager
         self.onRecordingUpdated = onRecordingUpdated
