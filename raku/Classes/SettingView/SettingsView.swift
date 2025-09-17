@@ -87,9 +87,6 @@ struct SettingsView: View {
                             )
                         }
                         
-                        SettingsRowView(icon: "person.circle", title: L("settings_account"), isDarkMode: isDarkMode, action: {})
-                        SettingsRowView(icon: "bell", title: L("settings_notifications"), isDarkMode: isDarkMode, action: {})
-                        SettingsRowView(icon: "lock", title: L("settings_privacy_title"), isDarkMode: isDarkMode, action: {})
                         SettingsRowView(icon: "tag", title: "标签管理", isDarkMode: isDarkMode, action: {
                             showingTagManagement = true
                         })
