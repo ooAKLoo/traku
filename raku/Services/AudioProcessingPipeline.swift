@@ -6,6 +6,7 @@
 
 import Foundation
 import Combine
+import UIKit
 
 // MARK: - 音频处理流水线协议
 protocol AudioProcessingPipelineDelegate: AnyObject {
@@ -73,6 +74,7 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
     private var recordingStartTime: Date?
     private var currentRecordingId: UUID?  // 当前录音的唯一ID，整个流程中保持不变
     private let updateManager = RecordingUpdateManager.shared
+    private var backgroundTaskIdentifier: UIBackgroundTaskIdentifier = .invalid
     
     // 将Pipeline的ProcessingStage转换为UI的UIProcessingStage
     private func convertToUIStage(_ stage: ProcessingStage) -> UIProcessingStage {
@@ -312,6 +314,9 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
         currentStage = .speechRecognition
         progress = 0.3
         
+        // 开始后台任务
+        beginBackgroundTask()
+        
         // 更新实时状态
         if let recordingId = currentRecordingId {
             updateManager.updateProcessingStatus(for: recordingId, stage: convertToUIStage(.speechRecognition), progress: 0.3)
@@ -323,6 +328,11 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
     private func startLLMAnalysis(recognitionText: String) {
         currentStage = .llmAnalysisFirstStep
         progress = 0.6
+        
+        // 确保后台任务正在运行
+        if backgroundTaskIdentifier == .invalid {
+            beginBackgroundTask()
+        }
         
         // 更新实时状态
         if let recordingId = currentRecordingId {
@@ -417,6 +427,9 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
         progress = 1.0
         isProcessing = false
         
+        // 结束后台任务
+        endBackgroundTask()
+        
         // 更新实时管理器的状态为完成
         updateManager.updateProcessingStatus(for: recording.id, stage: .completed, progress: 1.0)
         
@@ -428,6 +441,9 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
         currentStage = .failed
         progress = 0.0
         isProcessing = false
+        
+        // 结束后台任务
+        endBackgroundTask()
         
         delegate?.pipeline(self, didFailWithError: error)
     }
@@ -703,5 +719,28 @@ extension AudioProcessingPipeline {
     /// 设置LLM开关状态
     func setLLMEnabled(_ enabled: Bool) {
         isLLMEnabled = enabled
+    }
+    
+    // MARK: - 后台任务管理
+    
+    private func beginBackgroundTask() {
+        if backgroundTaskIdentifier != .invalid {
+            return  // 已经有后台任务在运行
+        }
+        
+        backgroundTaskIdentifier = UIApplication.shared.beginBackgroundTask(withName: "AudioProcessing") { [weak self] in
+            print("⚠️ 后台任务即将超时，尝试结束处理")
+            self?.endBackgroundTask()
+        }
+        
+        print("🔄 开始后台任务: \(backgroundTaskIdentifier.rawValue)")
+    }
+    
+    private func endBackgroundTask() {
+        if backgroundTaskIdentifier != .invalid {
+            print("✅ 结束后台任务: \(backgroundTaskIdentifier.rawValue)")
+            UIApplication.shared.endBackgroundTask(backgroundTaskIdentifier)
+            backgroundTaskIdentifier = .invalid
+        }
     }
 }

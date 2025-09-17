@@ -69,7 +69,7 @@ class VolcEngineSpeechService: NSObject, ObservableObject {
         self.configuration = configuration
         
         let networkConfig = NetworkConfiguration(
-            timeout: configuration.timeout
+            timeout: configuration.timeout  // 使用SenseVoice的130秒配置
         )
         self.networkService = NetworkService(configuration: networkConfig)
         

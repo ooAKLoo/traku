@@ -21,7 +21,8 @@ struct TwoStepLLMConfiguration {
         apiKey: "7dda38f8-2383-434c-9d8d-a26263d4b5d1",
         liteModel: "doubao-1-5-lite-32k-250115",
 //        flashModel: "doubao-seed-1-6-flash-250715",
-        flashModel: "doubao-seed-1-6-thinking-250715",
+//        flashModel: "doubao-seed-1-6-thinking-250715",
+        flashModel: "doubao-seed-1-6-250615",
         timeout: 300.0
     )
 }

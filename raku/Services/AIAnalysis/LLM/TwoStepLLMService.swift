@@ -67,6 +67,7 @@ class TwoStepLLMService: NSObject, ObservableObject {
             defaultHeaders: [
                 "Authorization": "Bearer \(configuration.apiKey)"
             ]
+            // 使用默认的后台支持、3次重试、2秒重试延迟
         )
         self.networkService = NetworkService(configuration: networkConfig)
         

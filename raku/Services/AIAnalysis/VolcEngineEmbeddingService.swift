@@ -77,10 +77,10 @@ final class VolcEngineEmbeddingService {
         self.apiKey = "7dda38f8-2383-434c-9d8d-a26263d4b5d1"
         
         let networkConfig = NetworkConfiguration(
-            timeout: 30.0,
             defaultHeaders: [
                 "Authorization": "Bearer \(apiKey)"
             ]
+            // 使用默认的200秒超时、后台支持、3次重试
         )
         self.networkService = NetworkService(configuration: networkConfig)
     }

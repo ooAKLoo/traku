@@ -7,6 +7,7 @@
 //
 
 import Foundation
+import UIKit
 
 // MARK: - HTTP方法
 enum HTTPMethod: String {
@@ -20,10 +21,22 @@ enum HTTPMethod: String {
 struct NetworkConfiguration {
     let timeout: TimeInterval
     let defaultHeaders: [String: String]?
+    let enableBackgroundRequests: Bool
+    let maxRetryAttempts: Int
+    let retryDelay: TimeInterval
     
-    init(timeout: TimeInterval = 30.0, defaultHeaders: [String: String]? = nil) {
+    init(
+        timeout: TimeInterval = 200.0,  // 默认200秒超时，适合AI服务
+        defaultHeaders: [String: String]? = nil,
+        enableBackgroundRequests: Bool = true,
+        maxRetryAttempts: Int = 3,
+        retryDelay: TimeInterval = 2.0  // 默认2秒重试延迟
+    ) {
         self.timeout = timeout
         self.defaultHeaders = defaultHeaders
+        self.enableBackgroundRequests = enableBackgroundRequests
+        self.maxRetryAttempts = maxRetryAttempts
+        self.retryDelay = retryDelay
     }
 }
 
@@ -55,27 +68,37 @@ enum NetworkError: Error, LocalizedError {
 }
 
 // MARK: - 网络服务
-class NetworkService {
+class NetworkService: NSObject {
     private let configuration: NetworkConfiguration
     private let urlSession: URLSession
     private let queue: DispatchQueue
+    private var backgroundTaskIdentifier: UIBackgroundTaskIdentifier = .invalid
+    
+    // 存储待处理的请求
+    private var pendingRequests: [URLSessionTask: (Result<Data, NetworkError>) -> Void] = [:]
+    private let requestsLock = NSLock()
     
     init(configuration: NetworkConfiguration = NetworkConfiguration()) {
         self.configuration = configuration
         self.queue = DispatchQueue(label: "com.raku.network", qos: .userInitiated)
         
+        // 始终使用默认会话，通过UIBackgroundTask支持后台执行
         let sessionConfig = URLSessionConfiguration.default
         sessionConfig.timeoutIntervalForRequest = configuration.timeout
         sessionConfig.timeoutIntervalForResource = configuration.timeout * 2
+        sessionConfig.requestCachePolicy = .reloadIgnoringLocalCacheData
         
         if let defaultHeaders = configuration.defaultHeaders {
             sessionConfig.httpAdditionalHeaders = defaultHeaders
         }
         
+        // 创建URLSession，不使用delegate（避免后台会话问题）
         self.urlSession = URLSession(configuration: sessionConfig)
+        
+        super.init()
     }
     
-    /// 执行网络请求
+    /// 执行网络请求（带重试机制）
     @discardableResult
     func performRequest(
         url: String,
@@ -84,10 +107,34 @@ class NetworkService {
         body: Data? = nil,
         completion: @escaping (Result<Data, NetworkError>) -> Void
     ) -> URLSessionDataTask? {
+        return performRequestWithRetry(
+            url: url,
+            method: method,
+            headers: headers,
+            body: body,
+            retryCount: 0,
+            completion: completion
+        )
+    }
+    
+    /// 带重试机制的网络请求
+    private func performRequestWithRetry(
+        url: String,
+        method: HTTPMethod,
+        headers: [String: String]?,
+        body: Data?,
+        retryCount: Int,
+        completion: @escaping (Result<Data, NetworkError>) -> Void
+    ) -> URLSessionDataTask? {
         
         guard let requestURL = URL(string: url) else {
             completion(.failure(.invalidURL))
             return nil
+        }
+        
+        // 开始后台任务（如果启用）
+        if configuration.enableBackgroundRequests {
+            beginBackgroundTask()
         }
         
         var request = URLRequest(url: requestURL)
@@ -101,14 +148,52 @@ class NetworkService {
             }
         }
         
-        let task = urlSession.dataTask(with: request) { data, response, error in
+        let task = urlSession.dataTask(with: request) { [weak self] data, response, error in
+            defer {
+                if self?.configuration.enableBackgroundRequests == true {
+                    self?.endBackgroundTask()
+                }
+            }
+            
             if let error = error {
+                // 检查是否需要重试
+                if retryCount < self?.configuration.maxRetryAttempts ?? 0 {
+                    print("网络请求失败，准备重试 (\(retryCount + 1)/\(self?.configuration.maxRetryAttempts ?? 0)): \(error.localizedDescription)")
+                    
+                    DispatchQueue.global().asyncAfter(deadline: .now() + (self?.configuration.retryDelay ?? 1.0)) {
+                        _ = self?.performRequestWithRetry(
+                            url: url,
+                            method: method,
+                            headers: headers,
+                            body: body,
+                            retryCount: retryCount + 1,
+                            completion: completion
+                        )
+                    }
+                    return
+                }
                 completion(.failure(.networkError(error)))
                 return
             }
             
             if let httpResponse = response as? HTTPURLResponse {
                 if httpResponse.statusCode < 200 || httpResponse.statusCode >= 300 {
+                    // HTTP错误也可以重试
+                    if retryCount < self?.configuration.maxRetryAttempts ?? 0 {
+                        print("HTTP错误，准备重试 (\(retryCount + 1)/\(self?.configuration.maxRetryAttempts ?? 0)): \(httpResponse.statusCode)")
+                        
+                        DispatchQueue.global().asyncAfter(deadline: .now() + (self?.configuration.retryDelay ?? 1.0)) {
+                            _ = self?.performRequestWithRetry(
+                                url: url,
+                                method: method,
+                                headers: headers,
+                                body: body,
+                                retryCount: retryCount + 1,
+                                completion: completion
+                            )
+                        }
+                        return
+                    }
                     completion(.failure(.httpError(code: httpResponse.statusCode)))
                     return
                 }
@@ -179,6 +264,21 @@ class NetworkService {
     /// 取消所有请求
     func cancelAllRequests() {
         urlSession.invalidateAndCancel()
+    }
+    
+    // MARK: - 后台任务管理
+    
+    private func beginBackgroundTask() {
+        backgroundTaskIdentifier = UIApplication.shared.beginBackgroundTask(withName: "NetworkRequest") { [weak self] in
+            self?.endBackgroundTask()
+        }
+    }
+    
+    private func endBackgroundTask() {
+        if backgroundTaskIdentifier != .invalid {
+            UIApplication.shared.endBackgroundTask(backgroundTaskIdentifier)
+            backgroundTaskIdentifier = .invalid
+        }
     }
 }
 
