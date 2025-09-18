@@ -18,6 +18,7 @@ struct SettingsView: View {
     @State private var showingHelpView = false
     @State private var showingDataImport = false
     @State private var showingTagManagement = false
+    @State private var showingFeedback = false
     @ObservedObject private var localizationManager = LocalizationManager.shared
     
     var body: some View {
@@ -96,6 +97,9 @@ struct SettingsView: View {
                         SettingsRowView(icon: "questionmark.circle", title: L("common_help"), isDarkMode: isDarkMode, action: {
                             showingHelpView = true
                         })
+                        SettingsRowView(icon: "window.ceiling", title: "反馈建议", isDarkMode: isDarkMode, action: {
+                            showingFeedback = true
+                        })
                         SettingsRowView(icon: "info.circle", title: L("settings_about_title"), isDarkMode: isDarkMode, action: {
                             showingAboutView = true
                         })
@@ -142,6 +146,9 @@ struct SettingsView: View {
         }
         .sheet(isPresented: $showingTagManagement) {
             TagManagementView(isDarkMode: isDarkMode)
+        }
+        .sheet(isPresented: $showingFeedback) {
+            FeedbackView(isDarkMode: isDarkMode)
         }
         .onReceive(NotificationCenter.default.publisher(for: .languageDidChange)) { _ in
             // 当语言变更时，强制刷新视图

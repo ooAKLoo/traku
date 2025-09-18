@@ -73,13 +73,13 @@ struct HomeContentListView: View {
     
     @ViewBuilder
     private func cardView(for recording: AudioRecording) -> some View {
-        HomeContentCardView(
+        RightSideWeatherCardView(
             recording: recording,
             isDarkMode: isDarkMode,
             onDelete: { onDelete(recording) },
-            onDragStateChanged: { isDragging in
-                cardStates[recording.id.uuidString] = isDragging
-            }
+//            onDragStateChanged: { isDragging in
+//                cardStates[recording.id.uuidString] = isDragging
+//            }
         )
         .onTapGesture {
             handleCardTap(recording: recording)
