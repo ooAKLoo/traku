@@ -121,88 +121,104 @@ struct HomeContentCardView: View {
             }
             
             // 卡片内容
-            HStack(alignment: .top, spacing: 15) {
-                    // 卡片内容 - 两行布局
-                    VStack(alignment: .leading, spacing: 16) {
-                        // 第一行：时间戳和标题
-                        VStack(alignment: .leading, spacing: 8) {
-                            // 时间戳、天气图标和处理状态
-                            HStack(spacing: 8) {
-                                Text(recording.timestamp.smartFormatted)
-                                    .font(.system(size: 11, weight: .regular))
-                                    .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
+            HStack(alignment: .top, spacing: 16) {
+                // 左侧内容区域
+                VStack(alignment: .leading, spacing: 0) {
+                    // 时间戳和处理状态
+                    HStack(spacing: 8) {
+                        Text(recording.timestamp.smartFormatted)
+                            .font(.system(size: 11, weight: .medium))
+                            .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
+                        
+                        // 处理状态显示
+                        if processingStage != .idle {
+                            HStack(spacing: 4) {
+                                ProgressView()
+                                    .scaleEffect(0.7)
+                                    .progressViewStyle(CircularProgressViewStyle(tint: colorFromString(processingStage.color)))
                                 
-//                                // 天气图标 - 与时间戳等高
-//                                WeatherIconView(
-//                                    weatherType: weatherType,
-//                                    isDarkMode: isDarkMode,
-//                                    size: 16,
-//                                    showBackground: false
-//                                )
-                                
-                                // 处理状态显示
-                                if processingStage != .idle {
-                                    HStack(spacing: 4) {
-                                        ProgressView()
-                                            .scaleEffect(0.7)
-                                            .progressViewStyle(CircularProgressViewStyle(tint: colorFromString(processingStage.color)))
-                                        
-                                        Text(processingStage.displayText)
-                                            .font(.system(size: 10, weight: .medium))
-                                            .foregroundColor(colorFromString(processingStage.color))
-                                    }
-                                }
-                                
-                                Spacer()
+                                Text(processingStage.displayText)
+                                    .font(.system(size: 10, weight: .medium))
+                                    .foregroundColor(colorFromString(processingStage.color))
                             }
-                            
-                            // 标题 - 主要视觉焦点
-                            Text(currentRecording.title)
-                                .font(.system(size: 18, weight: .medium))
-                                .foregroundColor(isDarkMode ? .white : .black)
-                                .lineLimit(1)
-                                .truncationMode(.tail)
                         }
                         
-                        // 第二行：标签和时长
-                        HStack(alignment: .center) {
-                            // 标签组
-                            HStack(spacing: 8) {
-                                ForEach(currentRecording.tags.prefix(3), id: \.self) { tag in
-                                    TagView(text: tag, isDarkMode: isDarkMode)
-                                }
-                                if currentRecording.tags.count > 3 {
-                                    Text("+\(currentRecording.tags.count - 3)")
-                                        .font(.system(size: 10, weight: .medium))
-                                        .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4))
-                                        .padding(.horizontal, 6)
-                                        .padding(.vertical, 2)
-                                        .background(
-                                            RoundedRectangle(cornerRadius: 8)
-                                                .fill(isDarkMode ? Color.white.opacity(0.1) : Color.black.opacity(0.05))
-                                        )
-                                }
-                            }
-                            
-                            Spacer()
-                            
+                        Spacer()
+                    }
+                    
+                    Spacer()
+                        .frame(height: 10)
+                    
+                    // 标题
+                    Text(currentRecording.title)
+                        .font(.system(size: 16, weight: .semibold))
+                        .foregroundColor(isDarkMode ? .white : .black)
+                        .lineLimit(2)
+                        .multilineTextAlignment(.leading)
+                    
+                    Spacer()
+                        .frame(height: 14)
+                    
+                    // 标签
+                    HStack(spacing: 6) {
+                        ForEach(currentRecording.tags.prefix(3), id: \.self) { tag in
+                            TagView(text: tag, isDarkMode: isDarkMode)
+                        }
+                        if currentRecording.tags.count > 3 {
+                            Text("+\(currentRecording.tags.count - 3)")
+                                .font(.system(size: 9, weight: .medium))
+                                .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4))
+                                .padding(.horizontal, 4)
+                                .padding(.vertical, 2)
+                                .background(
+                                    Capsule()
+                                        .fill(isDarkMode ? Color.white.opacity(0.08) : Color.black.opacity(0.05))
+                                )
                         }
                     }
-                    .padding(.vertical,16)
+                }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(
-                    RoundedRectangle(cornerRadius: 12)
-                        .fill(isDarkMode ? Color.black : Color.white)
-//                        .shadow(
-//                            color: Color.black.opacity(isDarkMode ? 0.3 : 0.05),
-//                            radius: (isHovered && !isDragging) ? 8 : 4,
-//                            x: 0,
-//                            y: (isHovered && !isDragging) ? 4 : 2
-//                        )
-                )
-                .scaleEffect((isHovered && !isDragging) ? 1.01 : 1.0)
-                .animation(.easeInOut(duration: 0.2), value: isHovered && !isDragging)
+                
+                // 右侧天气图标和装饰
+                if offset >= -10 {
+                    VStack(spacing: 9) {
+                        Spacer()
+                            .frame(height: 6)
+                        
+                        WeatherIconView(
+                            weatherType: weatherType,
+                            isDarkMode: isDarkMode,
+                            size: 28,
+                            showBackground: false
+                        )
+                        .frame(width: 44, height: 44)
+                        .background(
+                            RoundedRectangle(cornerRadius: 12)
+                                .fill(
+                                    LinearGradient(
+                                        colors: [
+                                            weatherType.primaryColor.opacity(0.15),
+                                            weatherType.primaryColor.opacity(0.05)
+                                        ],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                        )
+                        
+                        // 装饰性的颜色条
+                        RoundedRectangle(cornerRadius: 2)
+                            .fill(weatherType.primaryColor.opacity(0.6))
+                            .frame(width: 20, height: 3)
+                    }
+                    .transition(.opacity.combined(with: .scale))
+                }
             }
+            .padding(8)
+            .background(
+                RoundedRectangle(cornerRadius: 16)
+                    .fill(isDarkMode ? Color.white.opacity(0.03) : Color.white)
+            )
             .offset(x: offset)
             .simultaneousGesture(
                 DragGesture()
@@ -419,3 +435,4 @@ struct RecordingListPreview: View {
         .navigationBarTitleDisplayMode(.inline)
     }
 }
+
