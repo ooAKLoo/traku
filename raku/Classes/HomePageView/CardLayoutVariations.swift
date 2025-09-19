@@ -244,11 +244,14 @@ struct RightSideWeatherCardView: View {
     var body: some View {
         HStack(alignment: .top, spacing: 16) {
             // 左侧内容区域
-            VStack(alignment: .leading, spacing: 12) {
+            VStack(alignment: .leading, spacing: 0) {
                 // 时间戳
                 Text(recording.timestamp.smartFormatted)
                     .font(.system(size: 11, weight: .medium))
                     .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
+                
+                Spacer()
+                    .frame(height: 10)
                 
                 // 标题
                 Text(recording.title)
@@ -256,6 +259,9 @@ struct RightSideWeatherCardView: View {
                     .foregroundColor(isDarkMode ? .white : .black)
                     .lineLimit(2)
                     .multilineTextAlignment(.leading)
+                
+                Spacer()
+                    .frame(height: 14)
                 
                 // 标签
                 HStack(spacing: 6) {
@@ -278,7 +284,10 @@ struct RightSideWeatherCardView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             
             // 右侧天气图标和装饰
-            VStack(spacing: 8) {
+            VStack(spacing: 9) {
+                Spacer()
+                    .frame(height: 6)
+                
                 WeatherIconView(
                     weatherType: weatherType,
                     isDarkMode: isDarkMode,
@@ -306,7 +315,7 @@ struct RightSideWeatherCardView: View {
                     .frame(width: 20, height: 3)
             }
         }
-        .padding(16)
+        .padding(8)
         .background(
             RoundedRectangle(cornerRadius: 16)
                 .fill(isDarkMode ? Color.white.opacity(0.03) : Color.white)
