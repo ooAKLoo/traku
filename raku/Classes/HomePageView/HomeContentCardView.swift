@@ -187,7 +187,7 @@ struct HomeContentCardView: View {
                         
                         WeatherIconView(
                             weatherType: weatherType,
-                            isDarkMode: isDarkMode,
+                            isDarkMode: false,  // 设置为 false 让图标显示为白色
                             size: 28,
                             showBackground: false
                         )

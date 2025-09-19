@@ -48,12 +48,12 @@ struct WeatherIconView: View {
             // 天气图标 - 白色
             Image(systemName: weatherType.rawValue)
                 .font(.system(size: size, weight: .ultraLight))
-                .foregroundColor(.white.opacity(isDarkMode ? 0.6 : 0.5))
+                .foregroundColor(.white)
                 .shadow(
-                    color: Color.black.opacity(isDarkMode ? 0.2 : 0.1),
-                    radius: 1,
+                    color: Color.black.opacity(isDarkMode ? 0.05 : 0.03),
+                    radius: 0.5,
                     x: 0,
-                    y: 0.5
+                    y: 0.3
                 )
         }
         .animation(.easeInOut(duration: 0.3), value: weatherType)
