@@ -124,11 +124,11 @@ struct FloatingRecordingCard: View {
                     ZStack {
                         Circle()
                             .fill(Color.white)
-                            .frame(width: 50, height: 50)
-                            .shadow(color: Color.black.opacity(0.1), radius: 4)
+                            .frame(width: 68, height: 68)
+                            .shadow(color: Color.black.opacity(0.1), radius: 8)
                         
                         Image(systemName: "xmark")
-                            .font(.system(size: 16, weight: .medium))
+                            .font(.system(size: 20, weight: .medium))
                             .foregroundColor(.black.opacity(0.7))
                     }
                 }
