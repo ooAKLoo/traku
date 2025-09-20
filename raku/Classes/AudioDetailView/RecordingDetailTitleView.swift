@@ -40,19 +40,24 @@ struct RecordingDetailTitleView: View {
                 }
             
             // 时间和标签在同一行
-            HStack(spacing: 22) {
+            HStack(spacing: 16) {
+                // 时间 - 固定宽度，优先显示
                 Text(recording.timestamp.smartFormatted)
                     .font(.system(size: 14, weight: .regular))
                     .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4))
+                    .frame(minWidth: 80, alignment: .leading)
+                    .layoutPriority(1)
                 
-                // 标签 - 更简洁，支持点击
+                // 标签 - 占据剩余宽度
                 if !recording.tags.isEmpty {
                     Button(action: onTagTap) {
-                        HStack(spacing: 8) {
+                        HStack(spacing: 6) {
                             ForEach(recording.tags.prefix(3), id: \.self) { tag in
                                 Text("#\(tag)")
                                     .font(.system(size: 13, weight: .regular))
                                     .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
+                                    .lineLimit(1)
+                                    .truncationMode(.tail)
                                     .padding(.horizontal, 8)
                                     .padding(.vertical, 4)
                                     .background(
@@ -60,7 +65,16 @@ struct RecordingDetailTitleView: View {
                                             .fill(isDarkMode ? Color.gray.opacity(0.2) : Color.gray.opacity(0.15))
                                     )
                             }
+                            
+                            // 如果标签超过3个，显示省略指示
+                            if recording.tags.count > 3 {
+                                Text("...")
+                                    .font(.system(size: 13, weight: .regular))
+                                    .foregroundColor(isDarkMode ? .white.opacity(0.3) : .black.opacity(0.3))
+                                    .padding(.horizontal, 4)
+                            }
                         }
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 } else {
                     // 没有标签时显示添加按钮
@@ -80,10 +94,9 @@ struct RecordingDetailTitleView: View {
                             RoundedRectangle(cornerRadius: 8)
                                 .stroke(isDarkMode ? Color.white.opacity(0.2) : Color.gray.opacity(0.3), lineWidth: 1)
                         )
+                        .frame(maxWidth: .infinity, alignment: .leading)
                     }
                 }
-                
-                Spacer()
             }
         }
         .padding(.horizontal, 24)
