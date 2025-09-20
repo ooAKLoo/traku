@@ -118,7 +118,7 @@ class ImageRenderer {
             .font: UIFont.systemFont(ofSize: 14),
             .foregroundColor: isDarkMode ? UIColor.white.withAlphaComponent(0.6) : UIColor.black.withAlphaComponent(0.6)
         ]
-        let dateText = Date().formatted()
+        let dateText = ""
         let dateSize = dateText.size(withAttributes: dateAttributes)
         dateText.draw(at: CGPoint(x: width - padding - dateSize.width, y: padding + 5), withAttributes: dateAttributes)
     }

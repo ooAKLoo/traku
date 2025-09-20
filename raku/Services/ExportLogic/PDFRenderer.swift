@@ -117,7 +117,7 @@ class PDFRenderer {
             .font: UIFont.systemFont(ofSize: 12),
             .foregroundColor: UIColor.gray
         ]
-        let headerText = "Raku - \(Date().formatted())"
+        let headerText = "Raku"
         headerText.draw(at: CGPoint(x: margin, y: margin / 2), withAttributes: headerAttributes)
         
         // Draw a separator line
