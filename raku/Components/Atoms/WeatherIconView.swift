@@ -26,6 +26,32 @@ struct WeatherIconView: View {
         self.showBackground = showBackground
     }
     
+    // 便捷初始化器，用于录音数据
+    init(
+        from recording: AudioRecording,
+        isDarkMode: Bool = false,
+        size: CGFloat = 32,
+        showBackground: Bool = true
+    ) {
+        self.weatherType = recording.weather ?? .sunny
+        self.isDarkMode = isDarkMode
+        self.size = size
+        self.showBackground = showBackground
+    }
+    
+    // 便捷初始化器，用于天气数据
+    init(
+        from weatherData: WeatherData,
+        isDarkMode: Bool = false,
+        size: CGFloat = 32,
+        showBackground: Bool = true
+    ) {
+        self.weatherType = weatherData.type
+        self.isDarkMode = isDarkMode
+        self.size = size
+        self.showBackground = showBackground
+    }
+    
     var body: some View {
         ZStack {
             // 背景光晕效果 - 白色

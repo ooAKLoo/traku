@@ -35,8 +35,57 @@ struct AudioRecording: Identifiable, Equatable, Codable, DatabaseModel {
     var enrichedContent: String?
     var polishedText: String = ""  // 润色后的文本，默认为空
     var contentType: String = "thinking"  // 内容类型：thinking 或 inspiration
+    var weatherType: String?  // 天气类型，存储WeatherType的rawValue
+    var weatherLocation: String?  // 天气位置
     
-    init(id: UUID? = nil, timestamp: Date, duration: TimeInterval, transcription: String, title: String, summary: String, tags: [String], audioData: Data?, enrichedContent: String?, polishedText: String = "", contentType: String = "thinking") {
+    // 便捷访问天气类型枚举
+    var weather: WeatherType? {
+        get {
+            guard let weatherType = weatherType else { return nil }
+            return WeatherType(rawValue: weatherType)
+        }
+        set {
+            weatherType = newValue?.rawValue
+        }
+    }
+    
+    // MARK: - 天气相关方法
+    
+    /// 设置天气信息
+    mutating func setWeather(_ weatherData: WeatherData) {
+        self.weather = weatherData.type
+        self.weatherLocation = weatherData.location
+    }
+    
+    /// 获取天气数据（如果有的话）
+    func getWeatherData() -> WeatherData? {
+        guard let weather = weather else { return nil }
+        return WeatherData(
+            type: weather,
+            location: weatherLocation ?? "未知位置",
+            timestamp: timestamp
+        )
+    }
+    
+    /// 异步获取或设置天气信息
+    mutating func ensureWeatherInfo() async {
+        // 如果已有天气信息，直接返回
+        if weatherType != nil {
+            return
+        }
+        
+        // 获取当前天气
+        do {
+            let weatherData = try await WeatherService.shared.getWeatherForNote(noteId: id.uuidString)
+            setWeather(weatherData)
+        } catch {
+            // 获取失败，设置默认天气
+            self.weather = .sunny
+            self.weatherLocation = "未知位置"
+        }
+    }
+    
+    init(id: UUID? = nil, timestamp: Date, duration: TimeInterval, transcription: String, title: String, summary: String, tags: [String], audioData: Data?, enrichedContent: String?, polishedText: String = "", contentType: String = "thinking", weatherType: String? = nil, weatherLocation: String? = nil) {
         self.id = id ?? UUID()
         self.timestamp = timestamp
         self.duration = duration
@@ -48,6 +97,8 @@ struct AudioRecording: Identifiable, Equatable, Codable, DatabaseModel {
         self.enrichedContent = enrichedContent
         self.polishedText = polishedText
         self.contentType = contentType
+        self.weatherType = weatherType
+        self.weatherLocation = weatherLocation
     }
     
     static func == (lhs: AudioRecording, rhs: AudioRecording) -> Bool {
@@ -58,7 +109,9 @@ struct AudioRecording: Identifiable, Equatable, Codable, DatabaseModel {
                lhs.tags == rhs.tags &&
                lhs.enrichedContent == rhs.enrichedContent &&
                lhs.polishedText == rhs.polishedText &&
-               lhs.contentType == rhs.contentType
+               lhs.contentType == rhs.contentType &&
+               lhs.weatherType == rhs.weatherType &&
+               lhs.weatherLocation == rhs.weatherLocation
     }
     
     // MARK: - Codable Support
@@ -68,6 +121,8 @@ struct AudioRecording: Identifiable, Equatable, Codable, DatabaseModel {
         case enrichedContent = "enriched_content"
         case polishedText = "polished_text"
         case contentType = "content_type"
+        case weatherType = "weather_type"
+        case weatherLocation = "weather_location"
     }
     
     // MARK: - DatabaseModel Protocol Implementation
@@ -84,6 +139,8 @@ struct AudioRecording: Identifiable, Equatable, Codable, DatabaseModel {
         dict["enriched_content"] = enrichedContent
         dict["polished_text"] = polishedText
         dict["content_type"] = contentType
+        dict["weather_type"] = weatherType
+        dict["weather_location"] = weatherLocation
         
         // 序列化 tags 为 JSON 字符串
         if let tagsData = try? JSONEncoder().encode(tags),
@@ -112,6 +169,8 @@ struct AudioRecording: Identifiable, Equatable, Codable, DatabaseModel {
         let enrichedContent = dict["enriched_content"] as? String
         let polishedText = dict["polished_text"] as? String ?? ""
         let contentType = dict["content_type"] as? String ?? "thinking"
+        let weatherType = dict["weather_type"] as? String
+        let weatherLocation = dict["weather_location"] as? String
         
         // 反序列化 tags
         var tags: [String] = []
@@ -131,7 +190,9 @@ struct AudioRecording: Identifiable, Equatable, Codable, DatabaseModel {
             audioData: audioData,
             enrichedContent: enrichedContent,
             polishedText: polishedText,
-            contentType: contentType
+            contentType: contentType,
+            weatherType: weatherType,
+            weatherLocation: weatherLocation
         )
     }
 }

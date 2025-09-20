@@ -38,6 +38,8 @@ class RecordingRepository: Repository {
                 content_type TEXT NOT NULL DEFAULT 'thinking',
                 original_text TEXT,
                 embedding_vector TEXT,
+                weather_type TEXT,
+                weather_location TEXT,
                 created_at REAL NOT NULL DEFAULT (julianday('now')),
                 FOREIGN KEY (recording_id) REFERENCES recordings(id)
             );
@@ -66,7 +68,9 @@ class RecordingRepository: Repository {
             "ALTER TABLE \(tableName) ADD COLUMN recording_id TEXT;",
             "ALTER TABLE \(tableName) ADD COLUMN content_type TEXT NOT NULL DEFAULT 'thinking';",
             "ALTER TABLE \(tableName) ADD COLUMN original_text TEXT;",
-            "ALTER TABLE \(tableName) ADD COLUMN embedding_vector TEXT;"
+            "ALTER TABLE \(tableName) ADD COLUMN embedding_vector TEXT;",
+            "ALTER TABLE \(tableName) ADD COLUMN weather_type TEXT;",
+            "ALTER TABLE \(tableName) ADD COLUMN weather_location TEXT;"
         ]
         
         for sql in columnsToAdd {
@@ -129,6 +133,8 @@ class RecordingRepository: Repository {
                 content_type TEXT NOT NULL DEFAULT 'thinking',
                 original_text TEXT,
                 embedding_vector TEXT,
+                weather_type TEXT,
+                weather_location TEXT,
                 created_at REAL NOT NULL DEFAULT (julianday('now')),
                 FOREIGN KEY (recording_id) REFERENCES recordings(id)
             );
@@ -136,13 +142,15 @@ class RecordingRepository: Repository {
         
         // 复制数据（排除audio_data列，添加新字段）
         let copyDataSQL = """
-            INSERT INTO \(tableName)_new (id, recording_id, timestamp, duration, transcription, title, summary, tags, enriched_content, polished_text, content_type, original_text, embedding_vector, created_at)
+            INSERT INTO \(tableName)_new (id, recording_id, timestamp, duration, transcription, title, summary, tags, enriched_content, polished_text, content_type, original_text, embedding_vector, weather_type, weather_location, created_at)
             SELECT id, 
                    CASE WHEN recording_id IS NOT NULL THEN recording_id ELSE id END as recording_id,
                    timestamp, duration, transcription, title, summary, tags, enriched_content, polished_text,
                    'thinking' as content_type,
                    transcription as original_text,
                    NULL as embedding_vector,
+                   NULL as weather_type,
+                   NULL as weather_location,
                    CASE WHEN created_at IS NOT NULL THEN created_at ELSE julianday('now') END as created_at
             FROM \(tableName)
         """
@@ -173,8 +181,8 @@ class RecordingRepository: Repository {
     
     func create(_ model: AudioRecording) async throws -> Bool {
         let insertSQL = """
-            INSERT INTO \(tableName) (id, recording_id, timestamp, duration, transcription, title, summary, tags, enriched_content, polished_text, content_type, original_text, embedding_vector, created_at)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO \(tableName) (id, recording_id, timestamp, duration, transcription, title, summary, tags, enriched_content, polished_text, content_type, original_text, embedding_vector, weather_type, weather_location, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         """
         
         return try await sqliteCore.performAsync {
@@ -199,6 +207,8 @@ class RecordingRepository: Repository {
                 contentType,  // 从模型获取content_type
                 modelDict["transcription"] as Any,  // original_text 默认使用转录文本
                 NSNull(),  // embedding_vector 初始为空
+                modelDict["weather_type"] ?? NSNull(),
+                modelDict["weather_location"] ?? NSNull(),
                 Date().timeIntervalSince1970
             ]
             
@@ -217,7 +227,7 @@ class RecordingRepository: Repository {
     func read(id: UUID) async throws -> AudioRecording? {
         let querySQL = """
             SELECT id, recording_id, timestamp, duration, transcription, title, summary, tags, 
-                   enriched_content, polished_text, content_type, original_text, embedding_vector
+                   enriched_content, polished_text, content_type, original_text, embedding_vector, weather_type, weather_location
             FROM \(tableName)
             WHERE id = ?
         """
@@ -239,7 +249,7 @@ class RecordingRepository: Repository {
         let updateSQL = """
             UPDATE \(tableName) 
             SET recording_id = ?, timestamp = ?, duration = ?, transcription = ?, title = ?, summary = ?, 
-                tags = ?, enriched_content = ?, polished_text = ?, content_type = ?, original_text = ?, embedding_vector = ?
+                tags = ?, enriched_content = ?, polished_text = ?, content_type = ?, original_text = ?, embedding_vector = ?, weather_type = ?, weather_location = ?
             WHERE id = ?
         """
         
@@ -264,6 +274,8 @@ class RecordingRepository: Repository {
                 contentType,  // 从模型获取content_type
                 modelDict["transcription"] as Any,  // original_text 默认使用转录文本
                 NSNull(),  // embedding_vector
+                modelDict["weather_type"] ?? NSNull(),
+                modelDict["weather_location"] ?? NSNull(),
                 modelDict["id"] as Any
             ]
             
@@ -327,7 +339,7 @@ class RecordingRepository: Repository {
     func list(filter: FilterCriteria? = nil) async throws -> [AudioRecording] {
         var querySQL = """
             SELECT id, recording_id, timestamp, duration, transcription, title, summary, tags, 
-                   enriched_content, polished_text, content_type, original_text, embedding_vector
+                   enriched_content, polished_text, content_type, original_text, embedding_vector, weather_type, weather_location
             FROM \(tableName)
         """
         
@@ -738,6 +750,17 @@ class RecordingRepository: Repository {
             }
         }
         
+        // 天气信息字段解析
+        var weatherType: String?
+        if let weatherTypeText = sqlite3_column_text(statement, 13) {
+            weatherType = String(cString: weatherTypeText)
+        }
+        
+        var weatherLocation: String?
+        if let weatherLocationText = sqlite3_column_text(statement, 14) {
+            weatherLocation = String(cString: weatherLocationText)
+        }
+        
         return AudioRecording(
             id: uuid,
             timestamp: timestamp,
@@ -749,7 +772,9 @@ class RecordingRepository: Repository {
             audioData: audioData,
             enrichedContent: enrichedContent,
             polishedText: polishedText,
-            contentType: contentType
+            contentType: contentType,
+            weatherType: weatherType,
+            weatherLocation: weatherLocation
         )
     }
     

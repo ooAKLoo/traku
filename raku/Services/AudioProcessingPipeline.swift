@@ -64,7 +64,7 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
     @Published var isPaused = false
     @Published var currentStage = ProcessingStage.idle
     @Published var progress: Float = 0.0
-    @Published var isLLMEnabled = true  // LLM开关，默认关闭
+    @Published var isLLMEnabled = false  // LLM开关，默认关闭
     
     // MARK: - Private Properties
     private let speechService: VolcEngineSpeechService
@@ -491,6 +491,16 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
         
         print("📝 不使用LLM，直接完成录音处理")
         print("🎯 最终录音记录创建完成 - ID: \(finalRecording.id), 转录: \(finalRecording.transcription)")
+        
+        // 先保存录音记录到数据库和更新管理器
+        updateManager.updateRecording(finalRecording)
+        
+        // 后台获取天气信息
+        print("🌤️ 开始获取天气信息（无LLM流程）...")
+        Task {
+            await self.fetchAndUpdateWeatherInfo(for: recordingId, updatedRecording: finalRecording)
+        }
+        
         completePipeline(with: finalRecording)
     }
     
@@ -519,6 +529,26 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
             }
             
             self.delegate?.pipeline(self, didCompleteFirstStep: firstStepResult)
+            
+            // 后台获取天气信息（模拟LLM流程）
+            print("🌤️ 开始获取天气信息（模拟LLM流程）...")
+            if let recordingId = self.currentRecordingId {
+                let mockRecording = AudioRecording(
+                    id: recordingId,
+                    timestamp: self.recordingStartTime ?? Date(),
+                    duration: self.currentDuration,
+                    transcription: text,
+                    title: "录音摘要",
+                    summary: "这是一段模拟的录音内容摘要",
+                    tags: ["模拟", "测试"],
+                    audioData: nil,
+                    enrichedContent: nil
+                )
+                
+                Task {
+                    await self.fetchAndUpdateWeatherInfo(for: recordingId, updatedRecording: mockRecording)
+                }
+            }
             
             // 模拟第二步分析结果
             DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
@@ -670,6 +700,12 @@ extension AudioProcessingPipeline: TwoStepLLMServiceDelegate {
                     print("❌ [Pipeline] 向量生成失败: \(error)")
                 }
             }
+            
+            // 后台线程获取天气信息
+            print("🌤️ 开始获取天气信息...")
+            Task {
+                await self.fetchAndUpdateWeatherInfo(for: recordingId, updatedRecording: updatedRecording)
+            }
         }
         
         delegate?.pipeline(self, didCompleteFirstStep: result)
@@ -687,6 +723,14 @@ extension AudioProcessingPipeline: TwoStepLLMServiceDelegate {
         
         // 然后更新录音数据（但不会重新设置处理状态，因为already completed）
         updateManager.updateRecording(finalRecording)
+        
+        // 在LLM完成后也需要更新天气信息到最终记录
+        print("🌤️ LLM完成，更新最终记录的天气信息...")
+        if let recordingId = currentRecordingId {
+            Task {
+                await self.fetchAndUpdateWeatherInfo(for: recordingId, updatedRecording: finalRecording)
+            }
+        }
     }
     
     func twoStepLLMService(_ service: TwoStepLLMService, didFailWithError error: Error) {
@@ -741,6 +785,51 @@ extension AudioProcessingPipeline {
             print("✅ 结束后台任务: \(backgroundTaskIdentifier.rawValue)")
             UIApplication.shared.endBackgroundTask(backgroundTaskIdentifier)
             backgroundTaskIdentifier = .invalid
+        }
+    }
+    
+    // MARK: - 天气信息处理
+    
+    /// 在后台线程获取并更新录音的天气信息
+    @MainActor
+    private func fetchAndUpdateWeatherInfo(for recordingId: UUID, updatedRecording: AudioRecording) async {
+        do {
+            // 获取天气信息
+            let weatherData = try await WeatherService.shared.getWeatherForNote(noteId: recordingId.uuidString)
+            
+            // 创建包含天气信息的录音记录
+            var recordingWithWeather = updatedRecording
+            recordingWithWeather.setWeather(weatherData)
+            
+            // 更新数据库
+            let success = try await DatabaseManager.shared.recordingRepository.update(recordingWithWeather)
+            
+            if success {
+                // 更新实时管理器
+                updateManager.updateRecording(recordingWithWeather)
+                print("✅ [Pipeline] 天气信息已更新: \(weatherData.type.displayName) @ \(weatherData.location)")
+            } else {
+                print("❌ [Pipeline] 天气信息数据库更新失败")
+            }
+            
+        } catch {
+            print("⚠️ [Pipeline] 天气信息获取失败，使用默认值: \(error.localizedDescription)")
+            
+            // 设置默认天气信息
+            var recordingWithDefaultWeather = updatedRecording
+            recordingWithDefaultWeather.weather = .sunny
+            recordingWithDefaultWeather.weatherLocation = "位置未知"
+            
+            // 更新数据库
+            do {
+                let success = try await DatabaseManager.shared.recordingRepository.update(recordingWithDefaultWeather)
+                if success {
+                    updateManager.updateRecording(recordingWithDefaultWeather)
+                    print("✅ [Pipeline] 已设置默认天气信息")
+                }
+            } catch {
+                print("❌ [Pipeline] 默认天气信息更新失败: \(error.localizedDescription)")
+            }
         }
     }
 }

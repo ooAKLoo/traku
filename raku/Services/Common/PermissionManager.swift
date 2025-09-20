@@ -7,17 +7,20 @@ import Foundation
 import AVFoundation
 import Network
 import UIKit
+import CoreLocation
 
 /// 权限管理器 - 统一处理应用所需的各种权限
-class PermissionManager: ObservableObject {
+class PermissionManager: NSObject, ObservableObject {
     
     static let shared = PermissionManager()
     
     @Published var microphonePermissionStatus: AVAudioSession.RecordPermission = .undetermined
+    @Published var locationPermissionStatus: CLAuthorizationStatus = .notDetermined
     @Published var networkPermissionStatus: NetworkPermissionStatus = .unknown
     
     private let networkMonitor = NWPathMonitor()
     private let monitorQueue = DispatchQueue(label: "NetworkMonitor")
+    private let locationManager = CLLocationManager()
     
     enum NetworkPermissionStatus {
         case unknown
@@ -26,7 +29,9 @@ class PermissionManager: ObservableObject {
         case restricted
     }
     
-    private init() {
+    private override init() {
+        super.init()
+        locationManager.delegate = self
         checkCurrentPermissions()
     }
     
@@ -44,6 +49,9 @@ class PermissionManager: ObservableObject {
             }
         }
         
+        // 请求位置权限
+        requestLocationPermission()
+        
         // 检查网络权限
         checkNetworkPermission()
     }
@@ -52,6 +60,9 @@ class PermissionManager: ObservableObject {
     func checkCurrentPermissions() {
         // 检查麦克风权限
         microphonePermissionStatus = AVAudioSession.sharedInstance().recordPermission
+        
+        // 检查位置权限
+        locationPermissionStatus = locationManager.authorizationStatus
         
         // 检查网络权限
         checkNetworkPermission()
@@ -82,6 +93,26 @@ class PermissionManager: ObservableObject {
         @unknown default:
             print("⚠️ 未知的麦克风权限状态")
             completion(false)
+        }
+    }
+    
+    /// 请求位置权限
+    func requestLocationPermission() {
+        let currentStatus = locationManager.authorizationStatus
+        
+        switch currentStatus {
+        case .authorizedWhenInUse, .authorizedAlways:
+            print("✅ 位置权限已授权")
+            
+        case .denied, .restricted:
+            print("❌ 位置权限被拒绝或受限")
+            
+        case .notDetermined:
+            print("🔔 主动请求位置权限")
+            locationManager.requestWhenInUseAuthorization()
+            
+        @unknown default:
+            print("⚠️ 未知的位置权限状态")
         }
     }
     
@@ -128,6 +159,18 @@ class PermissionManager: ObservableObject {
             status += "⚠️ 麦克风: 未知状态\n"
         }
         
+        // 位置权限
+        switch locationPermissionStatus {
+        case .authorizedWhenInUse, .authorizedAlways:
+            status += "📍 位置: 已授权\n"
+        case .denied, .restricted:
+            status += "❌ 位置: 被拒绝\n"
+        case .notDetermined:
+            status += "🔔 位置: 未确定\n"
+        @unknown default:
+            status += "⚠️ 位置: 未知状态\n"
+        }
+        
         // 网络权限
         switch networkPermissionStatus {
         case .available:
@@ -157,7 +200,14 @@ class PermissionManager: ObservableObject {
     /// 检查是否所有必要权限都已获得
     var hasAllRequiredPermissions: Bool {
         return microphonePermissionStatus == .granted && 
+               hasLocationPermission &&
                networkPermissionStatus == .available
+    }
+    
+    /// 检查是否有位置权限
+    var hasLocationPermission: Bool {
+        return locationPermissionStatus == .authorizedWhenInUse || 
+               locationPermissionStatus == .authorizedAlways
     }
     
     /// 检查是否可以开始录音
@@ -188,12 +238,44 @@ extension PermissionManager {
         - 用于录制您的语音内容
         - 进行语音识别和AI分析
         
+        📍 位置权限
+        - 用于获取天气信息
+        - 为您的录音添加位置和天气上下文
+        
         🌐 网络权限  
         - 用于语音识别服务
         - 进行AI内容分析
+        - 获取天气信息
         - 同步和备份数据
         
         您可以随时在设置中更改这些权限。
         """
+    }
+}
+
+// MARK: - CLLocationManagerDelegate
+extension PermissionManager: CLLocationManagerDelegate {
+    
+    func locationManager(_ manager: CLLocationManager, didChangeAuthorization status: CLAuthorizationStatus) {
+        DispatchQueue.main.async {
+            self.locationPermissionStatus = status
+        }
+        
+        switch status {
+        case .authorizedWhenInUse, .authorizedAlways:
+            print("✅ 位置权限已授权: \(status)")
+        case .denied:
+            print("❌ 位置权限被用户拒绝")
+        case .restricted:
+            print("❌ 位置权限受限")
+        case .notDetermined:
+            print("🔔 位置权限未确定")
+        @unknown default:
+            print("⚠️ 未知的位置权限状态: \(status)")
+        }
+    }
+    
+    func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
+        print("❌ 位置服务错误: \(error.localizedDescription)")
     }
 }
