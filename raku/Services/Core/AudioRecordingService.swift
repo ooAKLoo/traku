@@ -608,4 +608,18 @@ extension AudioRecordingService: AudioProcessingPipelineDelegate {
         // 处理失败
         print("音频处理失败: \(error.localizedDescription)")
     }
+    
+    func pipeline(_ pipeline: AudioProcessingPipeline, didDeleteEmptyRecording recordingId: UUID) {
+        // 删除空录音，从UI中移除
+        print("🗑️ [AudioRecordingService] 收到删除空录音通知，ID: \(recordingId.uuidString.prefix(8))")
+        
+        // 从recordings数组中移除
+        if let index = recordings.firstIndex(where: { $0.id == recordingId }) {
+            recordings.remove(at: index)
+            objectWillChange.send() // 强制触发UI更新
+            print("✅ [AudioRecordingService] 已从UI中移除空录音记录")
+        } else {
+            print("⚠️ [AudioRecordingService] 未找到要删除的录音记录")
+        }
+    }
 }

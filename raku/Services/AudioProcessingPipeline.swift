@@ -30,6 +30,9 @@ protocol AudioProcessingPipelineDelegate: AnyObject {
     
     /// 处理失败
     func pipeline(_ pipeline: AudioProcessingPipeline, didFailWithError error: AudioProcessingError)
+    
+    /// 删除空录音（需要从UI中移除）
+    func pipeline(_ pipeline: AudioProcessingPipeline, didDeleteEmptyRecording recordingId: UUID)
 }
 
 // MARK: - 音频处理错误类型
@@ -546,7 +549,23 @@ extension AudioProcessingPipeline: VolcEngineSpeechServiceDelegate {
                 ToastManager.shared.showWarning("录音内容为空，请重新录制")
             }
             
-            // 重置流程状态，不保存到数据库
+            // 清理已保存的数据库记录
+            if let recordingId = currentRecordingId {
+                print("🗑️ 清理空录音的数据库记录，ID: \(recordingId.uuidString.prefix(8))")
+                let deleteSuccess = DatabaseManager.shared.deleteRecording(id: recordingId)
+                print("🗑️ 删除录音记录: \(deleteSuccess ? "成功" : "失败")")
+                
+                // 从实时管理器中移除处理状态和录音数据
+                DispatchQueue.main.async {
+                    self.updateManager.recordingUpdates.removeValue(forKey: recordingId)
+                    self.updateManager.processingRecordings.removeValue(forKey: recordingId)
+                }
+                
+                // 通知代理删除空录音（更新UI）
+                delegate?.pipeline(self, didDeleteEmptyRecording: recordingId)
+            }
+            
+            // 重置流程状态
             currentStage = .idle
             progress = 0.0
             isProcessing = false
@@ -555,6 +574,7 @@ extension AudioProcessingPipeline: VolcEngineSpeechServiceDelegate {
             currentRecordingData = nil
             currentDuration = 0
             recordingStartTime = nil
+            currentRecordingId = nil
             
             return
         }
@@ -819,6 +839,13 @@ extension AudioProcessingPipeline {
         
         guard let content = embeddingContent, !content.isEmpty else {
             print("  ❌ 没有可用内容生成embedding，跳过")
+            return
+        }
+        
+        // 检查内容是否为占位符文本（说明是未完成处理的记录）
+        let trimmedContent = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmedContent == "处理中..." || trimmedContent.isEmpty {
+            print("  ⚠️ 检测到占位符或空内容，跳过embedding生成")
             return
         }
         
