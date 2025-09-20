@@ -557,7 +557,7 @@ struct ExportDestinationViewEmbedded: View {
             ---
             
             AI总结:
-            \(enrichedContent)
+            \(enrichedContent.markdownToPlainText())
             """
         }
         
@@ -584,24 +584,24 @@ struct ExportDestinationViewEmbedded: View {
         var transcriptionTitle = AttributedString("转写内容")
         transcriptionTitle.font = .system(size: 18, weight: .semibold)
         attributedString.append(transcriptionTitle)
-        attributedString.append(AttributedString("\n"))
+        attributedString.append(AttributedString("\n\n"))
         
         var transcriptionText = AttributedString(recording.transcription)
         transcriptionText.font = .system(size: 16)
         attributedString.append(transcriptionText)
-        attributedString.append(AttributedString("\n\n"))
+        attributedString.append(AttributedString("\n\n\n"))
         
         // 润色版本（如果有）
         if !recording.polishedText.isEmpty {
             var polishedTitle = AttributedString("润色版本")
             polishedTitle.font = .system(size: 18, weight: .semibold)
             attributedString.append(polishedTitle)
-            attributedString.append(AttributedString("\n"))
+            attributedString.append(AttributedString("\n\n"))
             
             var polishedText = AttributedString(recording.polishedText)
             polishedText.font = .system(size: 16)
             attributedString.append(polishedText)
-            attributedString.append(AttributedString("\n\n"))
+            attributedString.append(AttributedString("\n\n\n"))
         }
         
         // AI总结（如果有）
@@ -609,11 +609,10 @@ struct ExportDestinationViewEmbedded: View {
             var aiTitle = AttributedString("AI总结")
             aiTitle.font = .system(size: 18, weight: .semibold)
             attributedString.append(aiTitle)
-            attributedString.append(AttributedString("\n"))
+            attributedString.append(AttributedString("\n\n"))
             
-            var aiText = AttributedString(enrichedContent)
-            aiText.font = .system(size: 16)
-            attributedString.append(aiText)
+            let parsedAiContent = MarkdownParser.parseToAttributedStringForImage(enrichedContent)
+            attributedString.append(parsedAiContent)
         }
         
         return attributedString
