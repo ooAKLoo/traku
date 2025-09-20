@@ -530,7 +530,7 @@ struct ExportDestinationViewEmbedded: View {
     private func buildTextContent() -> String {
         var content = """
         标题: \(recording.title)
-        时间: \(recording.timestamp.formatted(.dateTime.year().month().day().hour().minute()))
+        时间: \(recording.timestamp.formattedForExport())
         标签: \(recording.tags.joined(separator: ", "))
         
         ---
@@ -574,7 +574,7 @@ struct ExportDestinationViewEmbedded: View {
         attributedString.append(AttributedString("\n\n"))
         
         // 元数据
-        var metaText = AttributedString("\(recording.timestamp.formatted(.dateTime.year().month().day().hour().minute())) • \(recording.tags.joined(separator: ", "))")
+        var metaText = AttributedString("\(recording.timestamp.formattedForExport()) • \(recording.tags.joined(separator: ", "))")
         metaText.font = .system(size: 14)
         metaText.foregroundColor = .gray
         attributedString.append(metaText)
