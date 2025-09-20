@@ -64,7 +64,7 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
     @Published var isPaused = false
     @Published var currentStage = ProcessingStage.idle
     @Published var progress: Float = 0.0
-    @Published var isLLMEnabled = false  // LLM开关，默认关闭
+    @Published var isLLMEnabled = true  // LLM开关，默认关闭
     
     // MARK: - Private Properties
     private let speechService: VolcEngineSpeechService
@@ -339,13 +339,8 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
             updateManager.updateProcessingStatus(for: recordingId, stage: convertToUIStage(.llmAnalysisFirstStep), progress: 0.6)
         }
         
-        if isLLMEnabled {
-            // 使用真实LLM服务，传递录音ID
-            llmService.analyzeText(recognitionText, recordingId: currentRecordingId)
-        } else {
-            // 返回模拟数据
-            generateMockAnalysis(for: recognitionText)
-        }
+        // 使用真实LLM服务，传递录音ID
+        llmService.analyzeText(recognitionText, recordingId: currentRecordingId)
     }
     
     private func createInitialRecording(audioData: Data?, duration: TimeInterval) -> AudioRecording {
@@ -495,6 +490,15 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
         // 先保存录音记录到数据库和更新管理器
         updateManager.updateRecording(finalRecording)
         
+        // 无LLM流程完成，生成基于转录文本的embedding
+        print("🎯 无LLM流程完成，生成最终embedding")
+        generateEmbeddingForRecording(
+            recordingId: recordingId,
+            thoughtType: .unknown,  // 无LLM时设为未分类
+            polishedText: nil,
+            transcription: result.text
+        )
+        
         // 后台获取天气信息
         print("🌤️ 开始获取天气信息（无LLM流程）...")
         Task {
@@ -502,74 +506,6 @@ class AudioProcessingPipeline: NSObject, ObservableObject {
         }
         
         completePipeline(with: finalRecording)
-    }
-    
-    /// 生成模拟的LLM分析结果
-    private func generateMockAnalysis(for text: String) {
-        // 模拟第一步分析结果
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-            guard let self = self else { return }
-            
-            let firstStepResult = FirstStepAnalysis(
-                title: "录音摘要",
-                oneSentenceSummary: "这是一段模拟的录音内容摘要",
-                thoughtType: .unknown,
-                tags: ["模拟", "测试"],
-                originalText: text,
-                polishedText: text,
-                timestamp: Date()
-            )
-            
-            self.currentStage = .llmAnalysisSecondStep
-            self.progress = 0.8
-            
-            // 更新处理状态到实时管理器
-            if let recordingId = self.currentRecordingId {
-                self.updateManager.updateProcessingStatus(for: recordingId, stage: self.convertToUIStage(.llmAnalysisSecondStep), progress: 0.8)
-            }
-            
-            self.delegate?.pipeline(self, didCompleteFirstStep: firstStepResult)
-            
-            // 后台获取天气信息（模拟LLM流程）
-            print("🌤️ 开始获取天气信息（模拟LLM流程）...")
-            if let recordingId = self.currentRecordingId {
-                let mockRecording = AudioRecording(
-                    id: recordingId,
-                    timestamp: self.recordingStartTime ?? Date(),
-                    duration: self.currentDuration,
-                    transcription: text,
-                    title: "录音摘要",
-                    summary: "这是一段模拟的录音内容摘要",
-                    tags: ["模拟", "测试"],
-                    audioData: nil,
-                    enrichedContent: nil
-                )
-                
-                Task {
-                    await self.fetchAndUpdateWeatherInfo(for: recordingId, updatedRecording: mockRecording)
-                }
-            }
-            
-            // 模拟第二步分析结果
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) { [weak self] in
-                guard let self = self else { return }
-                
-                let finalResult = TwoStepAnalysisResult(
-                    title: "录音摘要",
-                    summary: "这是一段模拟的录音内容摘要",
-                    thoughtType: .unknown,
-                    tags: ["模拟", "测试"],
-                    enrichedContent: "这是模拟的丰富内容，包含了对录音的详细分析和理解。",
-                    originalText: text,
-                    polishedText: text,
-                    timestamp: Date()
-                )
-                
-                let finalRecording = self.createFinalRecording(analysisResult: finalResult)
-                print("📝 模拟LLM: 即将调用completePipeline")
-                self.completePipeline(with: finalRecording)
-            }
-        }
     }
 }
 
@@ -683,22 +619,17 @@ extension AudioProcessingPipeline: TwoStepLLMServiceDelegate {
             
             print("✅ 录音数据已更新，content_type设置为: \(contentType)")
             
-            // 统一在第一步完成后生成向量（无论是thinking还是inspiration类型）
-            print("🔄 开始生成向量嵌入...")
-            VolcEngineEmbeddingService.shared.generateEmbeddings(
-                for: recordingId.uuidString,
-                title: result.title,
-                tags: result.tags,
-                polishedText: result.polishedText,
-                transcription: result.originalText
-            ) { embeddingResult in
-                switch embeddingResult {
-                case .success(let embeddings):
-                    DatabaseManager.shared.saveEmbeddings(embeddings)
-                    print("✅ [Pipeline] 向量生成成功，录音ID: \(recordingId)")
-                case .failure(let error):
-                    print("❌ [Pipeline] 向量生成失败: \(error)")
-                }
+            // 灵感类内容在第一步完成后即可生成embedding（LLM处理结束）
+            if result.thoughtType == .insight {
+                print("🎯 灵感类内容LLM处理完成，生成最终embedding")
+                generateEmbeddingForRecording(
+                    recordingId: recordingId,
+                    thoughtType: result.thoughtType,
+                    polishedText: result.polishedText,
+                    transcription: result.originalText
+                )
+            } else {
+                print("⏸️ 思考类内容，等待第二步完成后生成embedding")
             }
             
             // 后台线程获取天气信息
@@ -723,6 +654,18 @@ extension AudioProcessingPipeline: TwoStepLLMServiceDelegate {
         
         // 然后更新录音数据（但不会重新设置处理状态，因为already completed）
         updateManager.updateRecording(finalRecording)
+        
+        // 思考类内容在第二步完成后生成embedding（LLM处理结束）
+        if let recordingId = currentRecordingId {
+            print("🎯 LLM第二步完成，生成最终embedding")
+            generateEmbeddingForRecording(
+                recordingId: recordingId,
+                thoughtType: result.thoughtType,
+                polishedText: result.polishedText,
+                enrichedContent: result.enrichedContent,
+                transcription: result.originalText
+            )
+        }
         
         // 在LLM完成后也需要更新天气信息到最终记录
         print("🌤️ LLM完成，更新最终记录的天气信息...")
@@ -831,5 +774,94 @@ extension AudioProcessingPipeline {
                 print("❌ [Pipeline] 默认天气信息更新失败: \(error.localizedDescription)")
             }
         }
+    }
+    
+    /// 统一的embedding生成方法 - 根据录音类型和内容生成合适的embedding
+    /// - Parameters:
+    ///   - recordingId: 录音ID
+    ///   - thoughtType: 思想类型
+    ///   - polishedText: 润色文本
+    ///   - enrichedContent: 富化内容（可选，仅思考类内容有）
+    ///   - transcription: 原始转录文本（备选）
+    private func generateEmbeddingForRecording(
+        recordingId: UUID,
+        thoughtType: FlashThoughtType,
+        polishedText: String?,
+        enrichedContent: String? = nil,
+        transcription: String? = nil
+    ) {
+        print("🔄 为录音生成embedding - ID: \(recordingId.uuidString.prefix(8)), 类型: \(thoughtType.rawValue)")
+        
+        // 根据类型决定embedding内容
+        let embeddingContent: String?
+        
+        switch thoughtType {
+        case .insight:
+            // 灵感类：使用润色文本，如果没有则使用转录文本
+            embeddingContent = polishedText ?? transcription
+            print("  📝 灵感类内容，使用润色文本生成embedding")
+            
+        case .reflection:
+            // 思考类：组合润色文本和富化内容
+            if let polished = polishedText, let enriched = enrichedContent {
+                embeddingContent = combineContentForEmbedding(polishedText: polished, enrichedContent: enriched)
+                print("  📝 思考类内容，使用润色文本+富化内容生成embedding")
+            } else {
+                embeddingContent = polishedText ?? transcription
+                print("  ⚠️ 思考类内容缺少富化内容，使用润色文本生成embedding")
+            }
+            
+        case .unknown:
+            // 未分类：优先使用润色文本，否则使用转录文本
+            embeddingContent = polishedText ?? transcription
+            print("  📝 未分类内容，使用可用文本生成embedding")
+        }
+        
+        guard let content = embeddingContent, !content.isEmpty else {
+            print("  ❌ 没有可用内容生成embedding，跳过")
+            return
+        }
+        
+        VolcEngineEmbeddingService.shared.generateEmbeddings(
+            for: recordingId.uuidString,
+            title: nil,  // 不使用标题
+            tags: [],    // 不使用标签
+            polishedText: content,
+            transcription: nil
+        ) { embeddingResult in
+            switch embeddingResult {
+            case .success(let embeddings):
+                DatabaseManager.shared.saveEmbeddings(embeddings)
+                print("✅ [Pipeline] Embedding生成成功 - 录音ID: \(recordingId.uuidString.prefix(8)), 类型: \(thoughtType.rawValue)")
+            case .failure(let error):
+                print("❌ [Pipeline] Embedding生成失败 - 录音ID: \(recordingId.uuidString.prefix(8)), 错误: \(error)")
+            }
+        }
+    }
+    
+    /// 组合润色文本和富化内容，用于生成思考类内容的embedding
+    private func combineContentForEmbedding(polishedText: String, enrichedContent: String) -> String {
+        // 将润色文本和富化内容组合，中间用分隔符分开
+        var components: [String] = []
+        
+        // 添加润色文本
+        if !polishedText.isEmpty {
+            components.append(polishedText)
+        }
+        
+        // 添加富化内容
+        if !enrichedContent.isEmpty {
+            components.append(enrichedContent)
+        }
+        
+        // 用换行符连接，让两部分内容有清晰的分隔
+        let combinedText = components.joined(separator: "\n\n")
+        
+        print("    📎 组合内容详情:")
+        print("      - 润色文本长度: \(polishedText.count)")
+        print("      - 富化内容长度: \(enrichedContent.count)")
+        print("      - 组合后总长度: \(combinedText.count)")
+        
+        return combinedText
     }
 }

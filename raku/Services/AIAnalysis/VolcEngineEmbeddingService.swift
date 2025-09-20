@@ -113,11 +113,10 @@ final class VolcEngineEmbeddingService {
         
         print("[EmbeddingService] 生成向量化:")
         print("  录音ID: \(recordingId)")
-        print("  标题: \(title ?? "无")")
-        print("  标签: \(tags)")
         print("  润色文本长度: \(polishedText?.count ?? 0)")
         print("  转录文本长度: \(transcription?.count ?? 0)")
-        print("  最终语义文本长度: \(semanticText.count)")
+        print("  最终内容文本长度: \(semanticText.count)")
+        print("  注: 只使用内容生成embedding，不包含标题和标签")
         
         guard !semanticText.isEmpty else {
             print("  ⚠️ 语义文本为空，跳过向量生成")
@@ -227,51 +226,35 @@ final class VolcEngineEmbeddingService {
     
     // MARK: - Private Methods
     
-    /// 生成统一的语义文本，与Python版本保持一致
+    /// 生成统一的语义文本 - 只使用内容，不包含title和tags
     private func generateSemanticText(
         title: String?,
         tags: [String],
         polishedText: String?,
         transcription: String?
     ) -> String {
-        var components: [String] = []
-        
-        // 标题
-        if let title = title, !title.isEmpty {
-            components.append("标题：\(title)")
-        }
-        
-        // 标签
-        if !tags.isEmpty {
-            let tagsString = tags.joined(separator: ", ")
-            components.append("标签：\(tagsString)")
-        }
-        
         // 内容：优先使用润色文本，如果没有则使用原始转录
         var contentText: String? = nil
         if let polishedText = polishedText, !polishedText.isEmpty {
             contentText = polishedText
+            print("  ✅ 使用润色文本生成embedding")
         } else if let transcription = transcription, !transcription.isEmpty {
             contentText = transcription
             print("  ⚠️ 润色文本为空，使用原始转录文本")
-        }
-        
-        if let content = contentText {
-            // 限制文本长度，避免超出token限制
-            let truncatedText = String(content.prefix(8000))
-            components.append("内容：\(truncatedText)")
         } else {
-            print("  ⚠️ 警告：没有可用的内容文本（润色文本和转录文本都为空）")
+            print("  ❌ 警告：没有可用的内容文本（润色文本和转录文本都为空）")
+            return ""
         }
         
-        let result = components.joined(separator: " | ")
+        // 限制文本长度，避免超出token限制
+        let truncatedText = String(contentText!.prefix(8000))
         
         // 如果结果太短，可能导致向量相似
-        if result.count < 20 {
-            print("  ⚠️ 警告：语义文本太短: \(result)")
+        if truncatedText.count < 20 {
+            print("  ⚠️ 警告：内容文本太短: \(truncatedText)")
         }
         
-        return result
+        return truncatedText
     }
     
     // 移除复杂的批处理逻辑，新API每次只处理一个输入
