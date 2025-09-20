@@ -39,15 +39,13 @@ struct TagEditModal: View {
                                 .font(.system(size: 16, weight: .medium))
                                 .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8))
                             
-                            LazyVGrid(columns: [
-                                GridItem(.adaptive(minimum: 80))
-                            ], spacing: 8) {
+                            FlowLayout(spacing: 8) {
                                 ForEach(tags, id: \.self) { tag in
                                     HStack(spacing: 6) {
                                         Text("#\(tag)")
                                             .font(.system(size: 13, weight: .regular))
                                             .foregroundColor(isDarkMode ? .white.opacity(0.9) : .black.opacity(0.9))
-                                            .lineLimit(1)
+                                            .fixedSize(horizontal: true, vertical: false)
                                         
                                         Button(action: {
                                             withAnimation(.spring(response: 0.3)) {
@@ -107,9 +105,7 @@ struct TagEditModal: View {
                             .font(.system(size: 16, weight: .medium))
                             .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8))
                         
-                        LazyVGrid(columns: [
-                            GridItem(.adaptive(minimum: 70))
-                        ], spacing: 8) {
+                        FlowLayout(spacing: 8) {
                             ForEach(suggestedTags.filter { !tags.contains($0) }, id: \.self) { tag in
                                 Button(action: {
                                     withAnimation(.spring(response: 0.3)) {
@@ -119,6 +115,7 @@ struct TagEditModal: View {
                                     Text("#\(tag)")
                                         .font(.system(size: 13, weight: .regular))
                                         .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
+                                        .fixedSize(horizontal: true, vertical: false)
                                         .padding(.horizontal, 12)
                                         .padding(.vertical, 8)
                                         .background(
