@@ -851,8 +851,6 @@ extension AudioProcessingPipeline {
         
         VolcEngineEmbeddingService.shared.generateEmbeddings(
             for: recordingId.uuidString,
-            title: nil,  // 不使用标题
-            tags: [],    // 不使用标签
             polishedText: content,
             transcription: nil
         ) { embeddingResult in

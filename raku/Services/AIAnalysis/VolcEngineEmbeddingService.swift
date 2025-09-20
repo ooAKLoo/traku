@@ -90,33 +90,26 @@ final class VolcEngineEmbeddingService {
     /// 生成录音内容的向量化表示
     /// - Parameters:
     ///   - recordingId: 录音记录ID
-    ///   - title: 标题文本
-    ///   - tags: 标签数组
     ///   - polishedText: 润色后的文本
     ///   - transcription: 原始转录文本（作为备选）
     ///   - completion: 完成回调
     func generateEmbeddings(
         for recordingId: String,
-        title: String?,
-        tags: [String],
         polishedText: String?,
         transcription: String? = nil,
         completion: @escaping (Result<EmbeddingResult, Error>) -> Void
     ) {
         // 生成统一的语义文本
         let semanticText = generateSemanticText(
-            title: title,
-            tags: tags,
             polishedText: polishedText,
             transcription: transcription
         )
         
-        print("[EmbeddingService] 生成向量化:")
+        print("[EmbeddingService] 生成录音向量化:")
         print("  录音ID: \(recordingId)")
         print("  润色文本长度: \(polishedText?.count ?? 0)")
         print("  转录文本长度: \(transcription?.count ?? 0)")
         print("  最终内容文本长度: \(semanticText.count)")
-        print("  注: 只使用内容生成embedding，不包含标题和标签")
         
         guard !semanticText.isEmpty else {
             print("  ⚠️ 语义文本为空，跳过向量生成")
@@ -129,6 +122,39 @@ final class VolcEngineEmbeddingService {
             for: recordingId,
             textInput: semanticText,
             completion: completion
+        )
+    }
+    
+    /// 为搜索查询生成向量化表示
+    /// - Parameters:
+    ///   - query: 搜索查询文本
+    ///   - completion: 完成回调
+    func generateSearchEmbedding(
+        for query: String,
+        completion: @escaping (Result<[Float], Error>) -> Void
+    ) {
+        guard !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            print("[EmbeddingService] 搜索查询为空")
+            completion(.success([]))
+            return
+        }
+        
+        print("[EmbeddingService] 生成搜索向量化:")
+        print("  查询内容: \(query)")
+        print("  查询长度: \(query.count)")
+        
+        // 直接使用查询文本生成向量
+        generateMultimodalEmbeddings(
+            for: "search_query",
+            textInput: query,
+            completion: { result in
+                switch result {
+                case .success(let embeddingResult):
+                    completion(.success(embeddingResult.embedding))
+                case .failure(let error):
+                    completion(.failure(error))
+                }
+            }
         )
     }
     
@@ -202,8 +228,6 @@ final class VolcEngineEmbeddingService {
                 // 生成向量
                 self.generateEmbeddings(
                     for: recordingId,
-                    title: recording.title,
-                    tags: recording.tags,
                     polishedText: recording.polishedText,
                     transcription: recording.transcription
                 ) { result in
@@ -226,10 +250,8 @@ final class VolcEngineEmbeddingService {
     
     // MARK: - Private Methods
     
-    /// 生成统一的语义文本 - 只使用内容，不包含title和tags
+    /// 生成统一的语义文本
     private func generateSemanticText(
-        title: String?,
-        tags: [String],
         polishedText: String?,
         transcription: String?
     ) -> String {

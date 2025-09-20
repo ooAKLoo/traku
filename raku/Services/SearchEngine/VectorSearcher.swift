@@ -21,22 +21,15 @@ final class VectorSearcher {
         lastQuery = query
         
         // 生成查询向量
-        embeddingService.generateEmbeddings(
-            for: "query",
-            title: query,  // 直接使用查询文本，与Python逻辑对齐
-            tags: [],  // 不提取标签，与Python逻辑对齐
-            polishedText: nil  // 不需要额外的文本
-        ) { [weak self] result in
+        embeddingService.generateSearchEmbedding(for: query) { [weak self] result in
             guard let self = self else { return }
             
             switch result {
-            case .success(let embeddingResult):
-                guard !embeddingResult.embedding.isEmpty else {
+            case .success(let queryEmbedding):
+                guard !queryEmbedding.isEmpty else {
                     completion(.success([]))
                     return
                 }
-                
-                let queryEmbedding = embeddingResult.embedding
                 let queryPreview = queryEmbedding.prefix(5).map { String(format: "%.4f", $0) }.joined(separator: ", ")
                 print("vectorprocess--- 🔢 查询向量前5值: [\(queryPreview)]")
                 
