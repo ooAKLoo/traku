@@ -1,10 +1,16 @@
 //
 //  VolcEngineSpeechService.swift
-//  语音识别服务 - 使用 SenseVoice API
+//  语音识别服务 - 支持 SenseVoice 和豆包语音识别 API
 //
 
 import Foundation
 import Combine
+
+// MARK: - ASR模型类型
+enum ASRModelType {
+    case senseVoice
+    case doubao
+}
 
 // MARK: - SenseVoice配置
 struct SenseVoiceConfiguration {
@@ -16,6 +22,18 @@ struct SenseVoiceConfiguration {
     static let `default` = SenseVoiceConfiguration(
         serverURL: "http://115.190.136.178:8001",
         endpoint: "/transcribe/normal",
+        timeout: 130.0
+    )
+}
+
+// MARK: - 豆包语音识别配置
+struct DoubaoSpeechConfiguration {
+    let apiEndpoint: String
+    let timeout: TimeInterval
+    
+    // 默认配置
+    static let `default` = DoubaoSpeechConfiguration(
+        apiEndpoint: "https://openspeech.bytedance.com/api/v3/auc/bigmodel/recognize/flash",
         timeout: 130.0
     )
 }
@@ -47,16 +65,19 @@ protocol VolcEngineSpeechServiceDelegate: AnyObject {
     func speechServiceDidStopRecognition(_ service: VolcEngineSpeechService)
 }
 
-// MARK: - SenseVoice语音识别服务
+// MARK: - 语音识别服务（支持多种ASR模型）
 class VolcEngineSpeechService: NSObject, ObservableObject {
     
     // MARK: - Published Properties
     @Published var isRecognizing = false
     @Published var lastResult: SpeechRecognitionResult?
     @Published var allResults: [SpeechRecognitionResult] = []
+    // 使用配置的默认模型
+    private let currentModel: ASRModelType = ASRConfiguration.defaultModel
     
     // MARK: - Private Properties
-    private let configuration: SenseVoiceConfiguration
+    private let senseVoiceConfig: SenseVoiceConfiguration
+    private let doubaoConfig: DoubaoSpeechConfiguration
     private let networkService: NetworkService
     private var currentTask: URLSessionDataTask?
     
@@ -65,16 +86,20 @@ class VolcEngineSpeechService: NSObject, ObservableObject {
     weak var delegate: VolcEngineSpeechServiceDelegate?
     
     // MARK: - Initialization
-    init(configuration: SenseVoiceConfiguration = .default) {
-        self.configuration = configuration
+    init(senseVoiceConfig: SenseVoiceConfiguration = .default, 
+         doubaoConfig: DoubaoSpeechConfiguration = .default) {
+        self.senseVoiceConfig = senseVoiceConfig
+        self.doubaoConfig = doubaoConfig
         
+        // 使用统一的网络配置（headers会在请求时根据不同模型设置）
         let networkConfig = NetworkConfiguration(
-            timeout: configuration.timeout  // 使用SenseVoice的130秒配置
+            timeout: max(senseVoiceConfig.timeout, doubaoConfig.timeout)
         )
         self.networkService = NetworkService(configuration: networkConfig)
         
         super.init()
     }
+    
     
     deinit {
         stopRecognition()
@@ -108,7 +133,15 @@ class VolcEngineSpeechService: NSObject, ObservableObject {
             return
         }
         
-        recognizeAudioWithSenseVoice(audioData)
+        // 根据配置的模型选择识别方法
+        switch currentModel {
+        case .doubao:
+            print("🎯 使用豆包模型进行语音识别")
+            recognizeAudioWithDoubao(audioData)
+        case .senseVoice:
+            print("🎯 使用SenseVoice模型进行语音识别")
+            recognizeAudioWithSenseVoice(audioData)
+        }
     }
     
     /// 处理录音音频数据
@@ -170,6 +203,73 @@ class VolcEngineSpeechService: NSObject, ObservableObject {
         return header + audioData
     }
     
+    /// 使用豆包语音识别 API识别音频文件
+    private func recognizeAudioWithDoubao(_ audioData: Data) {
+        // 将音频数据转换为Base64
+        let base64Audio = audioData.base64EncodedString()
+        
+        // 准备请求头
+        let headers: [String: String] = [
+            "X-Api-App-Key": "8206093786",  // 从Python代码获取的APP ID
+            "X-Api-Access-Key": "Yq1AuAcWxBELZP-MSUcyctGRcFU17HvX",  // 从Python代码获取的Access Token
+            "X-Api-Resource-Id": "volc.bigasr.auc_turbo",
+            "X-Api-Request-Id": UUID().uuidString,
+            "X-Api-Sequence": "-1",
+            "Content-Type": "application/json"
+        ]
+        
+        // 准备请求体
+        let requestBody: [String: Any] = [
+            "user": [
+                "uid": "8206093786"
+            ],
+            "audio": [
+                "data": base64Audio
+            ],
+            "request": [
+                "model_name": "bigmodel",
+                "enable_itn": true,  // 启用数字转换
+                "enable_punc": true,  // 启用标点
+                "enable_ddc": true   // 启用顺滑
+            ]
+        ]
+        
+        guard let jsonData = try? JSONSerialization.data(withJSONObject: requestBody, options: []) else {
+            print("❌ 无法序列化请求体")
+            DispatchQueue.main.async {
+                self.delegate?.speechService(self, didCompleteWithError: DoubaoSpeechError.invalidConfiguration)
+            }
+            return
+        }
+        
+        // 更新网络服务的headers
+        let networkConfig = NetworkConfiguration(
+            timeout: doubaoConfig.timeout,
+            defaultHeaders: headers
+        )
+        let tempNetworkService = NetworkService(configuration: networkConfig)
+        
+        // 发送JSON请求
+        currentTask = tempNetworkService.performJSONRequest(
+            url: doubaoConfig.apiEndpoint,
+            method: .POST,
+            parameters: requestBody
+        ) { [weak self] result in
+            guard let self = self else { return }
+            
+            switch result {
+            case .success(let data):
+                self.handleDoubaoResponse(data)
+            case .failure(let error):
+                print("网络请求失败: \(error.localizedDescription)")
+                DispatchQueue.main.async {
+                    let speechError = self.convertNetworkError(error)
+                    self.delegate?.speechService(self, didCompleteWithError: speechError)
+                }
+            }
+        }
+    }
+    
     /// 使用SenseVoice API识别音频文件
     private func recognizeAudioWithSenseVoice(_ audioData: Data) {
         // 构建multipart表单数据
@@ -181,7 +281,7 @@ class VolcEngineSpeechService: NSObject, ObservableObject {
         let formData = formBuilder.build()
         let boundary = formBuilder.boundaryString
         
-        let fullURL = "\(configuration.serverURL)\(configuration.endpoint)"
+        let fullURL = "\(senseVoiceConfig.serverURL)\(senseVoiceConfig.endpoint)"
         
         // 发送请求
         currentTask = networkService.performMultipartRequest(
@@ -218,7 +318,7 @@ class VolcEngineSpeechService: NSObject, ObservableObject {
             guard let response = json as? [String: Any] else {
                 print("❌ 响应格式不正确")
                 DispatchQueue.main.async {
-                    self.delegate?.speechService(self, didCompleteWithError: SenseVoiceError.audioProcessingError)
+                    self.delegate?.speechService(self, didCompleteWithError: DoubaoSpeechError.audioProcessingError)
                 }
                 return
             }
@@ -254,12 +354,12 @@ class VolcEngineSpeechService: NSObject, ObservableObject {
                 // 检查是否有错误信息
                 if let detail = response["detail"] as? String {
                     DispatchQueue.main.async {
-                        let error = SenseVoiceError.apiError(code: -1, message: detail)
+                        let error = DoubaoSpeechError.apiError(code: -1, message: detail)
                         self.delegate?.speechService(self, didCompleteWithError: error)
                     }
                 } else {
                     DispatchQueue.main.async {
-                        let error = SenseVoiceError.apiError(code: -1, message: "未找到识别结果")
+                        let error = DoubaoSpeechError.apiError(code: -1, message: "未找到识别结果")
                         self.delegate?.speechService(self, didCompleteWithError: error)
                     }
                 }
@@ -268,7 +368,77 @@ class VolcEngineSpeechService: NSObject, ObservableObject {
         } catch {
             print("❌ JSON解析错误: \(error.localizedDescription)")
             DispatchQueue.main.async {
-                self.delegate?.speechService(self, didCompleteWithError: SenseVoiceError.audioProcessingError)
+                self.delegate?.speechService(self, didCompleteWithError: DoubaoSpeechError.audioProcessingError)
+            }
+        }
+    }
+    
+    /// 处理豆包语音识别响应
+    private func handleDoubaoResponse(_ data: Data) {
+        do {
+            // 先打印原始响应数据用于调试
+            if let responseString = String(data: data, encoding: .utf8) {
+                print("📥 豆包语音识别原始响应: \(responseString)")
+            }
+            
+            // 解析JSON响应（基于Python代码的响应格式）
+            let json = try JSONSerialization.jsonObject(with: data, options: [])
+            guard let response = json as? [String: Any] else {
+                print("❌ 响应格式不正确")
+                DispatchQueue.main.async {
+                    self.delegate?.speechService(self, didCompleteWithError: DoubaoSpeechError.audioProcessingError)
+                }
+                return
+            }
+            
+            print("📋 解析后的JSON响应: \(response)")
+            
+            // 根据Python代码，响应格式为: response.json().get('result', {}).get('text', '')
+            if let result = response["result"] as? [String: Any],
+               let text = result["text"] as? String {
+                
+                print("✅ 豆包语音识别成功，文本: \(text)")
+                
+                // 创建识别结果
+                let recognitionResult = SpeechRecognitionResult(
+                    text: text,
+                    confidence: 1.0,
+                    isFinal: true,
+                    language: "zh",
+                    emotion: nil
+                )
+                
+                DispatchQueue.main.async {
+                    print("🔄 在主线程更新UI和通知代理")
+                    self.lastResult = recognitionResult
+                    self.allResults.append(recognitionResult)
+                    
+                    // 先通知结果，再通知完成
+                    print("📢 通知代理：识别结果已获得")
+                    self.delegate?.speechService(self, didReceiveResult: recognitionResult)
+                    
+                    print("📢 通知代理：识别完成")
+                    self.delegate?.speechService(self, didCompleteWithError: nil)
+                }
+            } else {
+                // 检查是否有错误信息
+                if let message = response["message"] as? String {
+                    DispatchQueue.main.async {
+                        let error = DoubaoSpeechError.apiError(code: response["code"] as? Int ?? -1, message: message)
+                        self.delegate?.speechService(self, didCompleteWithError: error)
+                    }
+                } else {
+                    DispatchQueue.main.async {
+                        let error = DoubaoSpeechError.apiError(code: -1, message: "未找到识别结果")
+                        self.delegate?.speechService(self, didCompleteWithError: error)
+                    }
+                }
+            }
+            
+        } catch {
+            print("❌ JSON解析错误: \(error.localizedDescription)")
+            DispatchQueue.main.async {
+                self.delegate?.speechService(self, didCompleteWithError: DoubaoSpeechError.audioProcessingError)
             }
         }
     }
@@ -297,7 +467,7 @@ class VolcEngineSpeechService: NSObject, ObservableObject {
     }
     
     // MARK: - 错误转换
-    private func convertNetworkError(_ networkError: NetworkError) -> SenseVoiceError {
+    private func convertNetworkError(_ networkError: NetworkError) -> DoubaoSpeechError {
         switch networkError {
         case .invalidURL:
             return .invalidURL
@@ -316,7 +486,7 @@ class VolcEngineSpeechService: NSObject, ObservableObject {
 }
 
 // MARK: - 错误类型
-enum SenseVoiceError: Error, LocalizedError {
+enum DoubaoSpeechError: Error, LocalizedError {
     case invalidURL
     case invalidConfiguration
     case networkError(Error)
@@ -328,13 +498,13 @@ enum SenseVoiceError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidURL:
-            return "无效的服务器URL"
+            return "无效的API URL"
         case .invalidConfiguration:
             return "配置无效"
         case .networkError(let error):
             return "网络错误: \(error.localizedDescription)"
         case .apiError(let code, let message):
-            return "API错误 \(code): \(message)"
+            return "豆包API错误 \(code): \(message)"
         case .audioProcessingError:
             return "音频处理错误"
         case .authenticationError:
