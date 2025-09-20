@@ -12,9 +12,12 @@ struct FullTranscriptionSheet: View {
     let originalText: String
     let polishedText: String?
     let isDarkMode: Bool
+    let recordingId: UUID
     @Environment(\.dismiss) private var dismiss
     @State private var currentPage: Int = 0
     @State private var contentOffset: CGFloat = 0
+    @State private var editedOriginalText: String = ""
+    @State private var editedPolishedText: String = ""
     
     var body: some View {
         ZStack {
@@ -64,11 +67,6 @@ struct FullTranscriptionSheet: View {
                 .padding(.horizontal, 20)
                 .padding(.vertical, 16)
                 
-                // 分隔线
-                Rectangle()
-                    .fill(isDarkMode ? Color.white.opacity(0.06) : Color.black.opacity(0.06))
-                    .frame(height: 0.5)
-                
                 if let polishedText = polishedText {
                     // 极简Tab切换器
                     HStack(spacing: 32) {
@@ -101,44 +99,190 @@ struct FullTranscriptionSheet: View {
                     
                     // 内容区域 - 使用TabView
                     TabView(selection: $currentPage) {
-                        // 原文页面
-                        ContentScrollView(
-                            text: originalText,
+                        // 原文页面 - 直接可编辑
+                        EditableTextFieldView(
+                            text: $editedOriginalText,
                             isDarkMode: isDarkMode,
-                            fontStyle: .serif
+                            fontStyle: .serif,
+                            onSave: { saveEditedContent() }
                         )
                         .tag(0)
                         
-                        // 润色版页面
-                        ContentScrollView(
-                            text: polishedText,
+                        // 润色版页面 - 直接可编辑
+                        EditableTextFieldView(
+                            text: $editedPolishedText,
                             isDarkMode: isDarkMode,
-                            fontStyle: .default
+                            fontStyle: .default,
+                            onSave: { saveEditedContent() }
                         )
                         .tag(1)
                     }
                     .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
                     
                 } else {
-                    // 只有原文时的显示
-                    ContentScrollView(
-                        text: originalText,
+                    // 只有原文时的显示 - 直接可编辑
+                    EditableTextFieldView(
+                        text: $editedOriginalText,
                         isDarkMode: isDarkMode,
-                        fontStyle: .serif
+                        fontStyle: .serif,
+                        onSave: { saveEditedContent() }
                     )
                 }
             }
+        }
+        .onAppear {
+            initializeEditableText()
         }
     }
     
     // 复制当前文本
     private func copyCurrentText() {
-        let textToCopy = currentPage == 0 ? originalText : (polishedText ?? originalText)
+        let textToCopy = currentPage == 0 ? editedOriginalText : editedPolishedText
         UIPasteboard.general.string = textToCopy
         
         // 触觉反馈
         let impactFeedback = UIImpactFeedbackGenerator(style: .light)
         impactFeedback.impactOccurred()
+    }
+    
+    // 初始化编辑文本
+    private func initializeEditableText() {
+        editedOriginalText = originalText
+        editedPolishedText = polishedText ?? ""
+    }
+    
+    // 保存编辑内容到数据库
+    private func saveEditedContent() {
+        Task {
+            let success = await updateRecordingInDatabase()
+            
+            if !success {
+                print("保存失败")
+            }
+        }
+    }
+    
+    // 更新数据库中的录音记录
+    @MainActor
+    private func updateRecordingInDatabase() async -> Bool {
+        guard let recording = DatabaseManager.shared.getRecording(by: recordingId.uuidString) else {
+            print("未找到录音记录: \(recordingId.uuidString)")
+            return false
+        }
+        
+        // 根据编辑的内容决定更新哪些字段
+        let newTranscription: String
+        let newPolishedText: String
+        
+        // 只更新被编辑的内容
+        if currentPage == 0 {
+            // 编辑的是原文
+            newTranscription = editedOriginalText
+            newPolishedText = recording.polishedText // 保持润色文本不变
+        } else {
+            // 编辑的是润色版
+            newTranscription = recording.transcription // 保持原文不变
+            newPolishedText = editedPolishedText
+        }
+        
+        // 创建更新后的录音记录（因为transcription是let常量，需要创建新实例）
+        let updatedRecording = AudioRecording(
+            id: recording.id,
+            timestamp: recording.timestamp,
+            duration: recording.duration,
+            transcription: newTranscription,
+            title: recording.title,
+            summary: recording.summary,
+            tags: recording.tags,
+            audioData: recording.audioData,
+            enrichedContent: recording.enrichedContent,
+            polishedText: newPolishedText,
+            contentType: recording.contentType,
+            weatherType: recording.weatherType,
+            weatherLocation: recording.weatherLocation
+        )
+        
+        // 保存到数据库
+        let success = DatabaseManager.shared.updateRecording(updatedRecording)
+        
+        if success {
+            // 重要：通知RecordingUpdateManager更新UI
+            RecordingUpdateManager.shared.updateRecording(updatedRecording)
+            
+            let editedContent = currentPage == 0 ? "原文" : "润色版"
+            print("✅ \(editedContent)内容更新成功")
+        } else {
+            print("❌ 转写内容更新失败")
+        }
+        
+        return success
+    }
+}
+
+// MARK: - 可编辑文本字段视图
+struct EditableTextFieldView: View {
+    @Binding var text: String
+    let isDarkMode: Bool
+    var fontStyle: Font.Design = .default
+    let onSave: () -> Void
+    @State private var scrollOffset: CGFloat = 0
+    
+    var body: some View {
+        ScrollView(.vertical, showsIndicators: false) {
+            VStack(alignment: .leading, spacing: 0) {
+                // 顶部留白
+                Color.clear.frame(height: 20)
+                
+                // 可编辑文本区域 - 样式与ContentScrollView一致
+                TextField("", text: $text, axis: .vertical)
+                    .font(.system(size: 17, weight: .regular, design: fontStyle))
+                    .foregroundColor(isDarkMode ? .white.opacity(0.85) : Color(hex: "1A1A1A"))
+                    .lineSpacing(10)
+                    .tracking(0.2)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, 28)
+                    .textFieldStyle(PlainTextFieldStyle())
+                    .onChange(of: text) { _, _ in
+                        // 文本变化时自动保存
+                        onSave()
+                    }
+                
+                // 底部留白
+                Color.clear.frame(height: 100)
+            }
+            .background(
+                GeometryReader { geometry in
+                    Color.clear.preference(
+                        key: ScrollOffsetPreferenceKey.self,
+                        value: geometry.frame(in: .named("scroll")).origin.y
+                    )
+                }
+            )
+        }
+        .coordinateSpace(name: "scroll")
+        .onPreferenceChange(ScrollOffsetPreferenceKey.self) { value in
+            scrollOffset = value
+        }
+        .overlay(
+            // 顶部渐隐遮罩 - 滚动时显示（与ContentScrollView一致）
+            VStack {
+                if scrollOffset < -10 {
+                    LinearGradient(
+                        gradient: Gradient(stops: [
+                            .init(color: isDarkMode ? .black : Color(hex: "FAFAFA"), location: 0),
+                            .init(color: isDarkMode ? .black.opacity(0) : Color(hex: "FAFAFA").opacity(0), location: 1)
+                        ]),
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                    .frame(height: 30)
+                    .allowsHitTesting(false)
+                    .transition(.opacity)
+                }
+                Spacer()
+            }
+            .animation(.easeInOut(duration: 0.2), value: scrollOffset)
+        )
     }
 }
 
@@ -249,7 +393,8 @@ struct FullTranscriptionSheet_Previews: PreviewProvider {
         FullTranscriptionSheet(
             originalText: "这是原始转写内容，包含了一些语气词和不太规范的表达。",
             polishedText: "这是润色后的内容，表达更加清晰规范。",
-            isDarkMode: true
+            isDarkMode: true,
+            recordingId: UUID()
         )
     }
 }

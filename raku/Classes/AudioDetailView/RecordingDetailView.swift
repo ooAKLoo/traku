@@ -328,7 +328,8 @@ struct RecordingDetailView: View {
             FullTranscriptionSheet(
                 originalText: viewModel.originalTranscription,
                 polishedText: viewModel.hasPolishedText ? viewModel.polishedTranscription : nil,
-                isDarkMode: isDarkMode
+                isDarkMode: isDarkMode,
+                recordingId: viewModel.recording.id
             )
         }
     }
