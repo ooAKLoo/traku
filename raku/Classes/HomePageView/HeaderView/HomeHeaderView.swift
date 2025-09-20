@@ -18,6 +18,7 @@ struct HomepageHeaderView: View {
     @Binding var showingConnectionConfig: Bool
     
     @State private var showingSearchBar = false
+    @FocusState private var isSearchFieldFocused: Bool  // 添加聚焦状态
     let filters = [L("homepage_filter_tag"), L("homepage_filter_space")]
     
     var body: some View {
@@ -93,7 +94,8 @@ struct HomepageHeaderView: View {
                             onSearchAction: {
                                 // TODO: 实现AI搜索建议功能
                             },
-                            onTextChange: nil
+                            onTextChange: nil,
+                            isTextFieldFocused: $isSearchFieldFocused
                         )
                         
                         // 清除按钮
@@ -216,6 +218,17 @@ struct HomepageHeaderView: View {
         .background(
             (isDarkMode ? Color.black : Color.appBackground)
         )
+        .onChange(of: showingSearchBar) { newValue in
+            // 仅在从 false 变为 true 时聚焦
+            if newValue {
+                // 延迟聚焦以确保动画完成和视图渲染
+                DispatchQueue.main.asyncAfter(deadline: .now() + 0.4) {
+                    withAnimation(.easeInOut(duration: 0.2)) {
+                        isSearchFieldFocused = true
+                    }
+                }
+            }
+        }
     }
     
 }

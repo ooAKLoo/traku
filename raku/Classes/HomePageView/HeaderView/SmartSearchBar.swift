@@ -13,12 +13,12 @@ struct SmartSearchBar: View {
     let isDarkMode: Bool
     let onSearchAction: () -> Void
     let onTextChange: ((String) -> Void)?
+    var isTextFieldFocused: FocusState<Bool>.Binding  // 外部控制的聚焦状态
     
     @State private var searchGlowAnimation = false
     @State private var searchTypingTimer: Timer?
     @State private var sparklesPulse = false
     @State private var flowingLightOffset: CGFloat = 0
-    @FocusState private var isTextFieldFocused: Bool
     
     var body: some View {
         HStack(spacing: 0) {
@@ -41,21 +41,13 @@ struct SmartSearchBar: View {
             .textFieldStyle(PlainTextFieldStyle())
             .padding(.horizontal, 12)
             .padding(.vertical, 10)
-            .focused($isTextFieldFocused)
+            .focused(isTextFieldFocused)
             .onChange(of: searchText) { newValue in
                 handleSearchTextChange(newValue)
                 onTextChange?(newValue)
             }
         }
         .background(searchBarBackground)
-        .onAppear {
-            // 确保UI完全渲染后再聚焦，避免卡顿
-            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                withAnimation(.easeInOut(duration: 0.2)) {
-                    isTextFieldFocused = true
-                }
-            }
-        }
     }
     
     // MARK: - 计算属性
@@ -102,7 +94,7 @@ struct SmartSearchBar: View {
     
     private var searchBarBackground: some View {
         RoundedRectangle(cornerRadius: 20)
-            .fill(isDarkMode ? Color.gray.opacity(0.15) : Color.white)
+            .fill(isDarkMode ? Color.gray.opacity(0.15) : Color(hex: "EBEBE9").opacity(0.3))
             .overlay(
                 // 多层动态光晕效果
                 ZStack {
@@ -235,31 +227,51 @@ struct SmartSearchBar: View {
 
 // MARK: - 预览
 #Preview("Light Mode") {
-    SmartSearchBar(
-        searchText: .constant(""),
-        isDarkMode: false,
-        onSearchAction: {
-            print("AI Search triggered")
-        },
-        onTextChange: { text in
-            print("Text changed: \(text)")
+    struct PreviewWrapper: View {
+        @State var searchText = ""
+        @FocusState var isFocused: Bool
+        
+        var body: some View {
+            SmartSearchBar(
+                searchText: $searchText,
+                isDarkMode: false,
+                onSearchAction: {
+                    print("AI Search triggered")
+                },
+                onTextChange: { text in
+                    print("Text changed: \(text)")
+                },
+                isTextFieldFocused: $isFocused
+            )
+            .padding()
+            .background(Color(white: 0.95))
         }
-    )
-    .padding()
-    .background(Color(white: 0.95))
+    }
+    
+    return PreviewWrapper()
 }
 
 #Preview("Dark Mode") {
-    SmartSearchBar(
-        searchText: .constant("测试搜索"),
-        isDarkMode: true,
-        onSearchAction: {
-            print("AI Search triggered")
-        },
-        onTextChange: { text in
-            print("Text changed: \(text)")
+    struct PreviewWrapper: View {
+        @State var searchText = "测试搜索"
+        @FocusState var isFocused: Bool
+        
+        var body: some View {
+            SmartSearchBar(
+                searchText: $searchText,
+                isDarkMode: true,
+                onSearchAction: {
+                    print("AI Search triggered")
+                },
+                onTextChange: { text in
+                    print("Text changed: \(text)")
+                },
+                isTextFieldFocused: $isFocused
+            )
+            .padding()
+            .background(Color.black)
         }
-    )
-    .padding()
-    .background(Color.black)
+    }
+    
+    return PreviewWrapper()
 }
