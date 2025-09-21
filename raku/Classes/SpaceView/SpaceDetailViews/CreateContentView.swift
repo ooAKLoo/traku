@@ -753,45 +753,30 @@ struct EditContentView: View {
                 
                 Spacer()
                 
-                // 类别选择 - 内联显示
-                if let category = selectedCategory {
-                    HStack(spacing: 6) {
-                        Text(category.name)
-                            .font(.system(size: 13, weight: .medium))
-                            .foregroundColor(.blue)
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 4)
-                            .background(
-                                RoundedRectangle(cornerRadius: 6)
-                                    .fill(Color.blue.opacity(0.1))
-                            )
-                        
-                        Button(action: {
-                            selectedCategory = nil
-                        }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.system(size: 14))
-                                .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4))
-                        }
-                    }
-                } else {
-                    Button(action: {
-                        showingCategorySelector = true
-                    }) {
-                        HStack(spacing: 4) {
+                // 类别选择 - 优化交互版本（点击直接打开选择器）
+                Button(action: {
+                    showingCategorySelector = true
+                }) {
+                    HStack(spacing: 4) {
+                        if let category = selectedCategory {
+                            Text(category.name)
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(.blue)
+                        } else {
                             Image(systemName: "plus.circle")
                                 .font(.system(size: 13))
+                                .foregroundColor(.blue)
                             Text("类别")
                                 .font(.system(size: 13))
+                                .foregroundColor(.blue)
                         }
-                        .foregroundColor(.blue)
-                        .padding(.horizontal, 8)
-                        .padding(.vertical, 4)
-                        .background(
-                            RoundedRectangle(cornerRadius: 6)
-                                .fill(isDarkMode ? Color.white.opacity(0.06) : Color.gray.opacity(0.06))
-                        )
                     }
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 4)
+                    .background(
+                        RoundedRectangle(cornerRadius: 6)
+                            .fill(Color.blue.opacity(0.1))
+                    )
                 }
             }
             .padding(.horizontal, 16)
