@@ -16,6 +16,8 @@ struct EditSpaceView: View {
     
     @State private var spaceName: String
     @State private var spaceDescription: String
+    @State private var editableCategories: [Category]
+    @State private var newCategoryName = ""
     @State private var showingDeleteConfirmation = false
     @Environment(\.presentationMode) var presentationMode
     
@@ -26,6 +28,7 @@ struct EditSpaceView: View {
         self.onSpaceUpdated = onSpaceUpdated
         self._spaceName = State(initialValue: space.name)
         self._spaceDescription = State(initialValue: space.description)
+        self._editableCategories = State(initialValue: categories)
     }
     
     var body: some View {
@@ -35,6 +38,9 @@ struct EditSpaceView: View {
                     VStack(spacing: 24) {
                         // 空间信息编辑
                         spaceInfoSection
+                        
+                        // 类别管理
+                        categoryManagementSection
                     }
                     .padding(20)
                     .padding(.bottom, 34)
@@ -91,12 +97,100 @@ struct EditSpaceView: View {
         )
     }
     
+    // MARK: - 类别管理区域
+    private var categoryManagementSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            // 标题
+            Label("类别管理", systemImage: "folder.fill")
+                .font(.system(size: 16, weight: .semibold))
+                .foregroundColor(isDarkMode ? .white.opacity(0.9) : .black.opacity(0.8))
+            
+            // 添加新类别输入框
+            HStack(spacing: 12) {
+                TextField("添加新类别", text: $newCategoryName)
+                    .font(.system(size: 16))
+                    .textFieldStyle(EditTextFieldStyle(isDarkMode: isDarkMode))
+                
+                Button(action: addCategory) {
+                    Image(systemName: "plus")
+                        .font(.system(size: 16, weight: .medium))
+                        .foregroundColor(.white)
+                        .frame(width: 36, height: 36)
+                        .background(
+                            RoundedRectangle(cornerRadius: 8)
+                                .fill(canAddCategory ? Color.blue : (isDarkMode ? Color.gray.opacity(0.3) : Color.gray.opacity(0.5)))
+                        )
+                }
+                .disabled(!canAddCategory)
+            }
+            
+            // 已添加的类别列表
+            if !editableCategories.isEmpty {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Text("已添加的类别")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8))
+                        
+                        Spacer()
+                        
+                        Text("\(editableCategories.count) 个")
+                            .font(.system(size: 12))
+                            .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
+                    }
+                    
+                    // 类别标签列表
+                    FlowLayout(spacing: 6) {
+                        ForEach(editableCategories) { category in
+                            EditableCategoryTag(
+                                category: category,
+                                isDarkMode: isDarkMode,
+                                onDelete: {
+                                    deleteCategory(category)
+                                }
+                            )
+                        }
+                    }
+                }
+                .padding(.top, 8)
+            }
+        }
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(isDarkMode ? Color.white.opacity(0.03) : Color.white)
+                .shadow(color: isDarkMode ? Color.black.opacity(0.3) : Color.black.opacity(0.05), 
+                       radius: 8, x: 0, y: 2)
+        )
+    }
+    
     // MARK: - 计算属性
+    private var canAddCategory: Bool {
+        !newCategoryName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+    
     private var canSave: Bool {
         !spaceName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
     
     // MARK: - 方法
+    private func addCategory() {
+        guard canAddCategory else { return }
+        
+        let categoryName = newCategoryName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let category = Category(spaceId: space.id, name: categoryName)
+        
+        if DatabaseManager.shared.createCategory(category) {
+            editableCategories.append(category)
+            newCategoryName = ""
+        }
+    }
+    
+    private func deleteCategory(_ category: Category) {
+        if DatabaseManager.shared.deleteCategory(id: category.id) {
+            editableCategories.removeAll { $0.id == category.id }
+        }
+    }
     
     private func saveChanges() {
         let updatedSpace = Space(
@@ -109,6 +203,34 @@ struct EditSpaceView: View {
         
         onSpaceUpdated(updatedSpace)
         presentationMode.wrappedValue.dismiss()
+    }
+}
+
+// MARK: - 可编辑类别标签
+struct EditableCategoryTag: View {
+    let category: Category
+    let isDarkMode: Bool
+    let onDelete: () -> Void
+    
+    var body: some View {
+        HStack(spacing: 6) {
+            Text(category.name)
+                .font(.system(size: 13, weight: .regular))
+                .foregroundColor(isDarkMode ? .white.opacity(0.9) : .black.opacity(0.9))
+                .fixedSize(horizontal: true, vertical: false)
+            
+            Button(action: onDelete) {
+                Image(systemName: "xmark.circle.fill")
+                    .font(.system(size: 12))
+                    .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4))
+            }
+        }
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
+        .background(
+            RoundedRectangle(cornerRadius: 12)
+                .fill(isDarkMode ? Color.white.opacity(0.1) : Color.gray.opacity(0.15))
+        )
     }
 }
 
