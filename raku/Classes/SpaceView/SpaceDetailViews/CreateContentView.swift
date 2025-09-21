@@ -387,7 +387,7 @@ struct CategorySelectorView: View {
                             onSelection(nil)
                         }) {
                             HStack {
-                                Text("无类别")
+                                Text("未分类")
                                     .font(.system(size: 16))
                                     .foregroundColor(isDarkMode ? .white.opacity(0.9) : .black.opacity(0.9))
                                 
@@ -569,7 +569,6 @@ struct EditContentView: View {
     @State private var tags: [String]
     @State private var tagInput = ""
     @State private var selectedCategory: Category?
-    @State private var isProcessingAI = false
     @State private var showingCategorySelector = false
     @Environment(\.presentationMode) var presentationMode
     
@@ -613,6 +612,81 @@ struct EditContentView: View {
         print("🎨 edit-space-articalcard--- [EditContentView] 初始化完成")
     }
     
+    // MARK: - 编辑模式的元数据区域（无AI按钮）
+    private var editMetadataSection: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            HStack {
+                Label("标题和标签", systemImage: "textformat")
+                    .font(.system(size: 16, weight: .semibold))
+                    .foregroundColor(isDarkMode ? .white.opacity(0.9) : .black.opacity(0.8))
+                
+                Spacer()
+            }
+            
+            VStack(spacing: 16) {
+                // 标题编辑
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("标题")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8))
+                    
+                    TextField("请输入标题", text: $title)
+                        .font(.system(size: 16))
+                        .textFieldStyle(ContentEditTextFieldStyle(isDarkMode: isDarkMode))
+                }
+                
+                // 标签编辑
+                VStack(alignment: .leading, spacing: 8) {
+                    Text("标签")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8))
+                    
+                    // 标签输入
+                    HStack(spacing: 8) {
+                        TextField("添加标签", text: $tagInput)
+                            .font(.system(size: 16))
+                            .textFieldStyle(ContentEditTextFieldStyle(isDarkMode: isDarkMode))
+                            .onSubmit {
+                                addTag()
+                            }
+                        
+                        Button(action: addTag) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: 20))
+                                .foregroundColor(tagInput.isEmpty ? .gray : .blue)
+                        }
+                        .disabled(tagInput.isEmpty)
+                    }
+                    
+                    // 已添加的标签
+                    if !tags.isEmpty {
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 6) {
+                                ForEach(tags, id: \.self) { tag in
+                                    TagChip(
+                                        text: tag,
+                                        isDarkMode: isDarkMode,
+                                        onDelete: {
+                                            tags.removeAll { $0 == tag }
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                        .padding(.top, 8)
+                    }
+                }
+            }
+        }
+        .padding(20)
+        .background(
+            RoundedRectangle(cornerRadius: 16)
+                .fill(isDarkMode ? Color.white.opacity(0.03) : Color.white)
+                .shadow(color: isDarkMode ? Color.black.opacity(0.3) : Color.black.opacity(0.05), 
+                       radius: 8, x: 0, y: 2)
+        )
+    }
+    
     var body: some View {
         NavigationView {
             VStack(spacing: 0) {
@@ -624,8 +698,8 @@ struct EditContentView: View {
                         // 内容输入（核心功能）
                         contentInputSection
                         
-                        // 元数据编辑（标题和标签，支持AI生成）
-                        metadataSection
+                        // 元数据编辑（标题和标签，手动编辑）
+                        editMetadataSection
                     }
                     .padding(20)
                     .padding(.bottom, 34)
@@ -779,113 +853,10 @@ struct EditContentView: View {
         )
     }
     
-    // MARK: - 元数据编辑区域（标题和标签）
-    private var metadataSection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Label("标题和标签", systemImage: "textformat")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(isDarkMode ? .white.opacity(0.9) : .black.opacity(0.8))
-                
-                Spacer()
-                
-                // AI生成按钮
-                Button(action: generateWithAI) {
-                    HStack(spacing: 6) {
-                        if isProcessingAI {
-                            ProgressView()
-                                .scaleEffect(0.8)
-                                .tint(.white)
-                        } else {
-                            Image(systemName: "sparkles")
-                                .font(.system(size: 14))
-                        }
-                        Text(isProcessingAI ? "生成中..." : "AI生成")
-                            .font(.system(size: 14, weight: .medium))
-                    }
-                    .foregroundColor(.white)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(
-                        RoundedRectangle(cornerRadius: 8)
-                            .fill(canGenerateAI ? Color.blue : Color.gray.opacity(0.6))
-                    )
-                }
-                .disabled(!canGenerateAI || isProcessingAI)
-            }
-            
-            VStack(spacing: 16) {
-                // 标题编辑
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("标题")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8))
-                    
-                    TextField("请输入标题或使用AI生成", text: $title)
-                        .font(.system(size: 16))
-                        .textFieldStyle(ContentEditTextFieldStyle(isDarkMode: isDarkMode))
-                }
-                
-                // 标签编辑
-                VStack(alignment: .leading, spacing: 8) {
-                    Text("标签")
-                        .font(.system(size: 14, weight: .medium))
-                        .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8))
-                    
-                    // 标签输入
-                    HStack(spacing: 8) {
-                        TextField("添加标签", text: $tagInput)
-                            .font(.system(size: 16))
-                            .textFieldStyle(ContentEditTextFieldStyle(isDarkMode: isDarkMode))
-                            .onSubmit {
-                                addTag()
-                            }
-                        
-                        Button(action: addTag) {
-                            Image(systemName: "plus.circle.fill")
-                                .font(.system(size: 20))
-                                .foregroundColor(tagInput.isEmpty ? .gray : .blue)
-                        }
-                        .disabled(tagInput.isEmpty)
-                    }
-                    
-                    // 已添加的标签
-                    if !tags.isEmpty {
-                        ScrollView(.horizontal, showsIndicators: false) {
-                            HStack(spacing: 6) {
-                                ForEach(tags, id: \.self) { tag in
-                                    TagChip(
-                                        text: tag,
-                                        isDarkMode: isDarkMode,
-                                        onDelete: {
-                                            tags.removeAll { $0 == tag }
-                                        }
-                                    )
-                                }
-                            }
-                        }
-                        .padding(.top, 8)
-                    }
-                }
-            }
-        }
-        .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(isDarkMode ? Color.white.opacity(0.03) : Color.white)
-                .shadow(color: isDarkMode ? Color.black.opacity(0.3) : Color.black.opacity(0.05), 
-                       radius: 8, x: 0, y: 2)
-        )
-    }
-    
     // MARK: - 计算属性
     private var canSave: Bool {
         !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
         !title.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-    }
-    
-    private var canGenerateAI: Bool {
-        !content.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
     
     // MARK: - 方法
@@ -909,34 +880,5 @@ struct EditContentView: View {
         
         onSave(saveData)
         presentationMode.wrappedValue.dismiss()
-    }
-    
-    private func generateWithAI() {
-        guard canGenerateAI, !isProcessingAI else { return }
-        
-        isProcessingAI = true
-        
-        // 创建LLMService实例
-        let llmService = TwoStepLLMService()
-        
-        // 创建代理实例并设置回调
-        let delegate = AIGenerationDelegate { [generatedTitle = self.$title, generatedTags = self.$tags, isProcessing = self.$isProcessingAI] title, tags in
-            DispatchQueue.main.async {
-                generatedTitle.wrappedValue = title
-                generatedTags.wrappedValue = tags
-                isProcessing.wrappedValue = false
-            }
-        } onError: { [isProcessing = self.$isProcessingAI] error in
-            DispatchQueue.main.async {
-                isProcessing.wrappedValue = false
-                print("AI生成失败: \(error.localizedDescription)")
-                // TODO: 显示错误提示给用户
-            }
-        }
-        
-        llmService.delegate = delegate
-        
-        // 使用第一步分析来生成标题和标签
-        llmService.analyzeText(content)
     }
 }
