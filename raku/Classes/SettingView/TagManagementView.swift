@@ -253,6 +253,10 @@ struct TagStatisticsView: View {
                     .foregroundColor(isDarkMode ? .white : .black)
                 
                 Spacer()
+                
+                Text("共 \(allTags.count) 个")
+                    .font(.system(size: 14))
+                    .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
             }
             
             if allTags.isEmpty {
