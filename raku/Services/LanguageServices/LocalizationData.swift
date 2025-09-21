@@ -7,15 +7,82 @@
 
 import Foundation
 
+// MARK: - 语言配置
+struct LanguageConfig {
+    let code: String
+    let name: String
+    let nativeName: String
+    let flag: String
+}
+
 // MARK: - 本地化数据
 struct LocalizationData {
+    
+    // MARK: - 支持的语言
+    static let supportedLanguages: [LanguageConfig] = [
+        LanguageConfig(code: "zh-CN", name: "Chinese (Simplified)", nativeName: "简体中文", flag: "🇨🇳"),
+        LanguageConfig(code: "en-US", name: "English", nativeName: "English", flag: "🇺🇸"),
+        LanguageConfig(code: "ja-JP", name: "Japanese", nativeName: "日本語", flag: "🇯🇵"),
+        LanguageConfig(code: "de-DE", name: "German", nativeName: "Deutsch", flag: "🇩🇪"),
+        LanguageConfig(code: "fr-FR", name: "French", nativeName: "Français", flag: "🇫🇷")
+    ]
+    
+    // MARK: - 默认语言
+    static let defaultLanguage = "en-US"
+    
+    // MARK: - 语言查找方法
+    static func getLanguageConfig(for code: String) -> LanguageConfig? {
+        return supportedLanguages.first { $0.code == code }
+    }
+    
+    static func getDisplayName(for code: String) -> String {
+        return getLanguageConfig(for: code)?.nativeName ?? code
+    }
+    
+    static func getFlag(for code: String) -> String {
+        return getLanguageConfig(for: code)?.flag ?? "🌐"
+    }
+    
+    // MARK: - 系统语言检测
+    static func getSystemPreferredLanguage() -> String {
+        let preferredLanguages = Locale.preferredLanguages
+        
+        for preferredLang in preferredLanguages {
+            // 检查完全匹配
+            if supportedLanguages.contains(where: { $0.code == preferredLang }) {
+                return preferredLang
+            }
+            
+            // 检查语言代码匹配（忽略地区）
+            let languageCode = String(preferredLang.prefix(2))
+            switch languageCode {
+            case "zh":
+                return "zh-CN"
+            case "en":
+                return "en-US"
+            case "ja":
+                return "ja-JP"
+            case "de":
+                return "de-DE"
+            case "fr":
+                return "fr-FR"
+            default:
+                continue
+            }
+        }
+        
+        return defaultLanguage
+    }
     
     /// 获取所有本地化字符串数据
     /// - Returns: 按语言分组的本地化字典
     static func getLocalizedStrings() -> [String: [String: String]] {
         return [
             "zh-CN": getChineseSimplifiedStrings(),
-            "en-US": getEnglishStrings()
+            "en-US": getEnglishStrings(),
+            "ja-JP": getJapaneseStrings(),
+            "de-DE": getGermanStrings(),
+            "fr-FR": getFrenchStrings()
         ]
     }
     
@@ -422,6 +489,636 @@ struct LocalizationData {
             "time_unit_week": "week",
             "time_unit_month": "month",
             "time_unit_year": "year"
+        ]
+    }
+    
+    // MARK: - 日文
+    private static func getJapaneseStrings() -> [String: String] {
+        return [
+            // 通用
+            "common_cancel": "キャンセル",
+            "common_confirm": "確認",
+            "common_save": "保存",
+            "common_delete": "削除",
+            "common_edit": "編集",
+            "common_done": "完了",
+            "common_close": "閉じる",
+            "common_retry": "再試行",
+            "common_loading": "読み込み中...",
+            "common_error": "エラー",
+            "common_success": "成功",
+            "common_warning": "警告",
+            "common_info": "情報",
+            "common_yes": "はい",
+            "common_no": "いいえ",
+            "common_ok": "OK",
+            "common_back": "戻る",
+            "common_next": "次へ",
+            "common_previous": "前へ",
+            "common_add": "追加",
+            "common_remove": "削除",
+            "common_search": "検索",
+            "common_filter": "フィルター",
+            "common_share": "共有",
+            "common_export": "エクスポート",
+            "common_import": "インポート",
+            "common_download": "ダウンロード",
+            "common_upload": "アップロード",
+            "common_settings": "設定",
+            "common_help": "ヘルプ",
+            "common_about": "情報",
+            "common_version": "バージョン",
+            "common_update": "更新",
+            "common_refresh": "更新",
+            "common_clear": "クリア",
+            "common_all": "すべて",
+            "common_none": "なし",
+            "common_other": "その他",
+            "common_unknown": "不明",
+            "common_today": "今日",
+            "common_yesterday": "昨日",
+            "common_tomorrow": "明日",
+            "common_now": "今",
+            "common_recently": "最近",
+            
+            // 録音管理
+            "recording_list_title": "録音リスト",
+            "recording_list_empty": "録音がありません",
+            "recording_list_empty_desc": "録音ボタンをタップして最初の録音を開始してください",
+            "recording_control_start": "録音開始",
+            "recording_control_stop": "録音停止",
+            "recording_control_pause": "録音一時停止",
+            "recording_control_resume": "録音再開",
+            "recording_control_play": "再生",
+            "recording_status_recording": "録音中",
+            "recording_status_paused": "一時停止中",
+            "recording_status_stopped": "停止",
+            "recording_status_playing": "再生中",
+            "recording_action_delete": "録音を削除",
+            "recording_action_share": "録音を共有",
+            "recording_action_export": "録音をエクスポート",
+            "recording_action_download": "録音をダウンロード",
+            "recording_action_rename": "名前を変更",
+            "recording_delete_confirm_title": "録音を削除",
+            "recording_delete_confirm_message": "この録音を削除してもよろしいですか？この操作は取り消せません。",
+            "recording_error_save_failed": "録音の保存に失敗しました",
+            "recording_error_load_failed": "録音の読み込みに失敗しました",
+            "recording_error_delete_failed": "録音の削除に失敗しました",
+            "recording_error_export_failed": "録音のエクスポートに失敗しました",
+            "recording_success_saved": "録音を保存しました",
+            "recording_success_deleted": "録音を削除しました",
+            "recording_success_exported": "録音をエクスポートしました",
+            "recording_duration_format": "%d秒",
+            
+            // 録音詳細
+            "detail_nav_title": "録音詳細",
+            "detail_nav_back": "戻る",
+            "detail_tag_edit_title": "タグを編集",
+            "detail_tag_current": "現在のタグ",
+            "detail_tag_add": "タグを追加",
+            "detail_tag_suggested": "おすすめのタグ",
+            "detail_tag_placeholder": "タグ名を入力",
+            "detail_tag_saving": "保存中...",
+            "detail_tag_save_failed": "タグの保存に失敗しました。もう一度お試しください",
+            "detail_section_edit_title": "セクションを編集",
+            "detail_section_edit_mode": "編集",
+            "detail_section_preview_mode": "プレビュー",
+            "detail_transcript_original": "元のテキスト",
+            "detail_transcript_polished": "修正版",
+            "detail_transcript_full_view": "完全な転写を表示",
+            
+            // 接続管理
+            "connection_status_connected": "接続済み",
+            "connection_status_disconnected": "未接続",
+            "connection_status_connecting": "接続中",
+            "connection_config_title": "接続設定",
+            "connection_config_device": "デバイス設定",
+            "connection_config_network": "ネットワーク設定",
+            "connection_error_failed": "接続に失敗しました",
+            "connection_error_network_unavailable": "ネットワークが利用できません",
+            "connection_error_device_not_found": "デバイスが見つかりません",
+            
+            // ホーム
+            "homepage_title": "ホーム",
+            "homepage_filter_tag": "タグ",
+            "homepage_filter_space": "スペース",
+            "homepage_search_placeholder": "録音を検索...",
+            "homepage_search_empty": "一致するコンテンツが見つかりません",
+            "homepage_search_empty_desc": "別のキーワードで検索してみてください",
+            "homepage_search_loading": "検索中...",
+            "homepage_product_name": "Echo o1",
+            "homepage_device_connected": "接続済み",
+            "homepage_device_disconnected": "未接続",
+            
+            // 検索
+            "search_title": "検索",
+            "search_placeholder": "検索キーワードを入力",
+            "search_smart_placeholder": "コンテンツ、セマンティック、タグを検索...",
+            "search_result_empty": "一致する結果が見つかりません",
+            "search_result_empty_desc": "別の検索ワードをお試しください",
+            "search_result_count": "%d件の結果が見つかりました",
+            "search_history_title": "検索履歴",
+            "search_history_clear": "履歴をクリア",
+            "search_type_all": "すべて",
+            "search_type_title": "タイトル",
+            "search_type_content": "コンテンツ",
+            "search_type_tag": "タグ",
+            
+            // 設定
+            "settings_title": "設定",
+            "settings_appearance_title": "外観設定",
+            "settings_dark_mode": "ダークモード",
+            "settings_language": "言語",
+            "settings_theme": "テーマ",
+            "settings_theme_dark": "ダーク",
+            "settings_theme_light": "ライト",
+            "settings_account": "アカウント",
+            "settings_notifications": "通知",
+            "settings_database_debug": "データベースデバッグ",
+            "settings_recording_title": "録音設定",
+            "settings_audio_quality": "音質",
+            "settings_auto_save": "自動保存",
+            "settings_storage_location": "保存場所",
+            "settings_privacy_title": "プライバシー設定",
+            "settings_data_collection": "データ収集",
+            "settings_analytics": "分析統計",
+            "settings_about_title": "このアプリについて",
+            "settings_app_version": "アプリバージョン",
+            "settings_build_number": "ビルドバージョン",
+            "settings_developer": "開発者",
+            "settings_contact": "お問い合わせ",
+            "settings_feedback": "フィードバック",
+            "settings_rate_app": "アプリを評価",
+            
+            // エクスポート
+            "export_title": "エクスポート",
+            "export_format_title": "エクスポート形式",
+            "export_format_text": "プレーンテキスト",
+            "export_format_markdown": "Markdown",
+            "export_format_pdf": "PDF",
+            "export_format_audio": "音声",
+            "export_options_title": "エクスポートオプション",
+            "export_include_transcript": "転写内容を含める",
+            "export_include_summary": "要約を含める",
+            "export_include_timestamp": "タイムスタンプを含める",
+            "export_destination_title": "エクスポート先",
+            "export_destination_files": "ファイル",
+            "export_destination_share": "共有",
+            "export_destination_cloud": "クラウド",
+            "export_progress_title": "エクスポート進行状況",
+            "export_progress_generating": "生成中...",
+            "export_progress_uploading": "アップロード中...",
+            "export_success_title": "エクスポート成功",
+            "export_success_message": "ファイルが正常にエクスポートされました",
+            "export_error_title": "エクスポート失敗",
+            "export_error_message": "エクスポート中にエラーが発生しました",
+            
+            // 時間単位
+            "time_unit_second": "秒",
+            "time_unit_minute": "分",
+            "time_unit_hour": "時間",
+            "time_unit_day": "日",
+            "time_unit_week": "週",
+            "time_unit_month": "月",
+            "time_unit_year": "年",
+            "time_relative_just_now": "たった今",
+            "time_relative_minutes_ago": "%d分前",
+            "time_relative_hours_ago": "%d時間前",
+            "time_relative_days_ago": "%d日前",
+            
+            // エラーメッセージ
+            "error_network_title": "ネットワークエラー",
+            "error_network_message": "ネットワーク接続を確認してください",
+            "error_storage_title": "ストレージエラー",
+            "error_storage_message": "ストレージ容量が不足しています",
+            "error_permission_title": "権限エラー",
+            "error_permission_microphone": "マイクへのアクセス権限が必要です",
+            "error_permission_storage": "ストレージへのアクセス権限が必要です",
+            "error_file_title": "ファイルエラー",
+            "error_file_not_found": "ファイルが見つかりません",
+            "error_file_corrupted": "ファイルが破損しています",
+            "error_unknown_title": "不明なエラー",
+            "error_unknown_message": "不明なエラーが発生しました。もう一度お試しください"
+        ]
+    }
+    
+    // MARK: - 德文
+    private static func getGermanStrings() -> [String: String] {
+        return [
+            // Allgemein
+            "common_cancel": "Abbrechen",
+            "common_confirm": "Bestätigen",
+            "common_save": "Speichern",
+            "common_delete": "Löschen",
+            "common_edit": "Bearbeiten",
+            "common_done": "Fertig",
+            "common_close": "Schließen",
+            "common_retry": "Wiederholen",
+            "common_loading": "Laden...",
+            "common_error": "Fehler",
+            "common_success": "Erfolg",
+            "common_warning": "Warnung",
+            "common_info": "Information",
+            "common_yes": "Ja",
+            "common_no": "Nein",
+            "common_ok": "OK",
+            "common_back": "Zurück",
+            "common_next": "Weiter",
+            "common_previous": "Zurück",
+            "common_add": "Hinzufügen",
+            "common_remove": "Entfernen",
+            "common_search": "Suchen",
+            "common_filter": "Filter",
+            "common_share": "Teilen",
+            "common_export": "Exportieren",
+            "common_import": "Importieren",
+            "common_download": "Herunterladen",
+            "common_upload": "Hochladen",
+            "common_settings": "Einstellungen",
+            "common_help": "Hilfe",
+            "common_about": "Über",
+            "common_version": "Version",
+            "common_update": "Aktualisieren",
+            "common_refresh": "Aktualisieren",
+            "common_clear": "Löschen",
+            "common_all": "Alle",
+            "common_none": "Keine",
+            "common_other": "Andere",
+            "common_unknown": "Unbekannt",
+            "common_today": "Heute",
+            "common_yesterday": "Gestern",
+            "common_tomorrow": "Morgen",
+            "common_now": "Jetzt",
+            "common_recently": "Kürzlich",
+            
+            // Aufnahme-Verwaltung
+            "recording_list_title": "Aufnahmeliste",
+            "recording_list_empty": "Keine Aufnahmen",
+            "recording_list_empty_desc": "Tippen Sie auf den Aufnahmeknopf, um Ihre erste Aufnahme zu starten",
+            "recording_control_start": "Aufnahme starten",
+            "recording_control_stop": "Aufnahme stoppen",
+            "recording_control_pause": "Aufnahme pausieren",
+            "recording_control_resume": "Aufnahme fortsetzen",
+            "recording_control_play": "Abspielen",
+            "recording_status_recording": "Aufnahme läuft",
+            "recording_status_paused": "Pausiert",
+            "recording_status_stopped": "Gestoppt",
+            "recording_status_playing": "Wiedergabe",
+            "recording_action_delete": "Aufnahme löschen",
+            "recording_action_share": "Aufnahme teilen",
+            "recording_action_export": "Aufnahme exportieren",
+            "recording_action_download": "Aufnahme herunterladen",
+            "recording_action_rename": "Umbenennen",
+            "recording_delete_confirm_title": "Aufnahme löschen",
+            "recording_delete_confirm_message": "Sind Sie sicher, dass Sie diese Aufnahme löschen möchten? Diese Aktion kann nicht rückgängig gemacht werden.",
+            "recording_error_save_failed": "Speichern der Aufnahme fehlgeschlagen",
+            "recording_error_load_failed": "Laden der Aufnahme fehlgeschlagen",
+            "recording_error_delete_failed": "Löschen der Aufnahme fehlgeschlagen",
+            "recording_error_export_failed": "Export der Aufnahme fehlgeschlagen",
+            "recording_success_saved": "Aufnahme erfolgreich gespeichert",
+            "recording_success_deleted": "Aufnahme erfolgreich gelöscht",
+            "recording_success_exported": "Aufnahme erfolgreich exportiert",
+            "recording_duration_format": "%ds",
+            
+            // Aufnahme-Details
+            "detail_nav_title": "Aufnahme-Details",
+            "detail_nav_back": "Zurück",
+            "detail_tag_edit_title": "Tags bearbeiten",
+            "detail_tag_current": "Aktuelle Tags",
+            "detail_tag_add": "Tag hinzufügen",
+            "detail_tag_suggested": "Vorgeschlagene Tags",
+            "detail_tag_placeholder": "Tag-Name eingeben",
+            "detail_tag_saving": "Speichern...",
+            "detail_tag_save_failed": "Speichern der Tags fehlgeschlagen, bitte versuchen Sie es erneut",
+            "detail_section_edit_title": "Abschnitt bearbeiten",
+            "detail_section_edit_mode": "Bearbeiten",
+            "detail_section_preview_mode": "Vorschau",
+            "detail_transcript_original": "Original",
+            "detail_transcript_polished": "Überarbeitet",
+            "detail_transcript_full_view": "Vollständige Transkription anzeigen",
+            
+            // Verbindungsverwaltung
+            "connection_status_connected": "Verbunden",
+            "connection_status_disconnected": "Getrennt",
+            "connection_status_connecting": "Verbindung wird hergestellt",
+            "connection_config_title": "Verbindungskonfiguration",
+            "connection_config_device": "Gerätekonfiguration",
+            "connection_config_network": "Netzwerkkonfiguration",
+            "connection_error_failed": "Verbindung fehlgeschlagen",
+            "connection_error_network_unavailable": "Netzwerk nicht verfügbar",
+            "connection_error_device_not_found": "Gerät nicht gefunden",
+            
+            // Startseite
+            "homepage_title": "Startseite",
+            "homepage_filter_tag": "Tags",
+            "homepage_filter_space": "Bereiche",
+            "homepage_search_placeholder": "Aufnahmen durchsuchen...",
+            "homepage_search_empty": "Keine passenden Inhalte gefunden",
+            "homepage_search_empty_desc": "Versuchen Sie es mit anderen Suchbegriffen",
+            "homepage_search_loading": "Suchen...",
+            "homepage_product_name": "Echo o1",
+            "homepage_device_connected": "Verbunden",
+            "homepage_device_disconnected": "Getrennt",
+            
+            // Suche
+            "search_title": "Suche",
+            "search_placeholder": "Suchbegriffe eingeben",
+            "search_smart_placeholder": "Inhalt, Semantik, Tags durchsuchen...",
+            "search_result_empty": "Keine passenden Ergebnisse gefunden",
+            "search_result_empty_desc": "Versuchen Sie es mit anderen Suchbegriffen",
+            "search_result_count": "%d Ergebnisse gefunden",
+            "search_history_title": "Suchverlauf",
+            "search_history_clear": "Verlauf löschen",
+            "search_type_all": "Alle",
+            "search_type_title": "Titel",
+            "search_type_content": "Inhalt",
+            "search_type_tag": "Tags",
+            
+            // Einstellungen
+            "settings_title": "Einstellungen",
+            "settings_appearance_title": "Erscheinungsbild",
+            "settings_dark_mode": "Dunkler Modus",
+            "settings_language": "Sprache",
+            "settings_theme": "Design",
+            "settings_theme_dark": "Dunkel",
+            "settings_theme_light": "Hell",
+            "settings_account": "Konto",
+            "settings_notifications": "Benachrichtigungen",
+            "settings_database_debug": "Datenbank-Debug",
+            "settings_recording_title": "Aufnahme-Einstellungen",
+            "settings_audio_quality": "Audioqualität",
+            "settings_auto_save": "Automatisch speichern",
+            "settings_storage_location": "Speicherort",
+            "settings_privacy_title": "Datenschutz-Einstellungen",
+            "settings_data_collection": "Datensammlung",
+            "settings_analytics": "Analytik",
+            "settings_about_title": "Über die App",
+            "settings_app_version": "App-Version",
+            "settings_build_number": "Build-Nummer",
+            "settings_developer": "Entwickler",
+            "settings_contact": "Kontakt",
+            "settings_feedback": "Feedback",
+            "settings_rate_app": "App bewerten",
+            
+            // Export
+            "export_title": "Export",
+            "export_format_title": "Export-Format",
+            "export_format_text": "Klartext",
+            "export_format_markdown": "Markdown",
+            "export_format_pdf": "PDF",
+            "export_format_audio": "Audio",
+            "export_options_title": "Export-Optionen",
+            "export_include_transcript": "Transkription einschließen",
+            "export_include_summary": "Zusammenfassung einschließen",
+            "export_include_timestamp": "Zeitstempel einschließen",
+            "export_destination_title": "Export-Ziel",
+            "export_destination_files": "Dateien",
+            "export_destination_share": "Teilen",
+            "export_destination_cloud": "Cloud",
+            "export_progress_title": "Export-Fortschritt",
+            "export_progress_generating": "Generieren...",
+            "export_progress_uploading": "Hochladen...",
+            "export_success_title": "Export erfolgreich",
+            "export_success_message": "Datei wurde erfolgreich exportiert",
+            "export_error_title": "Export fehlgeschlagen",
+            "export_error_message": "Beim Export ist ein Fehler aufgetreten",
+            
+            // Zeiteinheiten
+            "time_unit_second": "Sekunde",
+            "time_unit_minute": "Minute",
+            "time_unit_hour": "Stunde",
+            "time_unit_day": "Tag",
+            "time_unit_week": "Woche",
+            "time_unit_month": "Monat",
+            "time_unit_year": "Jahr",
+            "time_relative_just_now": "Gerade eben",
+            "time_relative_minutes_ago": "vor %d Minuten",
+            "time_relative_hours_ago": "vor %d Stunden",
+            "time_relative_days_ago": "vor %d Tagen",
+            
+            // Fehlermeldungen
+            "error_network_title": "Netzwerkfehler",
+            "error_network_message": "Bitte überprüfen Sie Ihre Netzwerkverbindung",
+            "error_storage_title": "Speicherfehler",
+            "error_storage_message": "Nicht genügend Speicherplatz",
+            "error_permission_title": "Berechtigungsfehler",
+            "error_permission_microphone": "Mikrofon-Berechtigung erforderlich",
+            "error_permission_storage": "Speicher-Berechtigung erforderlich",
+            "error_file_title": "Dateifehler",
+            "error_file_not_found": "Datei nicht gefunden",
+            "error_file_corrupted": "Datei ist beschädigt",
+            "error_unknown_title": "Unbekannter Fehler",
+            "error_unknown_message": "Ein unbekannter Fehler ist aufgetreten, bitte versuchen Sie es erneut"
+        ]
+    }
+    
+    // MARK: - 法文
+    private static func getFrenchStrings() -> [String: String] {
+        return [
+            // Commun
+            "common_cancel": "Annuler",
+            "common_confirm": "Confirmer",
+            "common_save": "Enregistrer",
+            "common_delete": "Supprimer",
+            "common_edit": "Modifier",
+            "common_done": "Terminé",
+            "common_close": "Fermer",
+            "common_retry": "Réessayer",
+            "common_loading": "Chargement...",
+            "common_error": "Erreur",
+            "common_success": "Succès",
+            "common_warning": "Avertissement",
+            "common_info": "Information",
+            "common_yes": "Oui",
+            "common_no": "Non",
+            "common_ok": "OK",
+            "common_back": "Retour",
+            "common_next": "Suivant",
+            "common_previous": "Précédent",
+            "common_add": "Ajouter",
+            "common_remove": "Supprimer",
+            "common_search": "Rechercher",
+            "common_filter": "Filtrer",
+            "common_share": "Partager",
+            "common_export": "Exporter",
+            "common_import": "Importer",
+            "common_download": "Télécharger",
+            "common_upload": "Téléverser",
+            "common_settings": "Paramètres",
+            "common_help": "Aide",
+            "common_about": "À propos",
+            "common_version": "Version",
+            "common_update": "Mettre à jour",
+            "common_refresh": "Actualiser",
+            "common_clear": "Effacer",
+            "common_all": "Tous",
+            "common_none": "Aucun",
+            "common_other": "Autre",
+            "common_unknown": "Inconnu",
+            "common_today": "Aujourd'hui",
+            "common_yesterday": "Hier",
+            "common_tomorrow": "Demain",
+            "common_now": "Maintenant",
+            "common_recently": "Récemment",
+            
+            // Gestion des enregistrements
+            "recording_list_title": "Liste des enregistrements",
+            "recording_list_empty": "Aucun enregistrement",
+            "recording_list_empty_desc": "Appuyez sur le bouton d'enregistrement pour commencer votre premier enregistrement",
+            "recording_control_start": "Démarrer l'enregistrement",
+            "recording_control_stop": "Arrêter l'enregistrement",
+            "recording_control_pause": "Suspendre l'enregistrement",
+            "recording_control_resume": "Reprendre l'enregistrement",
+            "recording_control_play": "Lire",
+            "recording_status_recording": "Enregistrement en cours",
+            "recording_status_paused": "En pause",
+            "recording_status_stopped": "Arrêté",
+            "recording_status_playing": "Lecture en cours",
+            "recording_action_delete": "Supprimer l'enregistrement",
+            "recording_action_share": "Partager l'enregistrement",
+            "recording_action_export": "Exporter l'enregistrement",
+            "recording_action_download": "Télécharger l'enregistrement",
+            "recording_action_rename": "Renommer",
+            "recording_delete_confirm_title": "Supprimer l'enregistrement",
+            "recording_delete_confirm_message": "Êtes-vous sûr de vouloir supprimer cet enregistrement ? Cette action ne peut pas être annulée.",
+            "recording_error_save_failed": "Échec de la sauvegarde de l'enregistrement",
+            "recording_error_load_failed": "Échec du chargement de l'enregistrement",
+            "recording_error_delete_failed": "Échec de la suppression de l'enregistrement",
+            "recording_error_export_failed": "Échec de l'exportation de l'enregistrement",
+            "recording_success_saved": "Enregistrement sauvegardé avec succès",
+            "recording_success_deleted": "Enregistrement supprimé avec succès",
+            "recording_success_exported": "Enregistrement exporté avec succès",
+            "recording_duration_format": "%ds",
+            
+            // Détails de l'enregistrement
+            "detail_nav_title": "Détails de l'enregistrement",
+            "detail_nav_back": "Retour",
+            "detail_tag_edit_title": "Modifier les étiquettes",
+            "detail_tag_current": "Étiquettes actuelles",
+            "detail_tag_add": "Ajouter une étiquette",
+            "detail_tag_suggested": "Étiquettes suggérées",
+            "detail_tag_placeholder": "Entrer le nom de l'étiquette",
+            "detail_tag_saving": "Sauvegarde...",
+            "detail_tag_save_failed": "Échec de la sauvegarde des étiquettes, veuillez réessayer",
+            "detail_section_edit_title": "Modifier la section",
+            "detail_section_edit_mode": "Modifier",
+            "detail_section_preview_mode": "Aperçu",
+            "detail_transcript_original": "Original",
+            "detail_transcript_polished": "Révisé",
+            "detail_transcript_full_view": "Voir la transcription complète",
+            
+            // Gestion des connexions
+            "connection_status_connected": "Connecté",
+            "connection_status_disconnected": "Déconnecté",
+            "connection_status_connecting": "Connexion en cours",
+            "connection_config_title": "Configuration de connexion",
+            "connection_config_device": "Configuration de l'appareil",
+            "connection_config_network": "Configuration réseau",
+            "connection_error_failed": "Échec de la connexion",
+            "connection_error_network_unavailable": "Réseau indisponible",
+            "connection_error_device_not_found": "Appareil non trouvé",
+            
+            // Accueil
+            "homepage_title": "Accueil",
+            "homepage_filter_tag": "Étiquettes",
+            "homepage_filter_space": "Espaces",
+            "homepage_search_placeholder": "Rechercher des enregistrements...",
+            "homepage_search_empty": "Aucun contenu correspondant trouvé",
+            "homepage_search_empty_desc": "Essayez avec d'autres mots-clés",
+            "homepage_search_loading": "Recherche...",
+            "homepage_product_name": "Echo o1",
+            "homepage_device_connected": "Connecté",
+            "homepage_device_disconnected": "Déconnecté",
+            
+            // Recherche
+            "search_title": "Recherche",
+            "search_placeholder": "Entrer les mots-clés de recherche",
+            "search_smart_placeholder": "Rechercher contenu, sémantique, étiquettes...",
+            "search_result_empty": "Aucun résultat correspondant trouvé",
+            "search_result_empty_desc": "Essayez avec d'autres termes de recherche",
+            "search_result_count": "%d résultats trouvés",
+            "search_history_title": "Historique de recherche",
+            "search_history_clear": "Effacer l'historique",
+            "search_type_all": "Tous",
+            "search_type_title": "Titre",
+            "search_type_content": "Contenu",
+            "search_type_tag": "Étiquettes",
+            
+            // Paramètres
+            "settings_title": "Paramètres",
+            "settings_appearance_title": "Apparence",
+            "settings_dark_mode": "Mode sombre",
+            "settings_language": "Langue",
+            "settings_theme": "Thème",
+            "settings_theme_dark": "Sombre",
+            "settings_theme_light": "Clair",
+            "settings_account": "Compte",
+            "settings_notifications": "Notifications",
+            "settings_database_debug": "Debug de la base de données",
+            "settings_recording_title": "Paramètres d'enregistrement",
+            "settings_audio_quality": "Qualité audio",
+            "settings_auto_save": "Sauvegarde automatique",
+            "settings_storage_location": "Emplacement de stockage",
+            "settings_privacy_title": "Paramètres de confidentialité",
+            "settings_data_collection": "Collecte de données",
+            "settings_analytics": "Analyses",
+            "settings_about_title": "À propos de l'app",
+            "settings_app_version": "Version de l'app",
+            "settings_build_number": "Numéro de build",
+            "settings_developer": "Développeur",
+            "settings_contact": "Contact",
+            "settings_feedback": "Commentaires",
+            "settings_rate_app": "Évaluer l'app",
+            
+            // Export
+            "export_title": "Export",
+            "export_format_title": "Format d'export",
+            "export_format_text": "Texte brut",
+            "export_format_markdown": "Markdown",
+            "export_format_pdf": "PDF",
+            "export_format_audio": "Audio",
+            "export_options_title": "Options d'export",
+            "export_include_transcript": "Inclure la transcription",
+            "export_include_summary": "Inclure le résumé",
+            "export_include_timestamp": "Inclure l'horodatage",
+            "export_destination_title": "Destination d'export",
+            "export_destination_files": "Fichiers",
+            "export_destination_share": "Partager",
+            "export_destination_cloud": "Cloud",
+            "export_progress_title": "Progression de l'export",
+            "export_progress_generating": "Génération...",
+            "export_progress_uploading": "Téléversement...",
+            "export_success_title": "Export réussi",
+            "export_success_message": "Le fichier a été exporté avec succès",
+            "export_error_title": "Échec de l'export",
+            "export_error_message": "Une erreur s'est produite lors de l'export",
+            
+            // Unités de temps
+            "time_unit_second": "seconde",
+            "time_unit_minute": "minute",
+            "time_unit_hour": "heure",
+            "time_unit_day": "jour",
+            "time_unit_week": "semaine",
+            "time_unit_month": "mois",
+            "time_unit_year": "année",
+            "time_relative_just_now": "À l'instant",
+            "time_relative_minutes_ago": "il y a %d minutes",
+            "time_relative_hours_ago": "il y a %d heures",
+            "time_relative_days_ago": "il y a %d jours",
+            
+            // Messages d'erreur
+            "error_network_title": "Erreur réseau",
+            "error_network_message": "Veuillez vérifier votre connexion réseau",
+            "error_storage_title": "Erreur de stockage",
+            "error_storage_message": "Espace de stockage insuffisant",
+            "error_permission_title": "Erreur d'autorisation",
+            "error_permission_microphone": "Autorisation du microphone requise",
+            "error_permission_storage": "Autorisation de stockage requise",
+            "error_file_title": "Erreur de fichier",
+            "error_file_not_found": "Fichier non trouvé",
+            "error_file_corrupted": "Fichier corrompu",
+            "error_unknown_title": "Erreur inconnue",
+            "error_unknown_message": "Une erreur inconnue s'est produite, veuillez réessayer"
         ]
     }
 }

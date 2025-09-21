@@ -11,13 +11,17 @@ import Foundation
 class LocalizationManager: ObservableObject {
     static let shared = LocalizationManager()
     
-    private var currentLanguage: String = "zh-CN"
+    private var currentLanguage: String
     private var localizedStrings: [String: [String: String]] = [:]
     
     private init() {
-        // 从UserDefaults加载保存的语言设置
+        // 初始化语言设置
         if let savedLanguage = UserDefaults.standard.string(forKey: "appLanguage") {
             currentLanguage = savedLanguage
+        } else {
+            // 如果没有保存的语言设置，使用系统首选语言
+            currentLanguage = LocalizationData.getSystemPreferredLanguage()
+            UserDefaults.standard.set(currentLanguage, forKey: "appLanguage")
         }
         loadLocalizedStrings()
     }
@@ -51,6 +55,7 @@ class LocalizationManager: ObservableObject {
     /// - Parameter language: 语言代码 (如: "zh-CN", "en-US")
     func switchLanguage(to language: String) {
         currentLanguage = language
+        UserDefaults.standard.set(language, forKey: "appLanguage")
         loadLocalizedStrings()
         // 发送通知，让UI更新
         DispatchQueue.main.async {

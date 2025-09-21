@@ -73,7 +73,7 @@ struct SettingsView: View {
                                 
                                 Spacer()
                                 
-                                Text(getLanguageDisplayName(appLanguage))
+                                Text(LocalizationData.getDisplayName(for: appLanguage))
                                     .font(.system(size: 14))
                                     .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
                                 
@@ -158,104 +158,8 @@ struct SettingsView: View {
         }
     }
     
-    // MARK: - Helper Methods
-    private func getLanguageDisplayName(_ languageCode: String) -> String {
-        switch languageCode {
-        case "zh-CN":
-            return "简体中文"
-        case "en-US":
-            return "English"
-        default:
-            return languageCode
-        }
-    }
 }
 
-
-// MARK: - 语言选择器视图
-struct LanguageSelectorView: View {
-    @Binding var isPresented: Bool
-    @Binding var currentLanguage: String
-    let isDarkMode: Bool
-    
-    private let availableLanguages = [
-        ("zh-CN", "简体中文", "🇨🇳"),
-        ("en-US", "English", "🇺🇸")
-    ]
-    
-    var body: some View {
-        NavigationView {
-            ZStack {
-                (isDarkMode ? Color.black : Color(white: 0.95))
-                    .ignoresSafeArea()
-                
-                VStack(spacing: 20) {
-                    VStack(spacing: 12) {
-                        ForEach(availableLanguages, id: \.0) { (code, name, flag) in
-                            Button(action: {
-                                currentLanguage = code
-                                isPresented = false
-                            }) {
-                                HStack {
-                                    Text(flag)
-                                        .font(.system(size: 24))
-                                        .frame(width: 40)
-                                    
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(name)
-                                            .font(.system(size: 16, weight: .medium))
-                                            .foregroundColor(isDarkMode ? .white : .black)
-                                        
-                                        Text(code)
-                                            .font(.system(size: 14))
-                                            .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
-                                    }
-                                    
-                                    Spacer()
-                                    
-                                    if currentLanguage == code {
-                                        Image(systemName: "checkmark")
-                                            .font(.system(size: 16, weight: .semibold))
-                                            .foregroundColor(.blue)
-                                    }
-                                }
-                                .padding(.horizontal, 20)
-                                .padding(.vertical, 16)
-                                .background(
-                                    RoundedRectangle(cornerRadius: 12)
-                                        .fill(isDarkMode ? Color.white.opacity(0.05) : Color.white)
-                                        .overlay(
-                                            RoundedRectangle(cornerRadius: 12)
-                                                .stroke(
-                                                    currentLanguage == code ? Color.blue.opacity(0.3) : Color.clear,
-                                                    lineWidth: 1
-                                                )
-                                        )
-                                )
-                            }
-                            .animation(.easeInOut(duration: 0.2), value: currentLanguage)
-                        }
-                    }
-                    .padding(.horizontal, 20)
-                    
-                    Spacer()
-                }
-                .padding(.top, 20)
-            }
-            .navigationTitle(L("settings_language"))
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button(L("common_done")) {
-                        isPresented = false
-                    }
-                    .foregroundColor(isDarkMode ? .white : .black)
-                }
-            }
-        }
-        .preferredColorScheme(isDarkMode ? .dark : .light)
-    }
-}
 
 // MARK: - 关于页面 WebView
 struct AboutWebView: View {
