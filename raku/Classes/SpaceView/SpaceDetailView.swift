@@ -16,10 +16,12 @@ struct SpaceDetailView: View {
     @State private var selectedCategoryId: UUID?
     @State private var categories: [Category] = []
     @State private var spaceArticles: [SpaceArticle] = []
+    @State private var uncategorizedArticles: [SpaceArticle] = []
     @State private var recordings: [UUID: AudioRecording] = [:]
     @State private var showingAddCategory = false
     @State private var newCategoryName = ""
     @State private var showingEditSpace = false
+    @State private var showUncategorized = false
     
     init(space: Space) {
         self._space = State(initialValue: space)
@@ -27,6 +29,9 @@ struct SpaceDetailView: View {
     
     // 过滤后的文章
     private var filteredArticles: [SpaceArticle] {
+        if showUncategorized {
+            return uncategorizedArticles
+        }
         guard let selectedCategoryId = selectedCategoryId else {
             return spaceArticles
         }
@@ -130,12 +135,13 @@ struct SpaceDetailView: View {
                     Button(action: {
                         withAnimation(.easeInOut(duration: 0.25)) {
                             selectedCategoryId = category.id
+                            showUncategorized = false
                         }
                     }) {
                         VStack(spacing: 6) {
                             Text(category.name)
-                                .font(.system(size: 14, weight: selectedCategoryId == category.id ? .medium : .regular))
-                                .foregroundColor(selectedCategoryId == category.id ?
+                                .font(.system(size: 14, weight: selectedCategoryId == category.id && !showUncategorized ? .medium : .regular))
+                                .foregroundColor(selectedCategoryId == category.id && !showUncategorized ?
                                                 (isDarkMode ? .white : .black) :
                                                 (isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4)))
                                 .tracking(0.3)
@@ -145,8 +151,36 @@ struct SpaceDetailView: View {
                                 .fill(isDarkMode ? Color.white : Color.black)
                                 .frame(width: 16, height: 2)
                                 .cornerRadius(1)
-                                .opacity(selectedCategoryId == category.id ? 1 : 0)
+                                .opacity(selectedCategoryId == category.id && !showUncategorized ? 1 : 0)
                                 .animation(.easeInOut(duration: 0.25), value: selectedCategoryId)
+                        }
+                    }
+                    .buttonStyle(PlainButtonStyle())
+                }
+                
+                // 未分类标签 - 只有存在未分类文章时才显示
+                if !uncategorizedArticles.isEmpty {
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.25)) {
+                            showUncategorized = true
+                            selectedCategoryId = nil
+                        }
+                    }) {
+                        VStack(spacing: 6) {
+                            Text("未分类")
+                                .font(.system(size: 14, weight: showUncategorized ? .medium : .regular))
+                                .foregroundColor(showUncategorized ?
+                                                (isDarkMode ? .white : .black) :
+                                                (isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4)))
+                                .tracking(0.3)
+                            
+                            // 极简指示线
+                            Rectangle()
+                                .fill(isDarkMode ? Color.white : Color.black)
+                                .frame(width: 16, height: 2)
+                                .cornerRadius(1)
+                                .opacity(showUncategorized ? 1 : 0)
+                                .animation(.easeInOut(duration: 0.25), value: showUncategorized)
                         }
                     }
                     .buttonStyle(PlainButtonStyle())
@@ -188,13 +222,16 @@ struct SpaceDetailView: View {
         // 加载类别
         categories = DatabaseManager.shared.getCategories(for: space.id)
         
+        // 加载所有文章
+        spaceArticles = DatabaseManager.shared.getArticlesForSpace(space.id)
+        
+        // 加载未分类文章
+        uncategorizedArticles = DatabaseManager.shared.getUncategorizedArticlesForSpace(space.id)
+        
         // 如果没有选中的分类且有分类，默认选中第一个
-        if selectedCategoryId == nil && !categories.isEmpty {
+        if selectedCategoryId == nil && !categories.isEmpty && !showUncategorized {
             selectedCategoryId = categories.first?.id
         }
-        
-        // 加载文章
-        spaceArticles = DatabaseManager.shared.getArticlesForSpace(space.id)
         
         // 加载录音数据
         for article in spaceArticles {
