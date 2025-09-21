@@ -305,9 +305,13 @@ struct RecordingDetailView: View {
             }
         }
         .offset(x: viewModel.isPresented ? 0 : UIScreen.main.bounds.width)
-                .onAppear {
-                    viewModel.onViewAppear()
-                }
+        .animation(.spring(response: 0.5, dampingFraction: 0.85, blendDuration: 0.3), value: viewModel.isPresented)
+        .onAppear {
+            // 添加小延迟以确保视图完全准备好再触发动画
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                viewModel.onViewAppear()
+            }
+        }
         .sheet(isPresented: $viewModel.isTagEditModalPresented) {
             TagEditModal(
                 isPresented: $viewModel.isTagEditModalPresented,

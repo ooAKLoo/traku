@@ -92,9 +92,7 @@ class RecordingDetailViewModel: ObservableObject {
     
     // MARK: - Public Methods
     func onViewAppear() {
-        withAnimation(.easeOut(duration: 0.3)) {
             isPresented = true
-        }
     }
     
     func updateTitle(_ newTitle: String) {
