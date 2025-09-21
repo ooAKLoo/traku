@@ -15,6 +15,7 @@ struct ArticleCard: View {
     let isDarkMode: Bool
     let onToggleMark: () -> Void
     let onDelete: () -> Void
+    let onEdit: () -> Void
     
     @State private var offset: CGFloat = 0
     @State private var isDragging = false
@@ -126,6 +127,18 @@ struct ArticleCard: View {
                 }
                 .padding(.trailing, 20)
                 .padding(.vertical, 16)
+                .contentShape(Rectangle()) // 确保整个区域可点击
+                .onTapGesture {
+                    // 只有在没有滑动的时候才触发编辑
+                    if !isDragging && offset == 0 {
+                        print("📝 edit-space-articalcard--- [ArticleCard] 点击触发编辑")
+                        print("   edit-space-articalcard--- isDragging: \(isDragging)")
+                        print("   edit-space-articalcard--- offset: \(offset)")
+                        print("   edit-space-articalcard--- article.id: \(article.id)")
+                        print("   edit-space-articalcard--- recording.id: \(recording.id)")
+                        onEdit()
+                    }
+                }
                 
                 Spacer(minLength: 0)
             }

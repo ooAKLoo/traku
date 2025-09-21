@@ -22,6 +22,9 @@ struct SpaceDetailView: View {
     @State private var showingEditSpace = false
     @State private var showUncategorized = false
     @State private var showingDeleteConfirmation = false
+    @State private var showingEditContent = false
+    @State private var editingArticle: SpaceArticle?
+    @State private var editingRecording: AudioRecording?
     
     init(space: Space) {
         self._space = State(initialValue: space)
@@ -73,6 +76,45 @@ struct SpaceDetailView: View {
                     updateSpace(updatedSpace)
                 }
             )
+        }
+        .sheet(isPresented: $showingEditContent) {
+            Group {
+                if let editingArticle = editingArticle, let editingRecording = editingRecording {
+                    EditContentView(
+                        article: editingArticle,
+                        recording: editingRecording,
+                        space: space,
+                        categories: categories,
+                        isDarkMode: isDarkMode,
+                        onSave: { saveData in
+                            handleContentEdit(saveData)
+                        }
+                    )
+                    .onAppear {
+                        print("✅ edit-space-articalcard--- [EditContentView] 成功显示")
+                        print("   edit-space-articalcard--- article.id: \(editingArticle.id)")
+                        print("   edit-space-articalcard--- recording.id: \(editingRecording.id)")
+                        print("   edit-space-articalcard--- recording.title: \(editingRecording.title)")
+                        print("   edit-space-articalcard--- space.name: \(space.name)")
+                        print("   edit-space-articalcard--- categories.count: \(categories.count)")
+                    }
+                } else {
+                    // 添加空状态日志
+                    Text("加载中...")
+                        .onAppear {
+                            print("❌ edit-space-articalcard--- [Sheet] 数据未准备好")
+                            print("   edit-space-articalcard--- editingArticle: \(editingArticle?.id.uuidString ?? "nil")")
+                            print("   edit-space-articalcard--- editingRecording: \(editingRecording?.id.uuidString ?? "nil")")
+                        }
+                }
+            }
+        }
+        .onChange(of: showingEditContent) { newValue in
+            print("🔄 edit-space-articalcard--- [Sheet状态] showingEditContent 变化: \(newValue)")
+            if newValue {
+                print("   edit-space-articalcard--- 当前 editingArticle: \(editingArticle?.id.uuidString ?? "nil")")
+                print("   edit-space-articalcard--- 当前 editingRecording: \(editingRecording?.id.uuidString ?? "nil")")
+            }
         }
         .alert("确认删除", isPresented: $showingDeleteConfirmation) {
             Button("取消", role: .cancel) { }
@@ -216,6 +258,9 @@ struct SpaceDetailView: View {
                             },
                             onDelete: {
                                 deleteArticle(article)
+                            },
+                            onEdit: {
+                                editArticle(article, recording)
                             }
                         )
                     }
@@ -300,6 +345,93 @@ struct SpaceDetailView: View {
                 print("❌ 创建录音记录失败")
                 // TODO: 显示错误提示
                 // ToastManager.shared.showError("创建内容失败")
+            }
+        }
+    }
+    
+    private func editArticle(_ article: SpaceArticle, _ recording: AudioRecording) {
+        print("🔧 edit-space-articalcard--- [editArticle] 开始设置编辑状态")
+        print("   edit-space-articalcard--- article.id: \(article.id)")
+        print("   edit-space-articalcard--- recording.id: \(recording.id)")
+        print("   edit-space-articalcard--- recording.title: \(recording.title)")
+        print("   edit-space-articalcard--- recording.polishedText 长度: \(recording.polishedText.count)")
+        print("   edit-space-articalcard--- 设置前 editingArticle: \(editingArticle?.id.uuidString ?? "nil")")
+        print("   edit-space-articalcard--- 设置前 editingRecording: \(editingRecording?.id.uuidString ?? "nil")")
+        
+        editingArticle = article
+        editingRecording = recording
+        
+        print("   edit-space-articalcard--- 设置后 editingArticle: \(editingArticle?.id.uuidString ?? "nil")")
+        print("   edit-space-articalcard--- 设置后 editingRecording: \(editingRecording?.id.uuidString ?? "nil")")
+        
+        showingEditContent = true
+        print("   edit-space-articalcard--- showingEditContent 设置为: true")
+    }
+    
+    private func handleContentEdit(_ saveData: EditContentData) {
+        print("💾 edit-space-articalcard--- [handleContentEdit] 开始处理编辑保存")
+        
+        guard let editingArticle = editingArticle,
+              let editingRecording = editingRecording else {
+            print("   ❌ edit-space-articalcard--- 编辑数据为空，无法保存")
+            print("   edit-space-articalcard--- editingArticle: \(editingArticle?.id.uuidString ?? "nil")")
+            print("   edit-space-articalcard--- editingRecording: \(editingRecording?.id.uuidString ?? "nil")")
+            return
+        }
+        
+        // 更新录音记录
+        let updatedRecording = AudioRecording(
+            id: editingRecording.id,
+            timestamp: editingRecording.timestamp,
+            duration: editingRecording.duration,
+            transcription: saveData.content,
+            title: saveData.title,
+            summary: saveData.content.prefix(100).description,
+            tags: saveData.tags,
+            audioData: editingRecording.audioData,
+            enrichedContent: editingRecording.enrichedContent,
+            polishedText: saveData.content,
+            contentType: editingRecording.contentType
+        )
+        
+        // 更新录音记录
+        let recordingUpdated = DatabaseManager.shared.updateRecording(updatedRecording)
+        
+        if recordingUpdated {
+            // 如果类别发生变化，更新文章的类别
+            if editingArticle.categoryId != saveData.selectedCategoryId {
+                let updateCategorySuccess = DatabaseManager.shared.updateRecordingCategory(
+                    recordingId: editingRecording.id,
+                    spaceId: space.id,
+                    categoryId: saveData.selectedCategoryId
+                )
+                
+                if updateCategorySuccess {
+                    print("✅ 文章类别更新成功")
+                } else {
+                    print("❌ 文章类别更新失败")
+                }
+            }
+            
+            DispatchQueue.main.async {
+                print("✅ edit-space-articalcard--- 内容编辑成功")
+                
+                print("🧹 edit-space-articalcard--- [handleContentEdit] 清理编辑状态")
+                // 重置编辑状态
+                self.editingArticle = nil
+                self.editingRecording = nil
+                
+                // 刷新数据
+                self.loadData()
+                
+                // TODO: 显示成功提示
+                // ToastManager.shared.showSuccess("内容已更新")
+            }
+        } else {
+            DispatchQueue.main.async {
+                print("❌ 内容编辑失败")
+                // TODO: 显示错误提示
+                // ToastManager.shared.showError("内容更新失败")
             }
         }
     }
