@@ -40,8 +40,8 @@ struct HelpView: View {
         ),
         CoreFeature(
             icon: "magnifyingglass",
-            title: "快速回溯",
-            description: "强大搜索功能，瞬间找到历史记录"
+            title: "语义搜索",
+            description: "理解你的意图，找到相关内容而非关键词匹配"
         )
     ]
     
