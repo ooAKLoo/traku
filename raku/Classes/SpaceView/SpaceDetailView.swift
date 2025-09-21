@@ -391,7 +391,7 @@ struct ArticleCard: View {
                         .lineLimit(3)
                     
                     // 显示创建时间 - 极简风格
-                    Text(ArticleCard.formatMinimalTimestamp(article.createdAt))
+                    Text(article.createdAt.minimalRelativeFormatted)
                         .font(.system(size: 11, weight: .regular))
                         .foregroundColor(isDarkMode ? .white.opacity(0.25) : .black.opacity(0.25))
                         .tracking(0.5)
@@ -479,63 +479,6 @@ struct ArticleCard: View {
         return 5  // 统一大小
     }
     
-    // MARK: - Date Formatting
-    static func formatDate(_ date: Date) -> String {
-        let formatter = DateFormatter()
-        let now = Date()
-        let calendar = Calendar.current
-        
-        // 如果是今天
-        if calendar.isDate(date, inSameDayAs: now) {
-            formatter.dateFormat = "HH:mm"
-            return formatter.string(from: date)
-        }
-        
-        // 如果是昨天
-        if calendar.isDate(date, inSameDayAs: calendar.date(byAdding: .day, value: -1, to: now) ?? now) {
-            formatter.dateFormat = "HH:mm"
-            return "昨天 " + formatter.string(from: date)
-        }
-        
-        // 如果是今年
-        let dateYear = calendar.component(.year, from: date)
-        let currentYear = calendar.component(.year, from: now)
-        
-        if dateYear == currentYear {
-            formatter.dateFormat = "M月d日 HH:mm"
-        } else {
-            formatter.dateFormat = "yyyy年M月d日 HH:mm"
-        }
-        
-        return formatter.string(from: date)
-    }
-    
-    // MARK: - 极简时间格式
-    static func formatMinimalTimestamp(_ date: Date) -> String {
-        let calendar = Calendar.current
-        let now = Date()
-        let components = calendar.dateComponents([.minute, .hour, .day], from: date, to: now)
-        
-        if let day = components.day, day > 0 {
-            if day == 1 {
-                return "昨天"
-            } else if day < 7 {
-                return "\(day)天前"
-            } else if day < 30 {
-                return "\(day / 7)周前"
-            } else {
-                let formatter = DateFormatter()
-                formatter.dateFormat = "MM.dd"
-                return formatter.string(from: date)
-            }
-        } else if let hour = components.hour, hour > 0 {
-            return "\(hour)小时前"
-        } else if let minute = components.minute, minute > 0 {
-            return "\(minute)分钟前"
-        } else {
-            return "刚刚"
-        }
-    }
 }
 
 // MARK: - 添加类别视图

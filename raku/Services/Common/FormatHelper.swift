@@ -128,6 +128,68 @@ struct FormatHelper {
         formatter.locale = Locale(identifier: "zh_CN")
         return formatter.localizedString(for: date, relativeTo: Date())
     }
+    
+    /// 格式化日期时间（用于文章卡片）
+    /// - Parameter date: 日期
+    /// - Returns: 格式化的日期时间字符串
+    static func formatArticleDate(_ date: Date) -> String {
+        let formatter = DateFormatter()
+        let now = Date()
+        let calendar = Calendar.current
+        
+        // 如果是今天
+        if calendar.isDate(date, inSameDayAs: now) {
+            formatter.dateFormat = "HH:mm"
+            return formatter.string(from: date)
+        }
+        
+        // 如果是昨天
+        if calendar.isDate(date, inSameDayAs: calendar.date(byAdding: .day, value: -1, to: now) ?? now) {
+            formatter.dateFormat = "HH:mm"
+            return "昨天 " + formatter.string(from: date)
+        }
+        
+        // 如果是今年
+        let dateYear = calendar.component(.year, from: date)
+        let currentYear = calendar.component(.year, from: now)
+        
+        if dateYear == currentYear {
+            formatter.dateFormat = "M月d日 HH:mm"
+        } else {
+            formatter.dateFormat = "yyyy年M月d日 HH:mm"
+        }
+        
+        return formatter.string(from: date)
+    }
+    
+    /// 极简时间格式（用于显示相对时间）
+    /// - Parameter date: 日期
+    /// - Returns: 极简格式的相对时间字符串，如 "刚刚", "3天前", "MM.dd"
+    static func formatMinimalRelativeTime(_ date: Date) -> String {
+        let calendar = Calendar.current
+        let now = Date()
+        let components = calendar.dateComponents([.minute, .hour, .day], from: date, to: now)
+        
+        if let day = components.day, day > 0 {
+            if day == 1 {
+                return "昨天"
+            } else if day < 7 {
+                return "\(day)天前"
+            } else if day < 30 {
+                return "\(day / 7)周前"
+            } else {
+                let formatter = DateFormatter()
+                formatter.dateFormat = "MM.dd"
+                return formatter.string(from: date)
+            }
+        } else if let hour = components.hour, hour > 0 {
+            return "\(hour)小时前"
+        } else if let minute = components.minute, minute > 0 {
+            return "\(minute)分钟前"
+        } else {
+            return "刚刚"
+        }
+    }
 }
 
 // MARK: - TimeInterval 扩展
@@ -163,5 +225,15 @@ extension Date {
     /// 格式化为相对时间
     var relativeFormatted: String {
         return FormatHelper.formatRelativeTime(self)
+    }
+    
+    /// 格式化为文章日期
+    var articleFormatted: String {
+        return FormatHelper.formatArticleDate(self)
+    }
+    
+    /// 格式化为极简相对时间
+    var minimalRelativeFormatted: String {
+        return FormatHelper.formatMinimalRelativeTime(self)
     }
 }
