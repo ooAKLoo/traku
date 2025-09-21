@@ -40,10 +40,7 @@ struct EditSpaceView: View {
                         spaceInfoSection
                         
                         // 类别管理
-                        categoriesSection
-                        
-                        // 添加类别
-                        addCategorySection
+                        categoryManagementSection
                     }
                     .padding(20)
                     .padding(.bottom, 34)
@@ -101,67 +98,16 @@ struct EditSpaceView: View {
     }
     
     // MARK: - 类别管理区域
-    private var categoriesSection: some View {
+    private var categoryManagementSection: some View {
         VStack(alignment: .leading, spacing: 16) {
-            HStack {
-                Label("类别管理", systemImage: "folder.fill")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(isDarkMode ? .white.opacity(0.9) : .black.opacity(0.8))
-                
-                Spacer()
-                
-                Text("\(editableCategories.count) 个类别")
-                    .font(.system(size: 14))
-                    .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
-            }
-            
-            if editableCategories.isEmpty {
-                VStack(spacing: 8) {
-                    Image(systemName: "folder.badge.plus")
-                        .font(.system(size: 24))
-                        .foregroundColor(isDarkMode ? .white.opacity(0.3) : .black.opacity(0.3))
-                    
-                    Text("还没有类别")
-                        .font(.system(size: 14))
-                        .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 20)
-            } else {
-                LazyVGrid(columns: [
-                    GridItem(.flexible()),
-                    GridItem(.flexible())
-                ], spacing: 12) {
-                    ForEach(editableCategories) { category in
-                        EditCategoryCard(
-                            category: category,
-                            isDarkMode: isDarkMode,
-                            onDelete: {
-                                deleteCategory(category)
-                            }
-                        )
-                    }
-                }
-            }
-        }
-        .padding(20)
-        .background(
-            RoundedRectangle(cornerRadius: 16)
-                .fill(isDarkMode ? Color.white.opacity(0.03) : Color.white)
-                .shadow(color: isDarkMode ? Color.black.opacity(0.3) : Color.black.opacity(0.05), 
-                       radius: 8, x: 0, y: 2)
-        )
-    }
-    
-    // MARK: - 添加类别区域
-    private var addCategorySection: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Label("添加新类别", systemImage: "plus.circle")
+            // 标题
+            Label("类别管理", systemImage: "folder.fill")
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundColor(isDarkMode ? .white.opacity(0.9) : .black.opacity(0.8))
             
+            // 添加新类别输入框
             HStack(spacing: 12) {
-                TextField("类别名称", text: $newCategoryName)
+                TextField("添加新类别", text: $newCategoryName)
                     .font(.system(size: 16))
                     .textFieldStyle(EditTextFieldStyle(isDarkMode: isDarkMode))
                 
@@ -176,6 +122,37 @@ struct EditSpaceView: View {
                         )
                 }
                 .disabled(!canAddCategory)
+            }
+            
+            // 已添加的类别列表
+            if !editableCategories.isEmpty {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Text("已添加的类别")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8))
+                        
+                        Spacer()
+                        
+                        Text("\(editableCategories.count) 个")
+                            .font(.system(size: 12))
+                            .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
+                    }
+                    
+                    // 类别标签列表
+                    FlowLayout(spacing: 6) {
+                        ForEach(editableCategories) { category in
+                            EditableCategoryTag(
+                                category: category,
+                                isDarkMode: isDarkMode,
+                                onDelete: {
+                                    deleteCategory(category)
+                                }
+                            )
+                        }
+                    }
+                }
+                .padding(.top, 8)
             }
         }
         .padding(20)
@@ -229,36 +206,30 @@ struct EditSpaceView: View {
     }
 }
 
-// MARK: - 编辑类别卡片
-struct EditCategoryCard: View {
+// MARK: - 可编辑类别标签
+struct EditableCategoryTag: View {
     let category: Category
     let isDarkMode: Bool
     let onDelete: () -> Void
     
     var body: some View {
-        HStack(spacing: 8) {
+        HStack(spacing: 6) {
             Text(category.name)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(isDarkMode ? .white : .black)
-                .lineLimit(1)
-            
-            Spacer()
+                .font(.system(size: 13, weight: .regular))
+                .foregroundColor(isDarkMode ? .white.opacity(0.9) : .black.opacity(0.9))
+                .fixedSize(horizontal: true, vertical: false)
             
             Button(action: onDelete) {
                 Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 16))
+                    .font(.system(size: 12))
                     .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4))
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 10)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 6)
         .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(isDarkMode ? Color.white.opacity(0.06) : Color.gray.opacity(0.08))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(isDarkMode ? Color.white.opacity(0.1) : Color.gray.opacity(0.1), lineWidth: 0.5)
-                )
+            RoundedRectangle(cornerRadius: 12)
+                .fill(isDarkMode ? Color.white.opacity(0.1) : Color.gray.opacity(0.15))
         )
     }
 }
