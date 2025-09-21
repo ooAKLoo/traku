@@ -71,14 +71,14 @@ struct FeedbackView: View {
                                 .padding(.horizontal, 20)
                         }
                         
-                        // 联系邮箱（可选）
+                        // 联系方式（可选）
                         VStack(alignment: .leading, spacing: 12) {
-                            Text("联系邮箱（可选）")
+                            Text("联系方式（可选）")
                                 .font(.system(size: 16, weight: .semibold))
                                 .foregroundColor(isDarkMode ? .white : .black)
                                 .padding(.horizontal, 20)
                             
-                            TextField("请输入您的邮箱", text: $contactEmail)
+                            TextField("请输入您的联系方式", text: $contactEmail)
                                 .textFieldStyle(PlainTextFieldStyle())
                                 .padding(12)
                                 .background(
@@ -90,33 +90,26 @@ struct FeedbackView: View {
                                         )
                                 )
                                 .foregroundColor(isDarkMode ? .white : .black)
-                                .keyboardType(.emailAddress)
                                 .autocapitalization(.none)
                                 .padding(.horizontal, 20)
                         }
                         
-                        // 提交按钮
-                        Button(action: submitFeedback) {
+                        // 提示信息
+                        VStack(spacing: 8) {
                             HStack {
-                                if isSubmitting {
-                                    ProgressView()
-                                        .scaleEffect(0.8)
-                                        .progressViewStyle(CircularProgressViewStyle(tint: .white))
-                                }
-                                Text(isSubmitting ? "提交中..." : "提交反馈")
-                                    .font(.system(size: 16, weight: .semibold))
-                                    .foregroundColor(.white)
+                                Image(systemName: "info.circle")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
+                                
+                                Text("请点击右上角\"提交\"按钮发送反馈")
+                                    .font(.system(size: 14))
+                                    .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
+                                
+                                Spacer()
                             }
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 50)
-                            .background(
-                                RoundedRectangle(cornerRadius: 12)
-                                    .fill(canSubmit ? Color.blue : Color.gray)
-                            )
+                            .padding(.horizontal, 20)
+                            .padding(.top, 10)
                         }
-                        .disabled(!canSubmit || isSubmitting)
-                        .padding(.horizontal, 20)
-                        .padding(.top, 10)
                         
                         Spacer(minLength: 50)
                     }
@@ -126,11 +119,27 @@ struct FeedbackView: View {
             .navigationTitle("用户反馈")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("完成") {
+                ToolbarItem(placement: .navigationBarLeading) {
+                    Button("取消") {
                         dismiss()
                     }
-                    .foregroundColor(isDarkMode ? .white : .black)
+                    .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8))
+                }
+                
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button(action: submitFeedback) {
+                        HStack(spacing: 4) {
+                            if isSubmitting {
+                                ProgressView()
+                                    .scaleEffect(0.7)
+                                    .progressViewStyle(CircularProgressViewStyle(tint: .blue))
+                            }
+                            Text(isSubmitting ? "提交中" : "提交")
+                                .font(.system(size: 16, weight: .medium))
+                        }
+                    }
+                    .foregroundColor(canSubmit ? .blue : (isDarkMode ? .white.opacity(0.3) : .black.opacity(0.3)))
+                    .disabled(!canSubmit || isSubmitting)
                 }
             }
         }
