@@ -18,8 +18,7 @@ struct SpaceDetailView: View {
     @State private var spaceArticles: [SpaceArticle] = []
     @State private var uncategorizedArticles: [SpaceArticle] = []
     @State private var recordings: [UUID: AudioRecording] = [:]
-    @State private var showingAddCategory = false
-    @State private var newCategoryName = ""
+    @State private var showingAddContent = false
     @State private var showingEditSpace = false
     @State private var showUncategorized = false
     @State private var showingDeleteConfirmation = false
@@ -55,12 +54,13 @@ struct SpaceDetailView: View {
         .onAppear {
             loadData()
         }
-        .sheet(isPresented: $showingAddCategory) {
-            AddCategoryView(
-                spaceId: space.id,
+        .sheet(isPresented: $showingAddContent) {
+            CreateContentView(
+                space: space,
+                categories: categories,
                 isDarkMode: isDarkMode,
-                onSave: { categoryName in
-                    createCategory(name: categoryName)
+                onSave: { saveData in
+                    handleContentSave(saveData)
                 }
             )
         }
@@ -110,19 +110,19 @@ struct SpaceDetailView: View {
             // 菜单按钮
             Menu {
                 Button(action: {
-                    showingAddCategory = true
+                    showingAddContent = true
                 }) {
-                    Label("添加", systemImage: "plus")
+                    Label("添加内容", systemImage: "plus")
                 }
                 Button(action: {
                     showingEditSpace = true
                 }) {
-                    Label("编辑", systemImage: "pencil")
+                    Label("编辑空间", systemImage: "pencil")
                 }
                 Button(role: .destructive, action: {
                     showingDeleteConfirmation = true
                 }) {
-                    Label("删除", systemImage: "trash")
+                    Label("删除空间", systemImage: "trash")
                 }
             } label: {
                 Image(systemName: "ellipsis.circle")
@@ -251,10 +251,56 @@ struct SpaceDetailView: View {
     }
     
     // MARK: - Actions
-    private func createCategory(name: String) {
-        let category = Category(spaceId: space.id, name: name)
-        if DatabaseManager.shared.createCategory(category) {
-            loadData()
+    private func handleContentSave(_ saveData: CreateContentData) {
+        // saveData包含用户输入的文本内容和元数据
+        // 我们需要先创建AudioRecording，然后保存到空间
+        
+        // 创建新的录音记录
+        let newRecording = AudioRecording(
+            timestamp: Date(),
+            duration: 0, // 手动录入的内容没有时长
+            transcription: saveData.content,
+            title: saveData.title,
+            summary: saveData.content.prefix(100).description, // 使用内容前100字符作为摘要
+            tags: saveData.tags,
+            audioData: nil, // 手动录入没有音频数据
+            enrichedContent: nil,
+            polishedText: saveData.content,
+            contentType: "thinking" // 默认为思考类型，可根据需要调整
+        )
+        
+        // 先保存录音记录
+        let recordingSaved = DatabaseManager.shared.saveRecording(newRecording)
+        
+        if recordingSaved {
+            // 然后添加到空间
+            let addToSpaceSuccess = DatabaseManager.shared.addRecordingToSpace(
+                recordingId: newRecording.id,
+                spaceId: space.id,
+                categoryId: saveData.selectedCategoryId
+            )
+            
+            DispatchQueue.main.async {
+                if addToSpaceSuccess {
+                    print("✅ 新内容成功创建并添加到空间")
+                    
+                    // 刷新空间内容列表
+                    self.loadData()
+                    
+                    // TODO: 显示成功提示
+                    // ToastManager.shared.showSuccess("内容已添加到空间")
+                } else {
+                    print("❌ 添加到空间失败")
+                    // TODO: 显示错误提示
+                    // ToastManager.shared.showError("添加到空间失败")
+                }
+            }
+        } else {
+            DispatchQueue.main.async {
+                print("❌ 创建录音记录失败")
+                // TODO: 显示错误提示
+                // ToastManager.shared.showError("创建内容失败")
+            }
         }
     }
     
