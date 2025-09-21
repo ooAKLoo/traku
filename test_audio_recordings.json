@@ -375,5 +375,18 @@
     "polished_text": "最好的设计是看不见的设计。",
     "content_type": "inspiration",
     "embedding_vector": []
+  },
+  {
+    "id": "550e8400-e29b-41d4-a716-446655441020",
+    "timestamp": 1686585600,
+    "duration": 32.9,
+    "transcription": "快速记，慢慢理",
+    "title": "快速记与慢慢理",
+    "summary": "表达设计的最高境界：融入生活，不着痕迹。",
+    "tags": ["记忆梳理"],
+    "enriched_content": "## 设计的最高境界\n当设计完美融入使用场景时，用户感知不到其存在。\n\n## 无形的力量\n最有效的设计往往是最不显眼的设计。",
+    "polished_text": "快速记，慢慢理",
+    "content_type": "reflection",
+    "embedding_vector": []
   }
 ]
