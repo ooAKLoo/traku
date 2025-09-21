@@ -19,6 +19,9 @@ struct EditSpaceView: View {
     @State private var editableCategories: [Category]
     @State private var newCategoryName = ""
     @State private var showingDeleteConfirmation = false
+    @State private var isEditingMode: Bool = false
+    @State private var editingCategoryId: UUID? = nil
+    @State private var originalCategoryName: String = ""
     @Environment(\.presentationMode) var presentationMode
     
     init(space: Space, categories: [Category], isDarkMode: Bool, onSpaceUpdated: @escaping (Space) -> Void) {
@@ -111,17 +114,17 @@ struct EditSpaceView: View {
                     .font(.system(size: 16))
                     .textFieldStyle(EditTextFieldStyle(isDarkMode: isDarkMode))
                 
-                Button(action: addCategory) {
-                    Image(systemName: "plus")
+                Button(action: isEditingCategory ? saveCategoryEdit : addCategory) {
+                    Image(systemName: isEditingCategory ? "checkmark" : "plus")
                         .font(.system(size: 16, weight: .medium))
                         .foregroundColor(.white)
                         .frame(width: 36, height: 36)
                         .background(
                             RoundedRectangle(cornerRadius: 8)
-                                .fill(canAddCategory ? Color.blue : (isDarkMode ? Color.gray.opacity(0.3) : Color.gray.opacity(0.5)))
+                                .fill(canAddOrSaveCategory ? Color.blue : (isDarkMode ? Color.gray.opacity(0.3) : Color.gray.opacity(0.5)))
                         )
                 }
-                .disabled(!canAddCategory)
+                .disabled(!canAddOrSaveCategory)
             }
             
             // 已添加的类别列表
@@ -137,6 +140,21 @@ struct EditSpaceView: View {
                         Text("\(editableCategories.count) 个")
                             .font(.system(size: 12))
                             .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
+                        
+                        // 编辑模式切换按钮
+                        Button(action: {
+                            withAnimation(.easeInOut(duration: 0.2)) {
+                                if isEditingMode {
+                                    cancelCategoryEdit()
+                                } else {
+                                    isEditingMode = true
+                                }
+                            }
+                        }) {
+                            Text(editingCategoryId != nil ? "取消" : (isEditingMode ? "完成" : "编辑"))
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundColor(.blue)
+                        }
                     }
                     
                     // 类别标签列表
@@ -145,8 +163,12 @@ struct EditSpaceView: View {
                             EditableCategoryTag(
                                 category: category,
                                 isDarkMode: isDarkMode,
+                                isEditingMode: isEditingMode,
                                 onDelete: {
                                     deleteCategory(category)
+                                },
+                                onEdit: {
+                                    startEditingCategory(category)
                                 }
                             )
                         }
@@ -169,13 +191,28 @@ struct EditSpaceView: View {
         !newCategoryName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
     
+    private var isEditingCategory: Bool {
+        editingCategoryId != nil
+    }
+    
+    private var canAddOrSaveCategory: Bool {
+        let trimmed = newCategoryName.trimmingCharacters(in: .whitespacesAndNewlines)
+        if isEditingCategory {
+            // 编辑模式：只有当内容改变时才能保存
+            return !trimmed.isEmpty && trimmed != originalCategoryName
+        } else {
+            // 添加模式：只要不为空就可以添加
+            return !trimmed.isEmpty
+        }
+    }
+    
     private var canSave: Bool {
         !spaceName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
     
     // MARK: - 方法
     private func addCategory() {
-        guard canAddCategory else { return }
+        guard !isEditingCategory && canAddOrSaveCategory else { return }
         
         let categoryName = newCategoryName.trimmingCharacters(in: .whitespacesAndNewlines)
         let category = Category(spaceId: space.id, name: categoryName)
@@ -190,6 +227,42 @@ struct EditSpaceView: View {
         if DatabaseManager.shared.deleteCategory(id: category.id) {
             editableCategories.removeAll { $0.id == category.id }
         }
+    }
+    
+    private func startEditingCategory(_ category: Category) {
+        guard isEditingMode else { return }
+        
+        editingCategoryId = category.id
+        originalCategoryName = category.name
+        newCategoryName = category.name
+    }
+    
+    private func saveCategoryEdit() {
+        guard let editingId = editingCategoryId,
+              let category = editableCategories.first(where: { $0.id == editingId }),
+              canAddOrSaveCategory else { return }
+        
+        let trimmedName = newCategoryName.trimmingCharacters(in: .whitespacesAndNewlines)
+        let updatedCategory = Category(
+            id: category.id,
+            spaceId: category.spaceId,
+            name: trimmedName
+        )
+        
+        if DatabaseManager.shared.updateCategory(updatedCategory) {
+            // 更新本地数组
+            if let index = editableCategories.firstIndex(where: { $0.id == editingId }) {
+                editableCategories[index] = updatedCategory
+            }
+            cancelCategoryEdit()
+        }
+    }
+    
+    private func cancelCategoryEdit() {
+        editingCategoryId = nil
+        originalCategoryName = ""
+        newCategoryName = ""
+        isEditingMode = false
     }
     
     private func saveChanges() {
@@ -210,27 +283,77 @@ struct EditSpaceView: View {
 struct EditableCategoryTag: View {
     let category: Category
     let isDarkMode: Bool
+    let isEditingMode: Bool
     let onDelete: () -> Void
+    let onEdit: () -> Void
     
     var body: some View {
+        tagContent
+            .padding(.horizontal, 10)
+            .padding(.vertical, 6)
+            .background(backgroundView)
+            .overlay(borderView)
+            .onTapGesture {
+                if isEditingMode {
+                    onEdit()
+                }
+            }
+    }
+    
+    @ViewBuilder
+    private var tagContent: some View {
         HStack(spacing: 6) {
             Text(category.name)
                 .font(.system(size: 13, weight: .regular))
-                .foregroundColor(isDarkMode ? .white.opacity(0.9) : .black.opacity(0.9))
+                .foregroundColor(textColor)
                 .fixedSize(horizontal: true, vertical: false)
             
-            Button(action: onDelete) {
-                Image(systemName: "xmark.circle.fill")
-                    .font(.system(size: 12))
-                    .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4))
+            // 删除按钮 - 在正常模式下显示，编辑模式下隐藏
+            if !isEditingMode {
+                Button(action: onDelete) {
+                    Image(systemName: "xmark.circle.fill")
+                        .font(.system(size: 12))
+                        .foregroundColor(deleteButtonColor)
+                }
             }
         }
-        .padding(.horizontal, 10)
-        .padding(.vertical, 6)
-        .background(
+    }
+    
+    private var textColor: Color {
+        isDarkMode ? .white.opacity(0.9) : .black.opacity(0.9)
+    }
+    
+    private var deleteButtonColor: Color {
+        isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4)
+    }
+    
+    @ViewBuilder
+    private var backgroundView: some View {
+        RoundedRectangle(cornerRadius: 12)
+            .fill(backgroundColor)
+    }
+    
+    private var backgroundColor: Color {
+        if isEditingMode {
+            return Color.clear
+        } else {
+            return isDarkMode ? Color.white.opacity(0.1) : Color.gray.opacity(0.15)
+        }
+    }
+    
+    @ViewBuilder
+    private var borderView: some View {
+        if isEditingMode {
             RoundedRectangle(cornerRadius: 12)
-                .fill(isDarkMode ? Color.white.opacity(0.1) : Color.gray.opacity(0.15))
-        )
+                .strokeBorder(
+                    style: StrokeStyle(lineWidth: 1, dash: [3, 3])
+                )
+                .foregroundColor(borderColor)
+        }
+    }
+    
+    private var borderColor: Color {
+        isDarkMode ? Color.white.opacity(0.4) : Color.gray.opacity(0.6)
     }
 }
 
