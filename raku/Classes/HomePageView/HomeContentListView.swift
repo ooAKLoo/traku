@@ -9,19 +9,16 @@ import SwiftUI
 
 // MARK: - 录音卡片列表视图
 struct HomeContentListView: View {
-    let filteredRecordings: [AudioRecording]
+    @ObservedObject var viewModel: HomeContentViewModel
+    @ObservedObject var audioManager: AudioRecordingService
     let isDarkMode: Bool
-    let selectedFilter: String  // 新增：当前选择的筛选类型
-    let onDelete: (AudioRecording) -> Void
-    let audioManager: AudioRecordingService
-    let onRecordingUpdated: ((AudioRecording) -> Void)?
     
     @State private var selectedRecording: AudioRecording? = nil
     @State private var cardStates: [String: Bool] = [:] // 记录每个卡片的拖拽状态
     @State private var isNavigating = false
     
     var body: some View {
-        if filteredRecordings.isEmpty {
+        if viewModel.filteredRecordings.isEmpty {
             // 空状态视图
             emptyStateView
                 .background(navigationLink)
@@ -30,7 +27,7 @@ struct HomeContentListView: View {
                 }
         } else {
             // 根据筛选类型显示不同内容
-            if selectedFilter == L("homepage_filter_space") {
+            if viewModel.selectedFilter == L("homepage_filter_space") {
                 // 显示空间分类网格
                 SpaceGridView(isDarkMode: isDarkMode)
             } else {
@@ -44,7 +41,7 @@ struct HomeContentListView: View {
     private var recordingListView: some View {
         let scrollContent = ScrollView {
             LazyVStack(spacing: 15) {
-                ForEach(filteredRecordings, id: \.id) { recording in
+                ForEach(viewModel.filteredRecordings, id: \.id) { recording in
                     cardView(for: recording)
                 }
             }
@@ -68,7 +65,7 @@ struct HomeContentListView: View {
             config: .noRecordings,
             isDarkMode: isDarkMode
         )
-        .animation(.easeInOut(duration: 0.6), value: filteredRecordings.isEmpty)
+        .animation(.easeInOut(duration: 0.6), value: viewModel.filteredRecordings.isEmpty)
     }
     
     @ViewBuilder
@@ -76,7 +73,7 @@ struct HomeContentListView: View {
         HomeContentCardView(
             recording: recording,
             isDarkMode: isDarkMode,
-            onDelete: { onDelete(recording) },
+            onDelete: { viewModel.deleteRecording(recording) },
             onDragStateChanged: { isDragging in
                 cardStates[recording.id.uuidString] = isDragging
             }
@@ -88,14 +85,14 @@ struct HomeContentListView: View {
             insertion: .opacity.combined(with: .move(edge: .trailing)),
             removal: .opacity
         ))
-        .animation(.easeInOut(duration: 0.2), value: filteredRecordings.count)
+        .animation(.easeInOut(duration: 0.2), value: viewModel.filteredRecordings.count)
     }
     
     private var navigationLink: some View {
         Group {
             if let recording = selectedRecording {
                 NavigationLink(
-                    destination: RecordingDetailView(recording: recording, audioManager: audioManager, onRecordingUpdated: onRecordingUpdated)
+                    destination: RecordingDetailView(recording: recording, audioManager: audioManager, onRecordingUpdated: viewModel.updateRecording)
                         .navigationBarHidden(true),
                     isActive: $isNavigating
                 ) {
@@ -134,85 +131,81 @@ struct HomeContentListView: View {
 // MARK: - Preview
 struct HomeContentListView_Previews: PreviewProvider {
     static var previews: some View {
-        let sampleRecordings = [
-            AudioRecording(
-                timestamp: Date(),
-                duration: 120.5,
-                transcription: "这是一段示例录音的转录内容，包含了语音识别的结果文本。",
-                title: "项目进度汇报会议",
-                summary: "项目进度汇报讨论和下阶段规划",
-                tags: ["会议", "工作", "项目"],
-                audioData: Data(),
-                enrichedContent: "这是丰富化内容的示例"
-            ),
-            AudioRecording(
-                timestamp: Date().addingTimeInterval(-3600),
-                duration: 45.2,
-                transcription: "另一段录音内容，展示不同类型的语音记录。",
-                title: "个人想法记录",
-                summary: "想法记录和思考总结",
-                tags: ["个人", "笔记"],
-                audioData: Data(),
-                enrichedContent: nil
-            ),
-            AudioRecording(
-                timestamp: Date().addingTimeInterval(-7200),
-                duration: 89.1,
-                transcription: "第三段录音展示更多样化的内容和标签。",
-                title: "学习知识总结",
-                summary: "知识总结和要点梳理",
-                tags: ["学习", "笔记", "总结"],
-                audioData: Data(),
-                enrichedContent: "详细的学习内容分析"
-            )
-        ]
-        
         Group {
             // 浅色模式预览
-            HomeContentListView(
-                filteredRecordings: sampleRecordings,
-                isDarkMode: false,
-                selectedFilter: "标签",
-                onDelete: { _ in print("Delete recording") },
-                audioManager: AudioRecordingService(skipDatabaseLoad: true),
-                onRecordingUpdated: nil
-            )
-            .previewDisplayName("Light Mode")
+            PreviewWrapper(isDarkMode: false)
+                .previewDisplayName("Light Mode")
             
             // 深色模式预览
-            HomeContentListView(
-                filteredRecordings: sampleRecordings,
-                isDarkMode: true,
-                selectedFilter: "标签",
-                onDelete: { _ in print("Delete recording") },
-                audioManager: AudioRecordingService(skipDatabaseLoad: true),
-                onRecordingUpdated: nil
-            )
-            .previewDisplayName("Dark Mode")
-            .preferredColorScheme(.dark)
-            
-            // 空间主题预览
-            HomeContentListView(
-                filteredRecordings: sampleRecordings,
-                isDarkMode: true,
-                selectedFilter: L("homepage_filter_space"),
-                onDelete: { _ in print("Delete recording") },
-                audioManager: AudioRecordingService(skipDatabaseLoad: true),
-                onRecordingUpdated: nil
-            )
-            .previewDisplayName("Space Theme")
-            .preferredColorScheme(.dark)
+            PreviewWrapper(isDarkMode: true)
+                .previewDisplayName("Dark Mode")
+                .preferredColorScheme(.dark)
             
             // 空列表预览
-            HomeContentListView(
-                filteredRecordings: [],
-                isDarkMode: false,
-                selectedFilter: "标签",
-                onDelete: { _ in print("Delete recording") },
-                audioManager: AudioRecordingService(skipDatabaseLoad: true),
-                onRecordingUpdated: nil
-            )
-            .previewDisplayName("Empty List")
+            PreviewWrapper(isDarkMode: false, isEmpty: true)
+                .previewDisplayName("Empty List")
         }
+    }
+}
+
+// MARK: - Preview Wrapper
+private struct PreviewWrapper: View {
+    let isDarkMode: Bool
+    let isEmpty: Bool
+    
+    @StateObject private var audioManager: AudioRecordingService
+    @StateObject private var viewModel: HomeContentViewModel
+    
+    init(isDarkMode: Bool, isEmpty: Bool = false) {
+        self.isDarkMode = isDarkMode
+        self.isEmpty = isEmpty
+        
+        let manager = AudioRecordingService(skipDatabaseLoad: true)
+        self._audioManager = StateObject(wrappedValue: manager)
+        self._viewModel = StateObject(wrappedValue: HomeContentViewModel(audioManager: manager))
+        
+        // 设置示例数据
+        if !isEmpty {
+            manager.recordings = [
+                AudioRecording(
+                    timestamp: Date(),
+                    duration: 120.5,
+                    transcription: "这是一段示例录音的转录内容，包含了语音识别的结果文本。",
+                    title: "项目进度汇报会议",
+                    summary: "项目进度汇报讨论和下阶段规划",
+                    tags: ["会议", "工作", "项目"],
+                    audioData: Data(),
+                    enrichedContent: "这是丰富化内容的示例"
+                ),
+                AudioRecording(
+                    timestamp: Date().addingTimeInterval(-3600),
+                    duration: 45.2,
+                    transcription: "另一段录音内容，展示不同类型的语音记录。",
+                    title: "个人想法记录",
+                    summary: "想法记录和思考总结",
+                    tags: ["个人", "笔记"],
+                    audioData: Data(),
+                    enrichedContent: nil
+                ),
+                AudioRecording(
+                    timestamp: Date().addingTimeInterval(-7200),
+                    duration: 89.1,
+                    transcription: "第三段录音展示更多样化的内容和标签。",
+                    title: "学习知识总结",
+                    summary: "知识总结和要点梳理",
+                    tags: ["学习", "笔记", "总结"],
+                    audioData: Data(),
+                    enrichedContent: "详细的学习内容分析"
+                )
+            ]
+        }
+    }
+    
+    var body: some View {
+        HomeContentListView(
+            viewModel: viewModel,
+            audioManager: audioManager,
+            isDarkMode: isDarkMode
+        )
     }
 }

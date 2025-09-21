@@ -6,6 +6,8 @@
 //
 
 import SwiftUI
+import Foundation
+
 
 struct TagMergeView: View {
     let allTags: [String]
@@ -451,6 +453,9 @@ struct TagMergeView: View {
                 if success {
                     self.alertMessage = "成功合并 \(tagsToMerge.count) 个标签为「\(trimmedTargetTag)」"
                     self.showingAlert = true
+                    
+                    // 发送标签更新通知
+                    NotificationCenter.default.post(name: .tagsDidUpdate, object: nil)
                     
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
                         self.onTagsUpdated()

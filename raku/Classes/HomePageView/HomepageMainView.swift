@@ -101,12 +101,9 @@ struct HomepageMainView: View {
                     // 录音列表
                     if !(!viewModel.searchText.isEmpty && viewModel.searchResults.isEmpty && !viewModel.isSearching) {
                         HomeContentListView(
-                            filteredRecordings: viewModel.filteredRecordings,
-                            isDarkMode: isDarkMode,
-                            selectedFilter: viewModel.selectedFilter,
-                            onDelete: viewModel.deleteRecording,
+                            viewModel: viewModel,
                             audioManager: audioManager,
-                            onRecordingUpdated: viewModel.updateRecording
+                            isDarkMode: isDarkMode
                         )
                     }
                 }

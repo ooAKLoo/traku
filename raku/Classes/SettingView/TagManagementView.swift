@@ -7,6 +7,8 @@
 
 import SwiftUI
 import Combine
+import Foundation
+
 
 struct TagManagementView: View {
     @Environment(\.dismiss) var dismiss
@@ -266,6 +268,9 @@ struct TagManagementView: View {
         
         // 重新加载标签数据
         loadTagData()
+        
+        // 发送标签更新通知
+        NotificationCenter.default.post(name: .tagsDidUpdate, object: nil)
         
         // 重新分析聚类
         analyzeTagClustering()
@@ -729,6 +734,10 @@ struct TagRenameView: View {
             alertMessage = "成功重命名标签，已更新 \(updatedCount) 条录音"
             showingAlert = true
             onTagsUpdated()
+            
+            // 发送标签更新通知，让 AudioRecordingService 刷新数据
+            NotificationCenter.default.post(name: .tagsDidUpdate, object: nil)
+            
             isPresented = false
         } else {
             alertMessage = "重命名失败，请重试"

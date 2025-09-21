@@ -6,6 +6,8 @@
 //
 
 import SwiftUI
+import Foundation
+
 
 struct TagSplitView: View {
     let allTags: [String]
@@ -915,6 +917,9 @@ struct TagSplitView: View {
                 if success {
                     self.alertMessage = "成功拆分标签「\(self.selectedTag)」"
                     self.showingAlert = true
+                    
+                    // 发送标签更新通知
+                    NotificationCenter.default.post(name: .tagsDidUpdate, object: nil)
                     
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
                         self.onTagsUpdated()

@@ -18,7 +18,6 @@ struct HomeContentCardView: View {
     // 处理状态相关
     @State private var processingStage: UIProcessingStage = .idle
     @State private var processingProgress: Float = 0.0
-    @State private var currentRecording: AudioRecording
     @StateObject private var updateManager = RecordingUpdateManager.shared
     
     init(recording: AudioRecording, isDarkMode: Bool, onDelete: @escaping () -> Void, onDragStateChanged: ((Bool) -> Void)? = nil) {
@@ -26,7 +25,6 @@ struct HomeContentCardView: View {
         self.isDarkMode = isDarkMode
         self.onDelete = onDelete
         self.onDragStateChanged = onDragStateChanged
-        self._currentRecording = State(initialValue: recording)
     }
     
     @State private var isHovered = false
@@ -150,7 +148,7 @@ struct HomeContentCardView: View {
                         .frame(height: 10)
                     
                     // 标题
-                    Text(currentRecording.title)
+                    Text(recording.title)
                         .font(.system(size: 16, weight: .semibold))
                         .foregroundColor(isDarkMode ? .white : .black)
                         .lineLimit(2)
@@ -161,11 +159,11 @@ struct HomeContentCardView: View {
                     
                     // 标签
                     HStack(spacing: 6) {
-                        ForEach(currentRecording.tags.prefix(3), id: \.self) { tag in
+                        ForEach(recording.tags.prefix(3), id: \.self) { tag in
                             TagView(text: tag, isDarkMode: isDarkMode)
                         }
-                        if currentRecording.tags.count > 3 {
-                            Text("+\(currentRecording.tags.count - 3)")
+                        if recording.tags.count > 3 {
+                            Text("+\(recording.tags.count - 3)")
                                 .font(.system(size: 9, weight: .medium))
                                 .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4))
                                 .padding(.horizontal, 4)
@@ -277,11 +275,6 @@ struct HomeContentCardView: View {
                     }
                     processingStage = .idle
                     processingProgress = 0.0
-                }
-            }
-            .onReceive(updateManager.$recordingUpdates) { recordingUpdates in
-                if let updatedRecording = recordingUpdates[recording.id] {
-                    currentRecording = updatedRecording
                 }
             }
         }

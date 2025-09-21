@@ -13,6 +13,11 @@ import Combine
 import SwiftUI
 import AVFoundation
 
+// MARK: - 通知名称扩展
+extension Notification.Name {
+    static let tagsDidUpdate = Notification.Name("tagsDidUpdate")
+}
+
 // MARK: - 音频录制服务
 @MainActor
 class AudioRecordingService: NSObject, ObservableObject {
@@ -76,6 +81,15 @@ class AudioRecordingService: NSObject, ObservableObject {
                 loadMockData()
             }
             #endif
+        }
+        
+        // 监听标签更新通知
+        NotificationCenter.default.addObserver(
+            forName: .tagsDidUpdate,
+            object: nil,
+            queue: .main
+        ) { [weak self] _ in
+            self?.refreshAllRecordings()
         }
     }
     
@@ -286,6 +300,11 @@ class AudioRecordingService: NSObject, ObservableObject {
                 objectWillChange.send()
             }
         }
+    }
+    
+    /// 刷新所有录音记录（用于标签操作后的数据同步）
+    func refreshAllRecordings() {
+        loadRecordingsFromDatabase()
     }
     
     // MARK: - 状态查询

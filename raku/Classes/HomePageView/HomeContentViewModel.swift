@@ -22,9 +22,21 @@ class HomeContentViewModel: ObservableObject {
     @Published var showingSpaceTemplateSheet = false
     
     private let audioManager: AudioRecordingService
+    private var cancellables = Set<AnyCancellable>()
     
     init(audioManager: AudioRecordingService) {
         self.audioManager = audioManager
+        setupAudioManagerObserver()
+    }
+    
+    private func setupAudioManagerObserver() {
+        // 观察 audioManager.recordings 的变化，触发 filteredRecordings 的重新计算
+        audioManager.$recordings
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] _ in
+                self?.objectWillChange.send()
+            }
+            .store(in: &cancellables)
     }
     
     var filteredRecordings: [AudioRecording] {
