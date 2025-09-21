@@ -7,35 +7,97 @@
 
 import SwiftUI
 
+// MARK: - 功能数据模型
+struct CoreFeature: Identifiable {
+    let id = UUID()
+    let icon: String
+    let title: String
+    let description: String
+}
+
+struct QuickStartStep: Identifiable {
+    let id = UUID()
+    let number: String
+    let title: String
+    let description: String
+}
+
 // MARK: - 帮助页面
 struct HelpView: View {
     @Environment(\.dismiss) var dismiss
     let isDarkMode: Bool
     
+    private let features = [
+        CoreFeature(
+            icon: "mic",
+            title: "语音捕捉",
+            description: "一键录制，随时随地记录你的思考"
+        ),
+        CoreFeature(
+            icon: "brain.head.profile",
+            title: "智能整理",
+            description: "AI自动分类和标签，让想法井然有序"
+        ),
+        CoreFeature(
+            icon: "magnifyingglass",
+            title: "快速回溯",
+            description: "强大搜索功能，瞬间找到历史记录"
+        )
+    ]
+    
+    private let quickStartSteps = [
+        QuickStartStep(
+            number: "1",
+            title: "点击录制",
+            description: "轻触麦克风按钮开始记录"
+        ),
+        QuickStartStep(
+            number: "2", 
+            title: "说出想法",
+            description: "自然表达你的思考和灵感"
+        ),
+        QuickStartStep(
+            number: "3",
+            title: "自动整理",
+            description: "AI生成标题和标签分类"
+        ),
+        QuickStartStep(
+            number: "4",
+            title: "查找回顾",
+            description: "通过搜索快速定位内容"
+        )
+    ]
+    
     var body: some View {
         NavigationView {
-            ZStack {
-                (isDarkMode ? Color.black : Color(white: 0.95))
-                    .ignoresSafeArea()
-                
-                ScrollView {
-                    VStack(spacing: 24) {
-                        IntroductionSection(isDarkMode: isDarkMode)
-                        FeaturesSection(isDarkMode: isDarkMode)
-                        TipsSection(isDarkMode: isDarkMode)
-                        QuickStartSection(isDarkMode: isDarkMode)
-                        
-                        Text("我们相信，好的工具应该是透明的 - 你只需要专注于思考本身。")
-                            .font(.system(size: 14))
-                            .italic()
-                            .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
-                            .multilineTextAlignment(.center)
-                            .frame(maxWidth: .infinity)
-                            .padding(.top, 8)
-                    }
-                    .padding()
+            ScrollView {
+                VStack(spacing: 0) {
+                    // 1. 产品理念区
+                    ProductVisionSection(isDarkMode: isDarkMode)
+                        .padding(.vertical, 60)
+                    
+                    Divider()
+                        .opacity(0.3)
+                        .padding(.horizontal, 40)
+                    
+                    // 2. 核心功能区
+                    CoreFeaturesSection(features: features, isDarkMode: isDarkMode)
+                        .padding(.vertical, 60)
+                    
+                    // 3. 快速开始区
+                    QuickStartSection(steps: quickStartSteps, isDarkMode: isDarkMode)
+                        .padding(.vertical, 60)
+                        .background(
+                            (isDarkMode ? Color.white.opacity(0.02) : Color.gray.opacity(0.02))
+                                .ignoresSafeArea()
+                        )
+                    
+                    // 4. 底部留白
+                    Spacer()
+                        .frame(height: 40)
                 }
             }
+            .background(isDarkMode ? Color.black : Color.white)
             .navigationTitle(L("common_help"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
@@ -51,146 +113,114 @@ struct HelpView: View {
     }
 }
 
-struct IntroductionSection: View {
+// MARK: - 产品理念区
+struct ProductVisionSection: View {
     let isDarkMode: Bool
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("📝 我们的设计理念")
-                .font(.system(size: 20, weight: .semibold))
+        VStack(spacing: 24) {
+            Text("让思考发生")
+                .font(.largeTitle.weight(.thin))
+                .tracking(2)
                 .foregroundColor(isDarkMode ? .white : .black)
             
-            Text("这个APP诞生于一个简单的想法：让每一个闪念都不被遗忘，让每一次思考都能沉淀。")
-                .font(.system(size: 15))
-                .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8))
-                .lineSpacing(4)
+            Text("捕捉每一个灵感瞬间")
+                .font(.body)
+                .foregroundColor(.secondary)
         }
-        .padding()
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(isDarkMode ? Color.white.opacity(0.05) : Color.white)
-        )
+        .padding(.horizontal, 40)
     }
 }
 
-struct FeaturesSection: View {
+// MARK: - 核心功能区
+struct CoreFeaturesSection: View {
+    let features: [CoreFeature]
     let isDarkMode: Bool
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("🎯 核心功能")
-                .font(.system(size: 20, weight: .semibold))
+        VStack(spacing: 0) {
+            Text("核心功能")
+                .font(.title2.weight(.medium))
                 .foregroundColor(isDarkMode ? .white : .black)
+                .padding(.bottom, 40)
             
-            VStack(alignment: .leading, spacing: 12) {
-                FeatureItem(title: "最近", description: "所有新增内容的聚合地", isDarkMode: isDarkMode)
-                FeatureItem(title: "笔记", description: "深度思考的归档，AI帮你结构化整理", isDarkMode: isDarkMode)
-                FeatureItem(title: "灵感", description: "碎片创意的集合，围绕项目/主题自动组织", isDarkMode: isDarkMode)
+            VStack(spacing: 32) {
+                ForEach(features) { feature in
+                    HStack(spacing: 20) {
+                        Image(systemName: feature.icon)
+                            .font(.title2)
+                            .foregroundColor(.primary)
+                            .frame(width: 44)
+                        
+                        VStack(alignment: .leading, spacing: 4) {
+                            Text(feature.title)
+                                .font(.headline)
+                                .foregroundColor(isDarkMode ? .white : .black)
+                            
+                            Text(feature.description)
+                                .font(.subheadline)
+                                .foregroundColor(.secondary)
+                                .lineLimit(2)
+                        }
+                        
+                        Spacer()
+                    }
+                    .padding(.horizontal, 40)
+                }
             }
         }
-        .padding()
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(isDarkMode ? Color.white.opacity(0.05) : Color.white)
-        )
     }
 }
 
-struct TipsSection: View {
-    let isDarkMode: Bool
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 16) {
-            Text("💡 使用建议")
-                .font(.system(size: 20, weight: .semibold))
-                .foregroundColor(isDarkMode ? .white : .black)
-            
-            VStack(alignment: .leading, spacing: 12) {
-                TipItem(number: "1", title: "别纠结分类", description: "直接记录你的想法，系统会自动判断", isDarkMode: isDarkMode)
-                TipItem(number: "2", title: "相信AI建议", description: "自动生成的标签和分类通常很准确", isDarkMode: isDarkMode)
-                TipItem(number: "3", title: "善用最近", description: "如果不确定内容去哪了，先看最近页面", isDarkMode: isDarkMode)
-            }
-        }
-        .padding()
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(isDarkMode ? Color.white.opacity(0.05) : Color.white)
-        )
-    }
-}
-
+// MARK: - 快速开始区
 struct QuickStartSection: View {
+    let steps: [QuickStartStep]
     let isDarkMode: Bool
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            Text("🚀 快速开始")
-                .font(.system(size: 20, weight: .semibold))
+        VStack(spacing: 0) {
+            Text("快速开始")
+                .font(.title2.weight(.medium))
                 .foregroundColor(isDarkMode ? .white : .black)
+                .padding(.bottom, 40)
             
-            Text("只需点击右下角的 + 按钮，说出或写下你的想法，剩下的交给我们。")
-                .font(.system(size: 15))
-                .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8))
-                .lineSpacing(4)
-        }
-        .padding()
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(isDarkMode ? Color.blue.opacity(0.1) : Color.blue.opacity(0.05))
-        )
-    }
-}
-
-struct FeatureItem: View {
-    let title: String
-    let description: String
-    let isDarkMode: Bool
-    
-    var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Text("•")
-                .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8))
-            
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundColor(isDarkMode ? .white.opacity(0.9) : .black.opacity(0.9))
-                
-                Text(description)
-                    .font(.system(size: 14))
-                    .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
+            VStack(spacing: 24) {
+                ForEach(steps) { step in
+                    HStack(spacing: 16) {
+                        ZStack {
+                            Circle()
+                                .fill(isDarkMode ? Color.white.opacity(0.1) : Color.black.opacity(0.08))
+                                .frame(width: 32, height: 32)
+                            
+                            Text(step.number)
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundColor(isDarkMode ? .white : .black)
+                        }
+                        
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(step.title)
+                                .font(.subheadline.weight(.medium))
+                                .foregroundColor(isDarkMode ? .white : .black)
+                            
+                            Text(step.description)
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        
+                        Spacer()
+                    }
+                    .padding(.horizontal, 40)
+                }
             }
         }
     }
 }
 
-struct TipItem: View {
-    let number: String
-    let title: String
-    let description: String
-    let isDarkMode: Bool
-    
-    var body: some View {
-        HStack(alignment: .top, spacing: 12) {
-            Text(number)
-                .font(.system(size: 14, weight: .bold))
-                .foregroundColor(.white)
-                .frame(width: 24, height: 24)
-                .background(Circle().fill(Color.blue))
-            
-            VStack(alignment: .leading, spacing: 4) {
-                Text(title)
-                    .font(.system(size: 15, weight: .medium))
-                    .foregroundColor(isDarkMode ? .white.opacity(0.9) : .black.opacity(0.9))
-                
-                Text(description)
-                    .font(.system(size: 14))
-                    .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
-            }
-        }
-    }
+// MARK: - 预览
+#Preview {
+    HelpView(isDarkMode: false)
+}
+
+#Preview("Dark Mode") {
+    HelpView(isDarkMode: true)
 }
