@@ -76,10 +76,6 @@ struct CustomSpaceConfigView: View {
                 categoriesSection
                     .padding(.horizontal, 20)
                 
-                // 添加类别
-                addCategorySection
-                    .padding(.horizontal, 20)
-                
                 // 创建按钮
                 Button(action: createSpace) {
                     HStack(spacing: 8) {
@@ -127,9 +123,6 @@ struct CustomSpaceConfigView: View {
                 
                 // 类别管理
                 categoriesSection
-                
-                // 添加类别
-                addCategorySection
                 
                 Spacer(minLength: 100)
             }
@@ -198,87 +191,18 @@ struct CustomSpaceConfigView: View {
     
     // MARK: - 类别管理区域
     private var categoriesSection: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            HStack {
-                Label("类别管理", systemImage: "folder.fill.badge.plus")
-                    .font(.system(size: 16, weight: .semibold))
-                    .foregroundColor(isDarkMode ? .white.opacity(0.9) : .black.opacity(0.8))
-                
-                Spacer()
-                
-                HStack(spacing: 4) {
-                    Text("\(categories.count)")
-                        .font(.system(size: 14, weight: .semibold))
-                        .foregroundColor(categories.count >= 8 ? .orange : (isDarkMode ? .white : .black))
-                    Text("/ 10")
-                        .font(.system(size: 14))
-                        .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
-                }
-                .padding(.horizontal, 10)
-                .padding(.vertical, 4)
-                .background(
-                    Capsule()
-                        .fill(isDarkMode ? Color.white.opacity(0.06) : Color.gray.opacity(0.08))
-                )
-            }
-            
-            if categories.isEmpty {
-                VStack(spacing: 12) {
-                    Image(systemName: "folder.badge.plus")
-                        .font(.system(size: 32))
-                        .foregroundColor(isDarkMode ? .white.opacity(0.3) : .black.opacity(0.3))
-                    
-                    Text("还没有添加类别")
-                        .font(.system(size: 16))
-                        .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
-                    
-                    Text("为你的空间添加一些类别来组织灵感")
-                        .font(.system(size: 14))
-                        .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4))
-                        .multilineTextAlignment(.center)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 30)
-            } else {
-                LazyVGrid(columns: [
-                    GridItem(.flexible()),
-                    GridItem(.flexible())
-                ], spacing: 12) {
-                    ForEach(categories) { category in
-                        CategoryEditCard(
-                            category: category,
-                            isDarkMode: isDarkMode,
-                            onDelete: {
-                                categories.removeAll { $0.id == category.id }
-                            }
-                        )
-                    }
-                }
-            }
-        }
-        .padding(24)
-        .background(
-            RoundedRectangle(cornerRadius: 20)
-                .fill(isDarkMode ? Color.white.opacity(0.03) : Color.white)
-                .shadow(color: isDarkMode ? Color.black.opacity(0.5) : Color.black.opacity(0.05), 
-                       radius: 10, x: 0, y: 4)
-        )
-    }
-    
-    // MARK: - 添加类别区域
-    private var addCategorySection: some View {
-        VStack(alignment: .leading, spacing: 20) {
-            Label("添加新类别", systemImage: "plus.circle.fill")
+        VStack(alignment: .leading, spacing: 16) {
+            // 标题
+            Label("类别管理", systemImage: "folder.fill")
                 .font(.system(size: 16, weight: .semibold))
                 .foregroundColor(isDarkMode ? .white.opacity(0.9) : .black.opacity(0.8))
             
+            // 添加新类别输入框
             HStack(spacing: 12) {
-                // 类别名称输入
-                TextField("类别名称", text: $newCategoryName)
+                TextField("添加新类别", text: $newCategoryName)
                     .font(.system(size: 16))
                     .textFieldStyle(PremiumTextFieldStyle(isDarkMode: isDarkMode))
                 
-                // 添加按钮
                 Button(action: addCategory) {
                     Image(systemName: "plus")
                         .font(.system(size: 16, weight: .medium))
@@ -291,13 +215,57 @@ struct CustomSpaceConfigView: View {
                 }
                 .disabled(!canAddCategory)
             }
+            
+            // 已添加的类别列表
+            if !categories.isEmpty {
+                VStack(alignment: .leading, spacing: 12) {
+                    HStack {
+                        Text("已添加的类别")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8))
+                        
+                        Spacer()
+                        
+                        Text("\(categories.count) 个")
+                            .font(.system(size: 12))
+                            .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
+                    }
+                    
+                    // 类别标签列表
+                    FlowLayout(spacing: 6) {
+                        ForEach(categories) { category in
+                            HStack(spacing: 6) {
+                                Text(category.name)
+                                    .font(.system(size: 13, weight: .regular))
+                                    .foregroundColor(isDarkMode ? .white.opacity(0.9) : .black.opacity(0.9))
+                                    .fixedSize(horizontal: true, vertical: false)
+                                
+                                Button(action: {
+                                    categories.removeAll { $0.id == category.id }
+                                }) {
+                                    Image(systemName: "xmark.circle.fill")
+                                        .font(.system(size: 12))
+                                        .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.4))
+                                }
+                            }
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(
+                                RoundedRectangle(cornerRadius: 12)
+                                    .fill(isDarkMode ? Color.white.opacity(0.1) : Color.gray.opacity(0.15))
+                            )
+                        }
+                    }
+                }
+                .padding(.top, 8)
+            }
         }
-        .padding(24)
+        .padding(20)
         .background(
-            RoundedRectangle(cornerRadius: 20)
+            RoundedRectangle(cornerRadius: 16)
                 .fill(isDarkMode ? Color.white.opacity(0.03) : Color.white)
-                .shadow(color: isDarkMode ? Color.black.opacity(0.5) : Color.black.opacity(0.05), 
-                       radius: 10, x: 0, y: 4)
+                .shadow(color: isDarkMode ? Color.black.opacity(0.3) : Color.black.opacity(0.05), 
+                       radius: 8, x: 0, y: 2)
         )
     }
     
@@ -384,42 +352,6 @@ struct CustomCategoryItem: Identifiable {
     let color: Color
 }
 
-// MARK: - 类别编辑卡片
-struct CategoryEditCard: View {
-    let category: CustomCategoryItem
-    let isDarkMode: Bool
-    let onDelete: () -> Void
-    
-    var body: some View {
-        HStack(spacing: 8) {
-            Text(category.emoji)
-                .font(.system(size: 16))
-            
-            Text(category.name)
-                .font(.system(size: 14, weight: .medium))
-                .foregroundColor(isDarkMode ? .white : .black)
-                .lineLimit(1)
-            
-            Spacer()
-            
-            Button(action: onDelete) {
-                Image(systemName: "xmark")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
-            }
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(category.color.opacity(0.1))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(category.color.opacity(0.3), lineWidth: 1)
-                )
-        )
-    }
-}
 
 // MARK: - Emoji选择器
 struct EmojiPickerView: View {
@@ -488,6 +420,7 @@ struct PremiumTextFieldStyle: TextFieldStyle {
             .foregroundColor(isDarkMode ? .white : .black)
     }
 }
+
 
 // MARK: - 预览
 struct CustomSpaceConfigView_Previews: PreviewProvider {
