@@ -389,7 +389,7 @@ struct ToastModifier: ViewModifier {
                 
                 Spacer()
             }
-            .padding(.top, 50) // 添加顶部安全距离
+            .padding(.top, 10) // 减少顶部距离，让Toast更靠上
             .animation(.spring(response: 0.4, dampingFraction: 0.8), value: toastManager.toasts.count)
         }
     }

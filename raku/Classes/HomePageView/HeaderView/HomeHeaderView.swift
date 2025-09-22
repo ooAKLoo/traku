@@ -19,6 +19,7 @@ struct HomepageHeaderView: View {
     
     @State private var showingSearchBar = false
     @FocusState private var isSearchFieldFocused: Bool  // 添加聚焦状态
+    @State private var isProductReleased = false  // 产品发布状态
     let filters = [L("homepage_filter_tag"), L("homepage_filter_space")]
     
     var body: some View {
@@ -30,7 +31,11 @@ struct HomepageHeaderView: View {
                     HStack(spacing: 12) {
                         // 产品图片（可点击配置连接）
                         Button(action: {
-                            showingConnectionConfig = true
+                            if isProductReleased {
+                                showingConnectionConfig = true
+                            } else {
+                                ToastManager.shared.showInfo("产品待发布，敬请期待")
+                            }
                         }) {
                             Image("product")
                                 .resizable()
@@ -66,6 +71,14 @@ struct HomepageHeaderView: View {
                             }
                         }
                     }
+                    .overlay(
+                        // 朦胧遮罩层
+                        RoundedRectangle(cornerRadius: 10)
+                            .fill(isDarkMode ? Color.black.opacity(0.6) : Color.white.opacity(0.8))
+                            .allowsHitTesting(false)
+                            .opacity(isProductReleased ? 0 : 1)
+                            .animation(.easeInOut(duration: 0.3), value: isProductReleased)
+                    )
                     .transition(.asymmetric(
                         insertion: .move(edge: .leading).combined(with: .opacity),
                         removal: .move(edge: .leading).combined(with: .opacity)

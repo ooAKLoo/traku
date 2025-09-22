@@ -136,6 +136,7 @@ struct HomepageMainView: View {
             }
         }
         .preferredColorScheme(isDarkMode ? .dark : .light)
+        .toastContainer()
     }
 }
 
