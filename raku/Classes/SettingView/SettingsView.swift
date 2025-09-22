@@ -17,6 +17,7 @@ struct SettingsView: View {
     @State private var showingLanguageSelector = false
     @State private var showingHelpView = false
     @State private var showingDataImport = false
+    @State private var showingDataExport = false
     @State private var showingTagManagement = false
     @State private var showingFeedback = false
     @ObservedObject private var localizationManager = LocalizationManager.shared
@@ -94,6 +95,9 @@ struct SettingsView: View {
                         SettingsRowView(icon: "square.and.arrow.down", title: L("settings_data_import"), isDarkMode: isDarkMode, action: {
                             showingDataImport = true
                         })
+                        SettingsRowView(icon: "square.and.arrow.up", title: L("settings_data_export"), isDarkMode: isDarkMode, action: {
+                            showingDataExport = true
+                        })
                         SettingsRowView(icon: "questionmark.circle", title: L("common_help"), isDarkMode: isDarkMode, action: {
                             showingHelpView = true
                         })
@@ -143,6 +147,9 @@ struct SettingsView: View {
         }
         .sheet(isPresented: $showingDataImport) {
             DataImportProgressView(isDarkMode: isDarkMode, isPresented: $showingDataImport)
+        }
+        .sheet(isPresented: $showingDataExport) {
+            DataExportView(isDarkMode: isDarkMode, isPresented: $showingDataExport)
         }
         .sheet(isPresented: $showingTagManagement) {
             TagManagementView(isDarkMode: isDarkMode)

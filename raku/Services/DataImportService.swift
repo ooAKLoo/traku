@@ -42,19 +42,53 @@ class DataImportService {
             let data = try Data(contentsOf: url)
             print("📁 成功读取JSON文件，大小: \(data.count) bytes")
             
-            // 解析JSON数据
-            let jsonObjects = try JSONSerialization.jsonObject(with: data) as? [[String: Any]]
-            guard let recordingDicts = jsonObjects else {
+            // 解析JSON数据 - 支持两种格式
+            let jsonObject = try JSONSerialization.jsonObject(with: data)
+            
+            var recordingDicts: [[String: Any]]
+            
+            if let arrayFormat = jsonObject as? [[String: Any]] {
+                // 旧格式：直接是录音数组
+                recordingDicts = arrayFormat
+                print("📊 检测到旧格式JSON文件，包含 \(recordingDicts.count) 条记录")
+                
+            } else if let objectFormat = jsonObject as? [String: Any] {
+                // 新格式：包含metadata的对象格式
+                if let recordings = objectFormat["recordings"] as? [[String: Any]] {
+                    recordingDicts = recordings
+                    
+                    // 输出导出信息
+                    if let exportDate = objectFormat["exportDate"] as? Double {
+                        let date = Date(timeIntervalSince1970: exportDate)
+                        print("📊 检测到新格式JSON文件，导出时间: \(date)")
+                    }
+                    if let appVersion = objectFormat["appVersion"] as? String {
+                        print("📊 原应用版本: \(appVersion)")
+                    }
+                    if let totalRecordings = objectFormat["totalRecordings"] as? Int {
+                        print("📊 总录音数量: \(totalRecordings)")
+                    }
+                    
+                    print("📊 将导入 \(recordingDicts.count) 条录音记录")
+                } else {
+                    return DataImportResult(
+                        success: false,
+                        importedCount: 0,
+                        skippedCount: 0,
+                        errorCount: 1,
+                        errors: ["JSON格式错误：新格式缺少'recordings'字段"]
+                    )
+                }
+            } else {
                 return DataImportResult(
                     success: false,
                     importedCount: 0,
                     skippedCount: 0,
                     errorCount: 1,
-                    errors: ["JSON格式错误：根节点不是数组"]
+                    errors: ["JSON格式错误：根节点必须是数组或包含'recordings'字段的对象"]
                 )
             }
             
-            print("📊 JSON文件包含 \(recordingDicts.count) 条记录")
             
             // 处理每条记录
             return await processRecordings(recordingDicts)
