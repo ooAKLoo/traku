@@ -218,6 +218,48 @@ class DatabaseManager {
         }
     }
     
+    // MARK: - AI Analysis Check Date Storage
+    
+    /// 保存AI分析检查日期
+    func saveAIAnalysisCheckDate(_ date: Date) {
+        UserDefaults.standard.set(date, forKey: "lastAIAnalysisCheckDate")
+    }
+    
+    /// 获取上次AI分析检查日期
+    func getLastAIAnalysisCheckDate() -> Date? {
+        return UserDefaults.standard.object(forKey: "lastAIAnalysisCheckDate") as? Date
+    }
+    
+    /// 保存AI分析结果
+    func saveAIAnalysisResult(_ result: TagClusteringResult) {
+        do {
+            let data = try JSONEncoder().encode(result)
+            UserDefaults.standard.set(data, forKey: "lastAIAnalysisResult")
+            saveAIAnalysisCheckDate(Date())
+        } catch {
+            print("❌ 保存AI分析结果失败: \(error)")
+        }
+    }
+    
+    /// 获取上次AI分析结果
+    func getLastAIAnalysisResult() -> TagClusteringResult? {
+        guard let data = UserDefaults.standard.data(forKey: "lastAIAnalysisResult") else {
+            return nil
+        }
+        
+        do {
+            return try JSONDecoder().decode(TagClusteringResult.self, from: data)
+        } catch {
+            print("❌ 读取AI分析结果失败: \(error)")
+            return nil
+        }
+    }
+    
+    /// 清除AI分析结果
+    func clearAIAnalysisResult() {
+        UserDefaults.standard.removeObject(forKey: "lastAIAnalysisResult")
+    }
+    
     // MARK: - Embedding Operations
     
     /// 更新记录的向量嵌入

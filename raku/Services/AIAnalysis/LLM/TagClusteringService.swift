@@ -11,16 +11,15 @@ import Combine
 
 // MARK: - 标签聚类结果模型
 
-struct TagCluster {
+struct TagCluster: Codable {
     let representative: String      // 代表性标签
     let members: [String]          // 要合并的标签
     let reason: String             // 合并原因
 }
 
-struct TagClusteringResult {
+struct TagClusteringResult: Codable {
     let clusters: [TagCluster]
     let totalClusters: Int
-    let analysisSummary: String
 }
 
 // MARK: - 标签聚类错误类型
@@ -228,7 +227,6 @@ class TagClusteringService: NSObject, ObservableObject {
             
             let clustersData = result["clusters"] as? [[String: Any]] ?? []
             let totalClusters = result["total_clusters"] as? Int ?? clustersData.count
-            let analysisSummary = result["analysis_summary"] as? String ?? ""
             
             var clusters: [TagCluster] = []
             for clusterData in clustersData {
@@ -246,8 +244,7 @@ class TagClusteringService: NSObject, ObservableObject {
             
             let clusteringResult = TagClusteringResult(
                 clusters: clusters,
-                totalClusters: totalClusters,
-                analysisSummary: analysisSummary
+                totalClusters: totalClusters
             )
             
             DispatchQueue.main.async {
@@ -282,8 +279,7 @@ class TagClusteringService: NSObject, ObservableObject {
       "reason": "合并原因说明"
     }
   ],
-  "total_clusters": 聚类数量,
-  "analysis_summary": "整体分析总结"
+  "total_clusters": 聚类数量
 }
 
 要求：

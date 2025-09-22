@@ -25,6 +25,7 @@ struct TagManagementView: View {
     @StateObject private var clusteringManager = TagClusteringManager()
     
     private let databaseManager = DatabaseManager.shared
+    private let tagAnalysisManager = TagAnalysisManager.shared
     
     var body: some View {
         NavigationView {
@@ -122,15 +123,14 @@ struct TagManagementView: View {
                             isDarkMode: isDarkMode
                         )
                         
-                        // AI合并建议
-                        TagClusteringSuggestionView(
-                            allTags: allTags,
-                            clusteringResult: clusteringResult,
-                            isAnalyzing: isAnalyzingClusters,
-                            isDarkMode: isDarkMode,
-                            onAnalyze: analyzeTagClustering,
-                            onApplyMerge: applyTagMerge
-                        )
+                        // AI合并建议 - 只有当有结果时才显示
+                        if let result = clusteringResult, !result.clusters.isEmpty {
+                            TagClusteringSuggestionView(
+                                clusteringResult: clusteringResult,
+                                isDarkMode: isDarkMode,
+                                onApplyMerge: applyTagMerge
+                            )
+                        }
                     }
                     .padding(.horizontal)
                     
@@ -180,6 +180,14 @@ struct TagManagementView: View {
         .onAppear {
             loadTagData()
             setupTagClusteringService()
+            loadExistingAIAnalysisResult()
+        }
+        .onReceive(NotificationCenter.default.publisher(for: .aiAnalysisCompleted)) { notification in
+            if let result = notification.object as? TagClusteringResult {
+                DispatchQueue.main.async {
+                    self.clusteringResult = result
+                }
+            }
         }
     }
     
@@ -220,6 +228,13 @@ struct TagManagementView: View {
         guard !allTags.isEmpty else { return }
         isAnalyzingClusters = true
         clusteringManager.analyzeTags(allTags)
+    }
+    
+    /// 加载已存在的AI分析结果
+    private func loadExistingAIAnalysisResult() {
+        if let existingResult = tagAnalysisManager.getCurrentAIAnalysisResult() {
+            clusteringResult = existingResult
+        }
     }
     
     private func applyTagMerge(_ cluster: TagCluster) {
@@ -272,8 +287,9 @@ struct TagManagementView: View {
         // 发送标签更新通知
         NotificationCenter.default.post(name: .tagsDidUpdate, object: nil)
         
-        // 重新分析聚类
-        analyzeTagClustering()
+        // 清除当前AI分析结果，因为标签已经改变
+        tagAnalysisManager.clearAIAnalysisResult()
+        clusteringResult = nil
     }
 }
 
@@ -372,131 +388,4 @@ class TagClusteringManager: NSObject, ObservableObject, TagClusteringServiceDele
     }
 }
 
-// MARK: - AI合并建议视图
-
-struct TagClusteringSuggestionView: View {
-    let allTags: [String]
-    let clusteringResult: TagClusteringResult?
-    let isAnalyzing: Bool
-    let isDarkMode: Bool
-    let onAnalyze: () -> Void
-    let onApplyMerge: (TagCluster) -> Void
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: "brain.head.profile")
-                    .font(.system(size: 20))
-                    .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8))
-                    .frame(width: 30)
-                
-                Text("AI合并建议")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(isDarkMode ? .white : .black)
-                
-                Spacer()
-                
-                if !isAnalyzing {
-                    Button("分析") {
-                        onAnalyze()
-                    }
-                    .font(.system(size: 14))
-                    .foregroundColor(.blue)
-                }
-            }
-            
-            if isAnalyzing {
-                HStack {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                    Text("正在分析标签聚类...")
-                        .font(.system(size: 14))
-                        .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
-                }
-                .padding(.horizontal)
-            } else if let result = clusteringResult {
-                if result.clusters.isEmpty {
-                    Text("未发现可合并的标签组")
-                        .font(.system(size: 14))
-                        .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
-                        .padding(.horizontal)
-                } else {
-                    ScrollView {
-                        LazyVStack(spacing: 8) {
-                            ForEach(Array(result.clusters.enumerated()), id: \.offset) { index, cluster in
-                                TagClusterItemView(
-                                    cluster: cluster,
-                                    index: index + 1,
-                                    isDarkMode: isDarkMode,
-                                    onApply: { onApplyMerge(cluster) }
-                                )
-                            }
-                        }
-                    }
-                    .frame(maxHeight: 200)
-                    
-                    if !result.analysisSummary.isEmpty {
-                        Text(result.analysisSummary)
-                            .font(.system(size: 12))
-                            .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))
-                            .padding(.horizontal)
-                            .padding(.top, 4)
-                    }
-                }
-            } else if allTags.count >= 2 {
-                Text("点击分析按钮开始AI标签聚类分析")
-                    .font(.system(size: 14))
-                    .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
-                    .padding(.horizontal)
-            } else {
-                Text("需要至少2个标签才能进行聚类分析")
-                    .font(.system(size: 14))
-                    .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
-                    .padding(.horizontal)
-            }
-        }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(isDarkMode ? Color.white.opacity(0.05) : Color.white)
-        )
-    }
-}
-
-// MARK: - 标签聚类项视图
-
-struct TagClusterItemView: View {
-    let cluster: TagCluster
-    let index: Int
-    let isDarkMode: Bool
-    let onApply: () -> Void
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            HStack {
-                Text("\(index). \(cluster.representative) ← \(cluster.members.joined(separator: ", "))")
-                    .font(.system(size: 13, weight: .medium))
-                    .foregroundColor(isDarkMode ? .white : .black)
-                
-                Spacer()
-                
-                Button("应用") {
-                    onApply()
-                }
-                .font(.system(size: 12))
-                .foregroundColor(.blue)
-            }
-            
-            Text(cluster.reason)
-                .font(.system(size: 12))
-                .foregroundColor(isDarkMode ? .white.opacity(0.7) : .black.opacity(0.7))
-        }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 8)
-        .background(
-            RoundedRectangle(cornerRadius: 8)
-                .fill(isDarkMode ? Color.white.opacity(0.03) : Color.white.opacity(0.7))
-        )
-    }
-}
 
