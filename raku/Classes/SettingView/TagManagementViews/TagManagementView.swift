@@ -287,9 +287,25 @@ struct TagManagementView: View {
         // 发送标签更新通知
         NotificationCenter.default.post(name: .tagsDidUpdate, object: nil)
         
-        // 清除当前AI分析结果，因为标签已经改变
-        tagAnalysisManager.clearAIAnalysisResult()
-        clusteringResult = nil
+        // 从聚类结果中移除已应用的cluster
+        if let currentResult = clusteringResult {
+            let remainingClusters = currentResult.clusters.filter { $0.representative != cluster.representative }
+            
+            // 如果还有其他建议，更新结果
+            if !remainingClusters.isEmpty {
+                let updatedResult = TagClusteringResult(
+                    clusters: remainingClusters,
+                    totalClusters: remainingClusters.count
+                )
+                clusteringResult = updatedResult
+                // 更新存储的分析结果
+                databaseManager.saveAIAnalysisResult(updatedResult)
+            } else {
+                // 如果没有剩余建议，清除结果
+                tagAnalysisManager.clearAIAnalysisResult()
+                clusteringResult = nil
+            }
+        }
     }
 }
 

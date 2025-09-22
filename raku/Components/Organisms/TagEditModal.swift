@@ -12,7 +12,7 @@ struct TagEditModal: View {
     @Binding var isPresented: Bool
     @Binding var tags: [String]
     @State private var newTagText = ""
-    @AppStorage("isDarkMode") private var isDarkMode = true
+    @AppStorage("isDarkMode") private var isDarkMode = false
     
     // 添加录音记录参数用于数据库持久化
     let recording: AudioRecording?

@@ -10,7 +10,7 @@ import SwiftUI
 struct ConnectionConfigView: View {
     @ObservedObject var audioManager: AudioRecordingService
     @Environment(\.dismiss) private var dismiss
-    @AppStorage("isDarkMode") private var isDarkMode = true
+    @AppStorage("isDarkMode") private var isDarkMode = false
     
     @State private var isConnecting = false
     @State private var manualIP = "192.168.5.49"

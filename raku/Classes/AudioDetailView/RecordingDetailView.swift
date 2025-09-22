@@ -13,7 +13,7 @@ import MarkdownUI
 // MARK: - 录音详情视图
 struct RecordingDetailView: View {
     @Environment(\.dismiss) private var dismiss
-    @AppStorage("isDarkMode") private var isDarkMode = true
+    @AppStorage("isDarkMode") private var isDarkMode = false
     @StateObject private var viewModel: RecordingDetailViewModel
     @State private var scrollProxy: ScrollViewProxy? = nil
     @FocusState private var isAnyFieldFocused: Bool

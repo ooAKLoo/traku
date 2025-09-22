@@ -10,7 +10,7 @@ import WebKit
 
 struct SettingsView: View {
     @Environment(\.dismiss) var dismiss
-    @AppStorage("isDarkMode") private var isDarkMode = true
+    @AppStorage("isDarkMode") private var isDarkMode = false
     @AppStorage("appLanguage") private var appLanguage = "zh-CN"
     @State private var showingDatabaseDebug = false
     @State private var showingAboutView = false
