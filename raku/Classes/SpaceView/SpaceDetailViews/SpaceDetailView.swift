@@ -159,7 +159,7 @@ struct SpaceDetailView: View {
                 Button(action: {
                     showingEditSpace = true
                 }) {
-                    Label("编辑空间", systemImage: "pencil")
+                    Label(L("edit_space_title"), systemImage: "pencil")
                 }
                 Button(role: .destructive, action: {
                     showingDeleteConfirmation = true

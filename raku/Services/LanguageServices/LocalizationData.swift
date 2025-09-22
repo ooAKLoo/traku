@@ -249,7 +249,6 @@ struct LocalizationData {
             "settings_build_number": "构建版本",
             "settings_developer": "开发者",
             "settings_contact": "联系方式",
-            "settings_feedback": "意见反馈",
             "settings_rate_app": "给应用评分",
             
             // 导出
@@ -278,11 +277,77 @@ struct LocalizationData {
             "export_error_file_size": "文件大小超出限制",
             "export_error_permission": "权限不足",
             
+            // 空间管理
+            "space_grid_title": "我的空间",
+            "space_add_button": "创建空间",
+            "space_add_action": "添加空间",
+            "space_empty_title": "还没有空间",
+            "space_empty_description": "创建您的第一个空间来开始整理想法",
+            "space_create_success": "空间创建成功",
+            "space_create_failed": "创建空间失败",
+            "space_delete_success": "空间删除成功",
+            "space_delete_failed": "删除空间失败",
+            
+            // 标签管理
+            "tag_management_title": "标签管理",
+            "tag_management_subtitle": "管理您的标签",
+            "tag_add_new": "添加新标签",
+            "tag_edit_title": "编辑标签",
+            "tag_delete_confirm": "确定要删除这个标签吗？",
+            "tag_empty_title": "暂无标签",
+            "tag_empty_description": "添加标签来更好地组织您的内容",
+            "tag_create_success": "标签创建成功",
+            "tag_create_failed": "创建标签失败",
+            "tag_update_success": "标签更新成功",
+            "tag_update_failed": "更新标签失败",
+            "tag_delete_success": "标签删除成功",
+            "tag_delete_failed": "删除标签失败",
+            
+            // 设置菜单
+            "settings_tag_management": "标签管理",
+            "settings_space_management": "空间管理",
+            "settings_data_export": "数据导出",
+            "settings_backup_restore": "备份与恢复",
+            "settings_privacy_security": "隐私与安全",
+            "settings_data_import": "数据导入",
+            "settings_feedback": "反馈建议",
+            
+            // 数据导入
+            "data_import_title": "数据导入",
+            "data_import_description": "从其他应用导入数据",
+            "data_import_success": "数据导入成功",
+            "data_import_failed": "数据导入失败",
+            
+            // 用户反馈
+            "user_feedback_title": "用户反馈",
+            "feedback_suggestions": "反馈建议",
+            "feedback_submit": "提交反馈",
+            "feedback_description": "告诉我们您的想法和建议",
+            
+            // 空间编辑
+            "edit_space_title": "编辑空间",
+            "edit_space_save": "保存修改",
+            "edit_space_cancel": "取消编辑",
+            "basic_information": "基本信息",
+            "space_information": "空间信息",
+            
+            // 空间模板
+            "space_template_custom": "自定义",
+            "space_template_title": "模板",
+            "space_template_feedback_description": "记录产品想法和用户反馈",
+            "space_template_notes_description": "记录想法、笔记和灵感",
+            "space_template_project_description": "管理项目任务和进度",
+            
             // 时间格式
             "time_format_duration": "%02d:%02d",
             "time_format_time": "HH:mm",
             "time_format_date": "MM月dd日",
+            "time_format_date_with_year": "yyyy年MM月dd日",
             "time_format_datetime": "yyyy年MM月dd日 HH:mm",
+            "time_format_weekday": "EEEE HH:mm",
+            "time_format_month_day": "M月d日 HH:mm",
+            "time_format_full_date": "yyyy年M月d日 HH:mm",
+            "time_format_minimal_date": "MM.dd",
             "time_unit_second": "秒",
             "time_unit_second_short": "秒",
             "time_unit_minute": "分钟",
@@ -295,6 +360,7 @@ struct LocalizationData {
             "time_relative_minutes_ago": "%d分钟前",
             "time_relative_hours_ago": "%d小时前",
             "time_relative_days_ago": "%d天前",
+            "time_relative_weeks_ago": "%d周前",
             
             // 错误提示
             "error_network_title": "网络错误",
@@ -463,7 +529,6 @@ struct LocalizationData {
             "settings_build_number": "Build Number",
             "settings_developer": "Developer",
             "settings_contact": "Contact",
-            "settings_feedback": "Feedback",
             "settings_rate_app": "Rate App",
             
             // Search
@@ -480,7 +545,77 @@ struct LocalizationData {
             "search_type_content": "Content",
             "search_type_tag": "Tags",
             
-            // Time units
+            // Space Management
+            "space_grid_title": "My Spaces",
+            "space_add_button": "Create Space",
+            "space_add_action": "Add Space",
+            "space_empty_title": "No spaces yet",
+            "space_empty_description": "Create your first space to start organizing ideas",
+            "space_create_success": "Space created successfully",
+            "space_create_failed": "Failed to create space",
+            "space_delete_success": "Space deleted successfully",
+            "space_delete_failed": "Failed to delete space",
+            
+            // Tag Management
+            "tag_management_title": "Tag Management",
+            "tag_management_subtitle": "Manage Your Tags",
+            "tag_add_new": "Add New Tag",
+            "tag_edit_title": "Edit Tag",
+            "tag_delete_confirm": "Are you sure you want to delete this tag?",
+            "tag_empty_title": "No tags",
+            "tag_empty_description": "Add tags to better organize your content",
+            "tag_create_success": "Tag created successfully",
+            "tag_create_failed": "Failed to create tag",
+            "tag_update_success": "Tag updated successfully",
+            "tag_update_failed": "Failed to update tag",
+            "tag_delete_success": "Tag deleted successfully",
+            "tag_delete_failed": "Failed to delete tag",
+            
+            // Settings Menu
+            "settings_tag_management": "Tag Management",
+            "settings_space_management": "Space Management",
+            "settings_data_export": "Data Export",
+            "settings_backup_restore": "Backup & Restore",
+            "settings_privacy_security": "Privacy & Security",
+            "settings_data_import": "Data Import",
+            "settings_feedback": "Feedback",
+            
+            // Data Import
+            "data_import_title": "Data Import",
+            "data_import_description": "Import data from other applications",
+            "data_import_success": "Data imported successfully",
+            "data_import_failed": "Data import failed",
+            
+            // User Feedback
+            "user_feedback_title": "User Feedback",
+            "feedback_suggestions": "Feedback",
+            "feedback_submit": "Submit Feedback",
+            "feedback_description": "Tell us your thoughts and suggestions",
+            
+            // Space Editing
+            "edit_space_title": "Edit Space",
+            "edit_space_save": "Save Changes",
+            "edit_space_cancel": "Cancel Edit",
+            "basic_information": "Basic Information",
+            "space_information": "Space Information",
+            
+            // Space Templates
+            "space_template_custom": "Custom",
+            "space_template_title": "Template",
+            "space_template_feedback_description": "Record product ideas and user feedback",
+            "space_template_notes_description": "Record ideas, notes and inspiration",
+            "space_template_project_description": "Manage project tasks and progress",
+            
+            // Time Formats
+            "time_format_duration": "%02d:%02d",
+            "time_format_time": "HH:mm",
+            "time_format_date": "MMM dd",
+            "time_format_date_with_year": "MMM dd, yyyy",
+            "time_format_datetime": "MMM dd, yyyy HH:mm",
+            "time_format_weekday": "EEEE HH:mm",
+            "time_format_month_day": "MMM d, HH:mm",
+            "time_format_full_date": "MMM d, yyyy HH:mm",
+            "time_format_minimal_date": "MM.dd",
             "time_unit_second": "second",
             "time_unit_second_short": "s",
             "time_unit_minute": "minute",
@@ -488,7 +623,12 @@ struct LocalizationData {
             "time_unit_day": "day",
             "time_unit_week": "week",
             "time_unit_month": "month",
-            "time_unit_year": "year"
+            "time_unit_year": "year",
+            "time_relative_just_now": "Just now",
+            "time_relative_minutes_ago": "%d minutes ago",
+            "time_relative_hours_ago": "%d hours ago",
+            "time_relative_days_ago": "%d days ago",
+            "time_relative_weeks_ago": "%d weeks ago"
         ]
     }
     
@@ -647,8 +787,68 @@ struct LocalizationData {
             "settings_build_number": "ビルドバージョン",
             "settings_developer": "開発者",
             "settings_contact": "お問い合わせ",
-            "settings_feedback": "フィードバック",
             "settings_rate_app": "アプリを評価",
+            
+            // スペース管理
+            "space_grid_title": "マイスペース",
+            "space_add_button": "スペース作成",
+            "space_add_action": "スペースを追加",
+            "space_empty_title": "スペースがありません",
+            "space_empty_description": "最初のスペースを作成してアイデアを整理しましょう",
+            "space_create_success": "スペースを作成しました",
+            "space_create_failed": "スペースの作成に失敗しました",
+            "space_delete_success": "スペースを削除しました",
+            "space_delete_failed": "スペースの削除に失敗しました",
+            
+            // タグ管理
+            "tag_management_title": "タグ管理",
+            "tag_management_subtitle": "タグを管理",
+            "tag_add_new": "新しいタグを追加",
+            "tag_edit_title": "タグを編集",
+            "tag_delete_confirm": "このタグを削除してもよろしいですか？",
+            "tag_empty_title": "タグがありません",
+            "tag_empty_description": "タグを追加してコンテンツを整理しましょう",
+            "tag_create_success": "タグを作成しました",
+            "tag_create_failed": "タグの作成に失敗しました",
+            "tag_update_success": "タグを更新しました",
+            "tag_update_failed": "タグの更新に失敗しました",
+            "tag_delete_success": "タグを削除しました",
+            "tag_delete_failed": "タグの削除に失敗しました",
+            
+            // 設定メニュー
+            "settings_tag_management": "タグ管理",
+            "settings_space_management": "スペース管理",
+            "settings_data_export": "データエクスポート",
+            "settings_backup_restore": "バックアップと復元",
+            "settings_privacy_security": "プライバシーとセキュリティ",
+            "settings_data_import": "データインポート",
+            "settings_feedback": "フィードバック",
+            
+            // データインポート
+            "data_import_title": "データインポート",
+            "data_import_description": "他のアプリからデータをインポート",
+            "data_import_success": "データのインポートが完了しました",
+            "data_import_failed": "データのインポートに失敗しました",
+            
+            // ユーザーフィードバック
+            "user_feedback_title": "ユーザーフィードバック",
+            "feedback_suggestions": "フィードバック",
+            "feedback_submit": "フィードバックを送信",
+            "feedback_description": "ご意見やご提案をお聞かせください",
+            
+            // スペース編集
+            "edit_space_title": "スペースを編集",
+            "edit_space_save": "変更を保存",
+            "edit_space_cancel": "編集をキャンセル",
+            "basic_information": "基本情報",
+            "space_information": "スペース情報",
+            
+            // スペーステンプレート
+            "space_template_custom": "カスタム",
+            "space_template_title": "テンプレート",
+            "space_template_feedback_description": "製品のアイデアとユーザーフィードバックを記録",
+            "space_template_notes_description": "アイデア、ノート、インスピレーションを記録",
+            "space_template_project_description": "プロジェクトのタスクと進捗を管理",
             
             // エクスポート
             "export_title": "エクスポート",
@@ -673,7 +873,16 @@ struct LocalizationData {
             "export_error_title": "エクスポート失敗",
             "export_error_message": "エクスポート中にエラーが発生しました",
             
-            // 時間単位
+            // 時間フォーマット
+            "time_format_duration": "%02d:%02d",
+            "time_format_time": "HH:mm",
+            "time_format_date": "M月d日",
+            "time_format_date_with_year": "yyyy年M月d日",
+            "time_format_datetime": "yyyy年M月d日 HH:mm",
+            "time_format_weekday": "EEEE HH:mm",
+            "time_format_month_day": "M月d日 HH:mm",
+            "time_format_full_date": "yyyy年M月d日 HH:mm",
+            "time_format_minimal_date": "MM.dd",
             "time_unit_second": "秒",
             "time_unit_minute": "分",
             "time_unit_hour": "時間",
@@ -685,6 +894,7 @@ struct LocalizationData {
             "time_relative_minutes_ago": "%d分前",
             "time_relative_hours_ago": "%d時間前",
             "time_relative_days_ago": "%d日前",
+            "time_relative_weeks_ago": "%d週間前",
             
             // エラーメッセージ
             "error_network_title": "ネットワークエラー",
@@ -857,8 +1067,67 @@ struct LocalizationData {
             "settings_build_number": "Build-Nummer",
             "settings_developer": "Entwickler",
             "settings_contact": "Kontakt",
-            "settings_feedback": "Feedback",
             "settings_rate_app": "App bewerten",
+            
+            // Bereich-Verwaltung
+            "space_grid_title": "Meine Bereiche",
+            "space_add_button": "Bereich erstellen",
+            "space_add_action": "Bereich hinzufügen",
+            "space_empty_title": "Noch keine Bereiche",
+            "space_empty_description": "Erstellen Sie Ihren ersten Bereich, um Ideen zu organisieren",
+            "space_create_success": "Bereich erfolgreich erstellt",
+            "space_create_failed": "Fehler beim Erstellen des Bereichs",
+            "space_delete_success": "Bereich erfolgreich gelöscht",
+            "space_delete_failed": "Fehler beim Löschen des Bereichs",
+            
+            // Tag-Verwaltung
+            "tag_management_title": "Tag-Verwaltung",
+            "tag_management_subtitle": "Tags verwalten",
+            "tag_add_new": "Neuen Tag hinzufügen",
+            "tag_edit_title": "Tag bearbeiten",
+            "tag_delete_confirm": "Sind Sie sicher, dass Sie diesen Tag löschen möchten?",
+            "tag_empty_title": "Keine Tags",
+            "tag_empty_description": "Fügen Sie Tags hinzu, um Ihre Inhalte besser zu organisieren",
+            "tag_create_success": "Tag erfolgreich erstellt",
+            "tag_create_failed": "Fehler beim Erstellen des Tags",
+            "tag_update_success": "Tag erfolgreich aktualisiert",
+            "tag_update_failed": "Fehler beim Aktualisieren des Tags",
+            "tag_delete_success": "Tag erfolgreich gelöscht",
+            "tag_delete_failed": "Fehler beim Löschen des Tags",
+            
+            // Einstellungsmenü
+            "settings_tag_management": "Tag-Verwaltung",
+            "settings_space_management": "Bereich-Verwaltung",
+            "settings_data_export": "Datenexport",
+            "settings_backup_restore": "Sicherung & Wiederherstellung",
+            "settings_privacy_security": "Datenschutz & Sicherheit",
+            "settings_data_import": "Datenimport",
+            "settings_feedback": "Feedback",
+            
+            // Datenimport
+            "data_import_title": "Datenimport",
+            "data_import_description": "Daten aus anderen Anwendungen importieren",
+            "data_import_success": "Daten erfolgreich importiert",
+            "data_import_failed": "Datenimport fehlgeschlagen",
+            
+            // Benutzerfeedback
+            "user_feedback_title": "Benutzerfeedback",
+            "feedback_suggestions": "Feedback",
+            "feedback_submit": "Feedback senden",
+            "feedback_description": "Teilen Sie uns Ihre Gedanken und Vorschläge mit",
+            
+            // Bereich bearbeiten
+            "edit_space_title": "Bereich bearbeiten",
+            "edit_space_save": "Änderungen speichern",
+            "edit_space_cancel": "Bearbeitung abbrechen",
+            "basic_information": "Grundinformationen",
+            "space_information": "Bereich-Informationen",
+            
+            // Bereich-Vorlagen
+            "space_template_custom": "Benutzerdefiniert",
+            "space_template_feedback_description": "Produktideen und Benutzerfeedback aufzeichnen",
+            "space_template_notes_description": "Ideen, Notizen und Inspiration aufzeichnen",
+            "space_template_project_description": "Projektaufgaben und Fortschritt verwalten",
             
             // Export
             "export_title": "Export",
@@ -883,7 +1152,16 @@ struct LocalizationData {
             "export_error_title": "Export fehlgeschlagen",
             "export_error_message": "Beim Export ist ein Fehler aufgetreten",
             
-            // Zeiteinheiten
+            // Zeitformate
+            "time_format_duration": "%02d:%02d",
+            "time_format_time": "HH:mm",
+            "time_format_date": "dd.MM",
+            "time_format_date_with_year": "dd.MM.yyyy",
+            "time_format_datetime": "dd.MM.yyyy HH:mm",
+            "time_format_weekday": "EEEE HH:mm",
+            "time_format_month_day": "d.M. HH:mm",
+            "time_format_full_date": "d.M.yyyy HH:mm",
+            "time_format_minimal_date": "MM.dd",
             "time_unit_second": "Sekunde",
             "time_unit_minute": "Minute",
             "time_unit_hour": "Stunde",
@@ -895,6 +1173,7 @@ struct LocalizationData {
             "time_relative_minutes_ago": "vor %d Minuten",
             "time_relative_hours_ago": "vor %d Stunden",
             "time_relative_days_ago": "vor %d Tagen",
+            "time_relative_weeks_ago": "vor %d Wochen",
             
             // Fehlermeldungen
             "error_network_title": "Netzwerkfehler",
@@ -1067,8 +1346,67 @@ struct LocalizationData {
             "settings_build_number": "Numéro de build",
             "settings_developer": "Développeur",
             "settings_contact": "Contact",
-            "settings_feedback": "Commentaires",
             "settings_rate_app": "Évaluer l'app",
+            
+            // Gestion des espaces
+            "space_grid_title": "Mes Espaces",
+            "space_add_button": "Créer un Espace",
+            "space_add_action": "Ajouter un Espace",
+            "space_empty_title": "Aucun espace encore",
+            "space_empty_description": "Créez votre premier espace pour organiser vos idées",
+            "space_create_success": "Espace créé avec succès",
+            "space_create_failed": "Échec de la création de l'espace",
+            "space_delete_success": "Espace supprimé avec succès",
+            "space_delete_failed": "Échec de la suppression de l'espace",
+            
+            // Gestion des étiquettes
+            "tag_management_title": "Gestion des Étiquettes",
+            "tag_management_subtitle": "Gérer vos Étiquettes",
+            "tag_add_new": "Ajouter une Nouvelle Étiquette",
+            "tag_edit_title": "Modifier l'Étiquette",
+            "tag_delete_confirm": "Êtes-vous sûr de vouloir supprimer cette étiquette ?",
+            "tag_empty_title": "Aucune étiquette",
+            "tag_empty_description": "Ajoutez des étiquettes pour mieux organiser votre contenu",
+            "tag_create_success": "Étiquette créée avec succès",
+            "tag_create_failed": "Échec de la création de l'étiquette",
+            "tag_update_success": "Étiquette mise à jour avec succès",
+            "tag_update_failed": "Échec de la mise à jour de l'étiquette",
+            "tag_delete_success": "Étiquette supprimée avec succès",
+            "tag_delete_failed": "Échec de la suppression de l'étiquette",
+            
+            // Menu des paramètres
+            "settings_tag_management": "Gestion des Étiquettes",
+            "settings_space_management": "Gestion des Espaces",
+            "settings_data_export": "Export de Données",
+            "settings_backup_restore": "Sauvegarde et Restauration",
+            "settings_privacy_security": "Confidentialité et Sécurité",
+            "settings_data_import": "Import de Données",
+            "settings_feedback": "Commentaires",
+            
+            // Import de données
+            "data_import_title": "Import de Données",
+            "data_import_description": "Importer des données d'autres applications",
+            "data_import_success": "Données importées avec succès",
+            "data_import_failed": "Échec de l'import des données",
+            
+            // Commentaires utilisateur
+            "user_feedback_title": "Commentaires Utilisateur",
+            "feedback_suggestions": "Commentaires",
+            "feedback_submit": "Envoyer un Commentaire",
+            "feedback_description": "Partagez vos réflexions et suggestions",
+            
+            // Édition d'espace
+            "edit_space_title": "Modifier l'Espace",
+            "edit_space_save": "Enregistrer les Modifications",
+            "edit_space_cancel": "Annuler la Modification",
+            "basic_information": "Informations de Base",
+            "space_information": "Informations de l'Espace",
+            
+            // Modèles d'espace
+            "space_template_custom": "Personnalisé",
+            "space_template_feedback_description": "Enregistrer les idées de produit et les commentaires utilisateur",
+            "space_template_notes_description": "Enregistrer des idées, notes et inspiration",
+            "space_template_project_description": "Gérer les tâches et le progrès du projet",
             
             // Export
             "export_title": "Export",
@@ -1093,7 +1431,16 @@ struct LocalizationData {
             "export_error_title": "Échec de l'export",
             "export_error_message": "Une erreur s'est produite lors de l'export",
             
-            // Unités de temps
+            // Formats de temps
+            "time_format_duration": "%02d:%02d",
+            "time_format_time": "HH:mm",
+            "time_format_date": "dd MMM",
+            "time_format_date_with_year": "dd MMM yyyy",
+            "time_format_datetime": "dd MMM yyyy HH:mm",
+            "time_format_weekday": "EEEE HH:mm",
+            "time_format_month_day": "d MMM, HH:mm",
+            "time_format_full_date": "d MMM yyyy HH:mm",
+            "time_format_minimal_date": "MM.dd",
             "time_unit_second": "seconde",
             "time_unit_minute": "minute",
             "time_unit_hour": "heure",
@@ -1105,6 +1452,7 @@ struct LocalizationData {
             "time_relative_minutes_ago": "il y a %d minutes",
             "time_relative_hours_ago": "il y a %d heures",
             "time_relative_days_ago": "il y a %d jours",
+            "time_relative_weeks_ago": "il y a %d semaines",
             
             // Messages d'erreur
             "error_network_title": "Erreur réseau",

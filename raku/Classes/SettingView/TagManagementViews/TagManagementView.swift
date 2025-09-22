@@ -138,7 +138,7 @@ struct TagManagementView: View {
                 }
                 .padding(.top, 20)
             }
-            .navigationTitle("标签管理")
+            .navigationTitle(L("tag_management_title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarTrailing) {

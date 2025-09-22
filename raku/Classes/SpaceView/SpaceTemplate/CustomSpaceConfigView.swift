@@ -136,7 +136,7 @@ struct CustomSpaceConfigView: View {
     private var spaceInfoSection: some View {
         VStack(alignment: .leading, spacing: 20) {
             HStack {
-                Label("基本信息", systemImage: "sparkle")
+                Label(L("basic_information"), systemImage: "sparkle")
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(isDarkMode ? .white.opacity(0.9) : .black.opacity(0.8))
                 Spacer()

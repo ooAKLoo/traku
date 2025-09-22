@@ -352,7 +352,7 @@ struct DataImportProgressView: View {
                 }
                 .padding()
             }
-            .navigationTitle("数据导入")
+            .navigationTitle(L("data_import_title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {

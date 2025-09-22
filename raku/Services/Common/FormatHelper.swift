@@ -36,6 +36,7 @@ struct FormatHelper {
     /// - Returns: 智能格式化的日期字符串
     static func formatSmartDate(_ date: Date) -> String {
         let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: LocalizationManager.shared.currentLang)
         
         if Calendar.current.isDateInToday(date) {
             let timeString = formatTime(date)
@@ -44,7 +45,7 @@ struct FormatHelper {
             let timeString = formatTime(date)
             return "\(L("common_yesterday")) \(timeString)"
         } else if let days = Calendar.current.dateComponents([.day], from: date, to: Date()).day, days < 7 {
-            formatter.dateFormat = "EEEE HH:mm"
+            formatter.dateFormat = L("time_format_weekday")
             return formatter.string(from: date)
         } else {
             formatter.dateFormat = L("time_format_date")
@@ -60,6 +61,7 @@ struct FormatHelper {
     static func formatTime(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = L("time_format_time")
+        formatter.locale = Locale(identifier: LocalizationManager.shared.currentLang)
         return formatter.string(from: date)
     }
     
@@ -78,6 +80,7 @@ struct FormatHelper {
     static func formatFullDateTime(_ date: Date) -> String {
         let formatter = DateFormatter()
         formatter.dateFormat = L("time_format_datetime")
+        formatter.locale = Locale(identifier: LocalizationManager.shared.currentLang)
         return formatter.string(from: date)
     }
     
@@ -125,7 +128,8 @@ struct FormatHelper {
     static func formatRelativeTime(_ date: Date) -> String {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .full
-        formatter.locale = Locale(identifier: "zh_CN")
+        // 使用当前语言设置
+        formatter.locale = Locale(identifier: LocalizationManager.shared.currentLang)
         return formatter.localizedString(for: date, relativeTo: Date())
     }
     
@@ -134,19 +138,20 @@ struct FormatHelper {
     /// - Returns: 格式化的日期时间字符串
     static func formatArticleDate(_ date: Date) -> String {
         let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: LocalizationManager.shared.currentLang)
         let now = Date()
         let calendar = Calendar.current
         
         // 如果是今天
         if calendar.isDate(date, inSameDayAs: now) {
-            formatter.dateFormat = "HH:mm"
+            formatter.dateFormat = L("time_format_time")
             return formatter.string(from: date)
         }
         
         // 如果是昨天
         if calendar.isDate(date, inSameDayAs: calendar.date(byAdding: .day, value: -1, to: now) ?? now) {
-            formatter.dateFormat = "HH:mm"
-            return "昨天 " + formatter.string(from: date)
+            formatter.dateFormat = L("time_format_time")
+            return L("common_yesterday") + " " + formatter.string(from: date)
         }
         
         // 如果是今年
@@ -154,9 +159,9 @@ struct FormatHelper {
         let currentYear = calendar.component(.year, from: now)
         
         if dateYear == currentYear {
-            formatter.dateFormat = "M月d日 HH:mm"
+            formatter.dateFormat = L("time_format_month_day")
         } else {
-            formatter.dateFormat = "yyyy年M月d日 HH:mm"
+            formatter.dateFormat = L("time_format_full_date")
         }
         
         return formatter.string(from: date)
@@ -172,22 +177,23 @@ struct FormatHelper {
         
         if let day = components.day, day > 0 {
             if day == 1 {
-                return "昨天"
+                return L("common_yesterday")
             } else if day < 7 {
-                return "\(day)天前"
+                return L("time_relative_days_ago", day)
             } else if day < 30 {
-                return "\(day / 7)周前"
+                return L("time_relative_weeks_ago", day / 7)
             } else {
                 let formatter = DateFormatter()
-                formatter.dateFormat = "MM.dd"
+                formatter.dateFormat = L("time_format_minimal_date")
+                formatter.locale = Locale(identifier: LocalizationManager.shared.currentLang)
                 return formatter.string(from: date)
             }
         } else if let hour = components.hour, hour > 0 {
-            return "\(hour)小时前"
+            return L("time_relative_hours_ago", hour)
         } else if let minute = components.minute, minute > 0 {
-            return "\(minute)分钟前"
+            return L("time_relative_minutes_ago", minute)
         } else {
-            return "刚刚"
+            return L("time_relative_just_now")
         }
     }
 }

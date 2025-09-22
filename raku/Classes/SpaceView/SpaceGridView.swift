@@ -133,7 +133,7 @@ struct AddSpaceCard: View {
                         .foregroundColor(isDarkMode ? .white.opacity(0.7) : .black.opacity(0.6))
                 }
                 
-                Text("添加空间")
+                Text(L("space_add_action"))
                     .font(.system(size: 15, weight: .medium))
                     .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.7))
             }

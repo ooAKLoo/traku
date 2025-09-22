@@ -18,8 +18,17 @@ struct SpaceCreationView: View {
     @State private var selectedTemplate: SpaceTemplate? = nil
     
     enum CreationMode: String, CaseIterable {
-        case custom = "自定义"
-        case template = "模板"
+        case custom = "custom"
+        case template = "template"
+        
+        var localizedText: String {
+            switch self {
+            case .custom:
+                return L("space_template_custom")
+            case .template:
+                return L("space_template_title")
+            }
+        }
     }
     
     private let templates = SpaceTemplate.defaultTemplates
@@ -140,7 +149,7 @@ struct SpaceCreationView: View {
                     .font(.system(size: 14, weight: .medium))
                     .foregroundColor(textColor)
                 
-                Text(mode.rawValue)
+                Text(mode.localizedText)
                     .font(.system(size: 16, weight: isSelected ? .semibold : .medium))
                     .foregroundColor(textColor)
             }

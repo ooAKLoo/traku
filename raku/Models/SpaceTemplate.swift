@@ -42,7 +42,7 @@ extension SpaceTemplate {
         // 产品灵感库
         SpaceTemplate(
             title: "产品灵感库",
-            description: "记录产品想法和用户反馈",
+            description: L("space_template_feedback_description"),
             emoji: "📋",
             categories: [
                 TemplateCategoryItem(name: "功能点", emoji: "⚡", color: .blue),

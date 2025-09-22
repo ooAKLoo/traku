@@ -88,16 +88,16 @@ struct SettingsView: View {
                             )
                         }
                         
-                        SettingsRowView(icon: "tag", title: "标签管理", isDarkMode: isDarkMode, action: {
+                        SettingsRowView(icon: "tag", title: L("settings_tag_management"), isDarkMode: isDarkMode, action: {
                             showingTagManagement = true
                         })
-                        SettingsRowView(icon: "square.and.arrow.down", title: "数据导入", isDarkMode: isDarkMode, action: {
+                        SettingsRowView(icon: "square.and.arrow.down", title: L("settings_data_import"), isDarkMode: isDarkMode, action: {
                             showingDataImport = true
                         })
                         SettingsRowView(icon: "questionmark.circle", title: L("common_help"), isDarkMode: isDarkMode, action: {
                             showingHelpView = true
                         })
-                        SettingsRowView(icon: "window.ceiling", title: "反馈建议", isDarkMode: isDarkMode, action: {
+                        SettingsRowView(icon: "window.ceiling", title: L("settings_feedback"), isDarkMode: isDarkMode, action: {
                             showingFeedback = true
                         })
                         SettingsRowView(icon: "info.circle", title: L("settings_about_title"), isDarkMode: isDarkMode, action: {

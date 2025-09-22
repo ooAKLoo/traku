@@ -50,7 +50,7 @@ struct EditSpaceView: View {
                 }
             }
             .background(isDarkMode ? Color.black : Color(hex: "FAFAFA"))
-            .navigationTitle("编辑空间")
+            .navigationTitle(L("edit_space_title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
@@ -75,7 +75,7 @@ struct EditSpaceView: View {
     private var spaceInfoSection: some View {
         VStack(alignment: .leading, spacing: 16) {
             HStack {
-                Label("基本信息", systemImage: "info.circle")
+                Label(L("basic_information"), systemImage: "info.circle")
                     .font(.system(size: 16, weight: .semibold))
                     .foregroundColor(isDarkMode ? .white.opacity(0.9) : .black.opacity(0.8))
                 Spacer()

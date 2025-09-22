@@ -116,7 +116,7 @@ struct FeedbackView: View {
                     .padding(.vertical, 20)
                 }
             }
-            .navigationTitle("用户反馈")
+            .navigationTitle(L("user_feedback_title"))
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .navigationBarLeading) {
