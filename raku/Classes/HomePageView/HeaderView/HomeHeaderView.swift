@@ -34,7 +34,11 @@ struct HomepageHeaderView: View {
                             if isProductReleased {
                                 showingConnectionConfig = true
                             } else {
-                                ToastManager.shared.showInfo("产品待发布，敬请期待")
+                                ToastManager.shared.show(
+                                    "产品待发布，敬请期待",
+                                    textIcon: "◡̈",
+                                    color: .orange
+                                )
                             }
                         }) {
                             Image("product")

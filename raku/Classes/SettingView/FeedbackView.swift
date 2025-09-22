@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+import Lottie
 
 // MARK: - 用户反馈视图
 struct FeedbackView: View {
@@ -16,9 +17,9 @@ struct FeedbackView: View {
     @State private var feedbackText: String = ""
     @State private var contactEmail: String = ""
     @State private var isSubmitting: Bool = false
-    @State private var showingSuccessAlert: Bool = false
     @State private var showingErrorAlert: Bool = false
     @State private var errorMessage: String = ""
+    @State private var showingSuccessAnimation: Bool = false
     
     var body: some View {
         NavigationView {
@@ -144,13 +145,19 @@ struct FeedbackView: View {
             }
         }
         .preferredColorScheme(isDarkMode ? .dark : .light)
-        .alert("反馈提交成功", isPresented: $showingSuccessAlert) {
-            Button("确定") {
-                dismiss()
+        .overlay(
+            Group {
+                if showingSuccessAnimation {
+                    FeedbackSuccessView(
+                        isDarkMode: isDarkMode,
+                        onDismiss: {
+                            showingSuccessAnimation = false
+                            dismiss()
+                        }
+                    )
+                }
             }
-        } message: {
-            Text("感谢您的反馈！我们会认真考虑您的建议。")
-        }
+        )
         .alert("提交失败", isPresented: $showingErrorAlert) {
             Button("确定") { }
         } message: {
@@ -222,7 +229,7 @@ struct FeedbackView: View {
                     if success {
                         // 同时保存到本地作为备份
                         _ = self.saveFeedbackLocally(feedback)
-                        self.showingSuccessAlert = true
+                        self.showingSuccessAnimation = true
                     } else {
                         self.errorMessage = "服务器处理失败"
                         self.showingErrorAlert = true

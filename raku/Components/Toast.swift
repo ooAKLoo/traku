@@ -17,13 +17,22 @@ struct ToastItem: Identifiable {
         case success
         case warning
         case error
+        case custom(textIcon: String, color: Color)
         
-        var iconName: String {
+        var iconName: String? {
             switch self {
             case .info: return "info.circle.fill"
             case .success: return "checkmark.circle.fill"
             case .warning: return "exclamationmark.triangle.fill"
             case .error: return "xmark.circle.fill"
+            case .custom: return nil
+            }
+        }
+        
+        var textIcon: String? {
+            switch self {
+            case .custom(let textIcon, _): return textIcon
+            default: return nil
             }
         }
         
@@ -38,6 +47,8 @@ struct ToastItem: Identifiable {
                 return Color(red: 1.0, green: 0.58, blue: 0.0) // 温暖橙
             case .error:
                 return Color(red: 1.0, green: 0.23, blue: 0.19) // 优雅红
+            case .custom(_, let color):
+                return color
             }
         }
         
@@ -80,6 +91,15 @@ struct ToastItem: Identifiable {
                     startPoint: .topLeading,
                     endPoint: .bottomTrailing
                 )
+            case .custom(_, let color):
+                return LinearGradient(
+                    colors: [
+                        color,
+                        color.opacity(0.8)
+                    ],
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
             }
         }
     }
@@ -106,9 +126,15 @@ struct ToastView: View {
                     .fill(toast.type.iconGradient)
                     .frame(width: 32, height: 32)
                 
-                Image(systemName: toast.type.iconName)
-                    .foregroundColor(.white)
-                    .font(.system(size: 16, weight: .semibold))
+                if let iconName = toast.type.iconName {
+                    Image(systemName: iconName)
+                        .foregroundColor(.white)
+                        .font(.system(size: 16, weight: .semibold))
+                } else if let textIcon = toast.type.textIcon {
+                    Text(textIcon)
+                        .foregroundColor(.white)
+                        .font(.system(size: 18, weight: .medium))
+                }
             }
             
             // 文字内容
@@ -160,34 +186,12 @@ struct ToastView: View {
             }
             .shadow(
                 color: isDarkMode
-                    ? Color.black.opacity(0.3)
-                    : Color.black.opacity(0.08),
-                radius: 20,
+                    ? Color.black.opacity(0.1)
+                    : Color.black.opacity(0.02),
+                radius: 3,
                 x: 0,
-                y: 10
+                y: 1
             )
-            // 细微的彩色光晕
-            .shadow(
-                color: toast.type.accentColor.opacity(0.15),
-                radius: 30,
-                x: 0,
-                y: 5
-            )
-        )
-        // 极细的边框增加精致感
-        .overlay(
-            RoundedRectangle(cornerRadius: 16)
-                .stroke(
-                    LinearGradient(
-                        colors: [
-                            isDarkMode ? Color.white.opacity(0.1) : Color.black.opacity(0.05),
-                            isDarkMode ? Color.white.opacity(0.05) : Color.black.opacity(0.02)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    ),
-                    lineWidth: 0.5
-                )
         )
         .padding(.horizontal, 20)
         .offset(y: dragOffset.height)
@@ -261,9 +265,15 @@ struct MinimalToastView: View {
                 .frame(width: 3, height: 24)
             
             // 图标
-            Image(systemName: toast.type.iconName)
-                .foregroundColor(toast.type.accentColor)
-                .font(.system(size: 14, weight: .semibold))
+            if let iconName = toast.type.iconName {
+                Image(systemName: iconName)
+                    .foregroundColor(toast.type.accentColor)
+                    .font(.system(size: 14, weight: .semibold))
+            } else if let textIcon = toast.type.textIcon {
+                Text(textIcon)
+                    .foregroundColor(toast.type.accentColor)
+                    .font(.system(size: 16, weight: .medium))
+            }
             
             // 文字
             Text(toast.message)
@@ -283,11 +293,11 @@ struct MinimalToastView: View {
                 )
                 .shadow(
                     color: isDarkMode
-                        ? Color.black.opacity(0.4)
-                        : Color.black.opacity(0.06),
-                    radius: 12,
+                        ? Color.black.opacity(0.08)
+                        : Color.black.opacity(0.015),
+                    radius: 2,
                     x: 0,
-                    y: 4
+                    y: 1
                 )
         )
         .padding(.horizontal, 20)
@@ -338,6 +348,10 @@ class ToastManager: ObservableObject {
                 self.toasts.append(toast)
             }
         }
+    }
+    
+    func show(_ message: String, textIcon: String, color: Color = .orange, duration: TimeInterval = 3.0) {
+        show(message, type: .custom(textIcon: textIcon, color: color), duration: duration)
     }
     
     func showInfo(_ message: String) {
