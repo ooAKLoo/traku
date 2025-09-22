@@ -41,39 +41,39 @@ struct EmptyStateView: View {
         VStack(spacing: 0) {
             Spacer(minLength: 40)
             
-            // 装饰性圆圈背景
-            ZStack {
-                // 外层圆圈
-                Circle()
-                    .fill(iconBackgroundGradient)
-                    .frame(width: 140, height: 140)
-                    .blur(radius: 20)
-                    .opacity(0.3)
-                    .scaleEffect(isAnimating ? 1.1 : 0.95)
-                    .animation(
-                        .easeInOut(duration: 3)
-                        .repeatForever(autoreverses: true),
-                        value: isAnimating
-                    )
-                
-                // 内层圆圈
-                Circle()
-                    .fill(iconBackgroundGradient)
-                    .frame(width: 100, height: 100)
-                    .opacity(0.1)
-                
-                // 空状态图标
-                Image(systemName: config.icon)
-                    .font(.system(size: config.iconSize, weight: config.iconWeight))
-                    .foregroundStyle(iconGradient)
-                    .rotationEffect(.degrees(iconRotation))
-                    .scaleEffect(isAnimating ? 1.0 : 0.9)
-                    .animation(
-                        .spring(response: 0.6, dampingFraction: 0.8),
-                        value: isAnimating
-                    )
-            }
-            .padding(.bottom, 36)
+//            // 装饰性圆圈背景
+//            ZStack {
+//                // 外层圆圈
+//                Circle()
+//                    .fill(iconBackgroundGradient)
+//                    .frame(width: 140, height: 140)
+//                    .blur(radius: 20)
+//                    .opacity(0.3)
+//                    .scaleEffect(isAnimating ? 1.1 : 0.95)
+//                    .animation(
+//                        .easeInOut(duration: 3)
+//                        .repeatForever(autoreverses: true),
+//                        value: isAnimating
+//                    )
+//                
+//                // 内层圆圈
+//                Circle()
+//                    .fill(iconBackgroundGradient)
+//                    .frame(width: 100, height: 100)
+//                    .opacity(0.1)
+//                
+//                // 空状态图标
+//                Image(systemName: config.icon)
+//                    .font(.system(size: config.iconSize, weight: config.iconWeight))
+//                    .foregroundStyle(iconGradient)
+//                    .rotationEffect(.degrees(iconRotation))
+//                    .scaleEffect(isAnimating ? 1.0 : 0.9)
+//                    .animation(
+//                        .spring(response: 0.6, dampingFraction: 0.8),
+//                        value: isAnimating
+//                    )
+//            }
+//            .padding(.bottom, 36)
             
             // 主标题
             Text(config.title)

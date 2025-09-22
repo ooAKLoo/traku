@@ -17,6 +17,7 @@ struct RecordingDetailView: View {
     @StateObject private var viewModel: RecordingDetailViewModel
     @State private var scrollProxy: ScrollViewProxy? = nil
     @FocusState private var isAnyFieldFocused: Bool
+    @State private var copyButtonShowsCheckmark = false
     
     init(recording: AudioRecording, onRecordingUpdated: ((AudioRecording) -> Void)? = nil) {
         let audioManager = AudioRecordingService()
@@ -229,22 +230,70 @@ struct RecordingDetailView: View {
                                 } else {
                                     // 思考类型：显示AI总结
                                     if let enrichedContent = viewModel.recording.enrichedContent, !enrichedContent.isEmpty {
-                                        MarkdownSectionView(
-                                            content: viewModel.modifiedEnrichedContent.isEmpty ? enrichedContent : viewModel.modifiedEnrichedContent,
-                                            headings: viewModel.headings,
-                                            selectedHeadingId: $viewModel.selectedHeadingId,
-                                            scrollProxy: scrollProxy,
-                                            onEditSection: { index, content in
-                                                isAnyFieldFocused = false
-                                                viewModel.editSection(at: index, content: content)
-                                            },
-                                            onDeleteSection: { index in
-                                                isAnyFieldFocused = false
-                                                viewModel.deleteSection(at: index)
+                                        VStack() {
+                                            // AI总结内容
+                                            MarkdownSectionView(
+                                                content: viewModel.modifiedEnrichedContent.isEmpty ? enrichedContent : viewModel.modifiedEnrichedContent,
+                                                headings: viewModel.headings,
+                                                selectedHeadingId: $viewModel.selectedHeadingId,
+                                                scrollProxy: scrollProxy,
+                                                onEditSection: { index, content in
+                                                    isAnyFieldFocused = false
+                                                    viewModel.editSection(at: index, content: content)
+                                                },
+                                                onDeleteSection: { index in
+                                                    isAnyFieldFocused = false
+                                                    viewModel.deleteSection(at: index)
+                                                }
+                                            )
+                                            .padding(.horizontal, 24)
+                                            .padding(.top, 12)
+                                            
+                                            // 复制按钮 - 右下角
+                                            HStack {
+                                                Spacer()
+                                                Button(action: {
+                                                    // 显示对勾状态
+                                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                                        copyButtonShowsCheckmark = true
+                                                    }
+                                                    
+                                                    // 获取当前显示的 markdown 内容
+                                                    let textToCopy = viewModel.modifiedEnrichedContent.isEmpty 
+                                                        ? (viewModel.recording.enrichedContent ?? "")
+                                                        : viewModel.modifiedEnrichedContent
+                                                    
+                                                    // 复制到剪贴板
+                                                    UIPasteboard.general.string = textToCopy
+                                                    
+                                                    // 触觉反馈
+                                                    let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+                                                    impactFeedback.impactOccurred()
+                                                    
+                                                    // 1秒后恢复复制图标
+                                                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                                                        withAnimation(.easeInOut(duration: 0.2)) {
+                                                            copyButtonShowsCheckmark = false
+                                                        }
+                                                    }
+                                                }) {
+                                                    Image(systemName: copyButtonShowsCheckmark ? "checkmark" : "doc.on.doc")
+                                                        .font(.system(size: 16, weight: .medium))
+                                                        .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
+                                                        .frame(width: 32, height: 32)
+                                                        .background(
+                                                            RoundedRectangle(cornerRadius: 8)
+                                                                .fill(isDarkMode ? Color.white.opacity(0.08) : Color.black.opacity(0.05))
+                                                        )
+                                                        .animation(.easeInOut(duration: 0.2), value: copyButtonShowsCheckmark)
+                                                        .contentShape(RoundedRectangle(cornerRadius: 8))
+                                                }
+                                                .frame(width: 40, height: 40)
+                                                .buttonStyle(PlainButtonStyle())
                                             }
-                                        )
-                                        .padding(.horizontal, 24)
-                                        .padding(.top, 12)
+                                            .padding(.horizontal, 24)
+                                            .padding(.bottom, 16)
+                                        }
                                     }
                                 }
                             }

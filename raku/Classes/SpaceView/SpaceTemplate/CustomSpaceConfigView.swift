@@ -144,30 +144,30 @@ struct CustomSpaceConfigView: View {
             
             // 空间名称和emoji
             HStack(spacing: 16) {
-                Button(action: {
-                    showingEmojiPicker = true
-                }) {
-                    ZStack {
-                        RoundedRectangle(cornerRadius: 14)
-                            .fill(LinearGradient(
-                                colors: [
-                                    isDarkMode ? Color.white.opacity(0.08) : Color.gray.opacity(0.08),
-                                    isDarkMode ? Color.white.opacity(0.04) : Color.gray.opacity(0.04)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ))
-                        
-                        Text(selectedEmoji)
-                            .font(.system(size: 36))
-                    }
-                    .frame(width: 72, height: 72)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 14)
-                            .stroke(isDarkMode ? Color.white.opacity(0.06) : Color.black.opacity(0.04), lineWidth: 0.5)
-                    )
-                    .shadow(color: isDarkMode ? Color.black.opacity(0.3) : Color.black.opacity(0.05), radius: 4, y: 2)
-                }
+//                Button(action: {
+//                    showingEmojiPicker = true
+//                }) {
+//                    ZStack {
+//                        RoundedRectangle(cornerRadius: 14)
+//                            .fill(LinearGradient(
+//                                colors: [
+//                                    isDarkMode ? Color.white.opacity(0.08) : Color.gray.opacity(0.08),
+//                                    isDarkMode ? Color.white.opacity(0.04) : Color.gray.opacity(0.04)
+//                                ],
+//                                startPoint: .topLeading,
+//                                endPoint: .bottomTrailing
+//                            ))
+//                        
+//                        Text(selectedEmoji)
+//                            .font(.system(size: 36))
+//                    }
+//                    .frame(width: 72, height: 72)
+//                    .overlay(
+//                        RoundedRectangle(cornerRadius: 14)
+//                            .stroke(isDarkMode ? Color.white.opacity(0.06) : Color.black.opacity(0.04), lineWidth: 0.5)
+//                    )
+//                    .shadow(color: isDarkMode ? Color.black.opacity(0.3) : Color.black.opacity(0.05), radius: 4, y: 2)
+//                }
                 
                 VStack(spacing: 10) {
                     TextField("空间名称", text: $spaceName)
