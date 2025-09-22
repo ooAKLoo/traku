@@ -803,4 +803,36 @@ class RecordingRepository: Repository {
         // 如果 summary 很短，直接使用作为 title
         return summary.isEmpty ? "未命名录音" : summary
     }
+    
+    // MARK: - Tag Operations
+    
+    /// 获取所有不重复的标签
+    func getAllUniqueTags() async throws -> [String] {
+        let sql = "SELECT DISTINCT tags FROM \(tableName) WHERE tags != '' AND tags IS NOT NULL"
+        
+        return try await sqliteCore.performAsync {
+            let statement = try self.sqliteCore.prepare(sql)
+            defer { self.sqliteCore.finalize(statement) }
+            
+            var allTags: Set<String> = []
+            
+            while try self.sqliteCore.step(statement) == SQLITE_ROW {
+                if let tagsString = sqlite3_column_text(statement, 0) {
+                    let tags = String(cString: tagsString)
+                    // 解析JSON格式的tags
+                    if let data = tags.data(using: .utf8),
+                       let tagArray = try? JSONSerialization.jsonObject(with: data) as? [String] {
+                        for tag in tagArray {
+                            let trimmedTag = tag.trimmingCharacters(in: .whitespacesAndNewlines)
+                            if !trimmedTag.isEmpty {
+                                allTags.insert(trimmedTag)
+                            }
+                        }
+                    }
+                }
+            }
+            
+            return Array(allTags).sorted()
+        }
+    }
 }

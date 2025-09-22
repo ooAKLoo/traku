@@ -211,6 +211,13 @@ class DatabaseManager {
         }
     }
     
+    /// 获取所有不重复的标签
+    func getAllUniqueTags() -> [String] {
+        return performSync {
+            try await self.recordingRepository.getAllUniqueTags()
+        }
+    }
+    
     // MARK: - Embedding Operations
     
     /// 更新记录的向量嵌入
@@ -460,6 +467,8 @@ class DatabaseManager {
                 return [] as! T
             } else if T.self == [String: [Float]].self {
                 return [:] as! T
+            } else if T.self == (Int, Int).self {
+                return (0, 0) as! T
             } else {
                 fatalError("未处理的返回类型: \(T.self)")
             }

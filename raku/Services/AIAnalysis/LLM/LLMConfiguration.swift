@@ -79,7 +79,7 @@ enum TwoStepLLMError: Error, LocalizedError {
 struct LLMPromptConfiguration {
     
     /// 获取第一步分析的系统prompt
-    static func getFirstStepSystemPrompt(needsSummary: Bool) -> String {
+    static func getFirstStepSystemPrompt(needsSummary: Bool, hasExistingTags: Bool = false) -> String {
         return """
         你是一个精准的闪念分类助手。请严格按照以下要求处理用户asr处理后的输入内容：
 
@@ -106,8 +106,9 @@ struct LLMPromptConfiguration {
            - 提取核心内容，生成20字以内的概括标题
            - 保持原意，不过度概括
 
-        4. **标签生成（仅一个）**：
-           - 生成**唯一一个**最具分类价值的标签（2-4个字）
+        4. **标签生成**：
+           - 思考类型：生成1-2个最具分类价值的标签（2-4个字）
+           - 灵感类型：生成1个最具分类价值的标签（2-4个字）
            - 标签必须满足：
              •能作为长期知识管理的聚合维度（如“合作观”、“时间管理”、“认知偏差”）
              • 避免过于具体或一次性词汇（如“张三项目”、“昨天会议”）
@@ -119,7 +120,7 @@ struct LLMPromptConfiguration {
           "polishedText": "完整的润色后文本（去除口语词但保留所有内容）",
           "title": "简洁标题",
           "type": "reflection",
-          "tags": ["唯一标签"],
+          "tags": ["标签1", "标签2"],
         }
 
         重要说明：
@@ -128,6 +129,23 @@ struct LLMPromptConfiguration {
 
         注意：必须输出纯JSON，不要有任何额外文字。
         """
+    }
+    
+    /// 获取第一步分析的用户prompt（包含已有标签时使用）
+    static func getFirstStepUserPrompt(text: String, existingTags: [String] = []) -> String {
+        if existingTags.isEmpty {
+            return text
+        } else {
+            let tagsString = existingTags.joined(separator: "、")
+            return """
+            要分析的文本：
+            \(text)
+            
+            用户已有的标签（优先选择）：\(tagsString)
+            
+            请优先从已有标签中选择合适的，如果都不合适再创建新标签。
+            """
+        }
     }
     
     /// 获取特定类型的Markdown生成prompt

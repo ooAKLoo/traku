@@ -80,6 +80,7 @@ enum DatabaseError: Error {
     case dataNotFound
     case invalidData(String)
     case transactionFailed(String)
+    case preparationFailed(String)
 }
 
 // MARK: - SQLite 操作协议

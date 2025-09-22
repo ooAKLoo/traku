@@ -109,13 +109,18 @@ class TwoStepLLMService: NSObject, ObservableObject {
     // MARK: - Step 1: 分类和标题生成（保持不变）
     
     private func performFirstStepAnalysis(_ text: String) {
-        let systemPrompt = LLMPromptConfiguration.getFirstStepSystemPrompt(needsSummary: false)
+        // 获取用户已有的标签
+        let existingTags = DatabaseManager.shared.getAllUniqueTags()
+        let hasExistingTags = !existingTags.isEmpty
+        
+        let systemPrompt = LLMPromptConfiguration.getFirstStepSystemPrompt(needsSummary: false, hasExistingTags: hasExistingTags)
+        let userPrompt = LLMPromptConfiguration.getFirstStepUserPrompt(text: text, existingTags: existingTags)
         
         let parameters: [String: Any] = [
             "model": configuration.liteModel,
             "messages": [
                 ["role": "system", "content": systemPrompt],
-                ["role": "user", "content": text]
+                ["role": "user", "content": userPrompt]
             ],
             "temperature": 0.3,
             "top_p": 0.5,
