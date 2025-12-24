@@ -205,88 +205,86 @@ struct RecordingDetailView: View {
                             }
                             .padding(.bottom, 35)
                             
-                            // 内容部分 - 根据类型显示不同内容
+                            // 内容部分 - 统一显示分析结果和相似内容
                             VStack(alignment: .leading, spacing: 24) {
-                                
-                                if viewModel.recording.contentType == "inspiration" {
-                                    // 灵感类型：显示相似的其他条目
-                                    SimilarInspirationView(
-                                        currentRecording: viewModel.recording,
-                                        isDarkMode: isDarkMode,
-                                        audioManager: viewModel.audioManager,
-                                        onRecordingUpdated: viewModel.onRecordingUpdated
-                                    )
-                                    .padding(.horizontal, 24)
-                                    .padding(.top, 12)
-                                } else {
-                                    // 思考类型：显示AI总结
-                                    if let enrichedContent = viewModel.recording.enrichedContent, !enrichedContent.isEmpty {
-                                        VStack() {
-                                            // AI总结内容
-                                            MarkdownSectionView(
-                                                content: viewModel.modifiedEnrichedContent.isEmpty ? enrichedContent : viewModel.modifiedEnrichedContent,
-                                                headings: viewModel.headings,
-                                                selectedHeadingId: $viewModel.selectedHeadingId,
-                                                scrollProxy: scrollProxy,
-                                                onEditSection: { index, content in
-                                                    isAnyFieldFocused = false
-                                                    viewModel.editSection(at: index, content: content)
-                                                },
-                                                onDeleteSection: { index in
-                                                    isAnyFieldFocused = false
-                                                    viewModel.deleteSection(at: index)
-                                                }
-                                            )
-                                            .padding(.horizontal, 24)
-                                            .padding(.top, 12)
-                                            
-                                            // 复制按钮 - 右下角
-                                            HStack {
-                                                Spacer()
-                                                Button(action: {
-                                                    // 显示对勾状态
-                                                    withAnimation(.easeInOut(duration: 0.2)) {
-                                                        copyButtonShowsCheckmark = true
-                                                    }
-                                                    
-                                                    // 获取当前显示的 markdown 内容
-                                                    let textToCopy = viewModel.modifiedEnrichedContent.isEmpty 
-                                                        ? (viewModel.recording.enrichedContent ?? "")
-                                                        : viewModel.modifiedEnrichedContent
-                                                    
-                                                    // 复制到剪贴板
-                                                    UIPasteboard.general.string = textToCopy
-                                                    
-                                                    // 触觉反馈
-                                                    let impactFeedback = UIImpactFeedbackGenerator(style: .light)
-                                                    impactFeedback.impactOccurred()
-                                                    
-                                                    // 1秒后恢复复制图标
-                                                    DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                                                        withAnimation(.easeInOut(duration: 0.2)) {
-                                                            copyButtonShowsCheckmark = false
-                                                        }
-                                                    }
-                                                }) {
-                                                    Image(systemName: copyButtonShowsCheckmark ? "checkmark" : "doc.on.doc")
-                                                        .font(.system(size: 16, weight: .medium))
-                                                        .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
-                                                        .frame(width: 32, height: 32)
-                                                        .background(
-                                                            RoundedRectangle(cornerRadius: 8)
-                                                                .fill(isDarkMode ? Color.white.opacity(0.08) : Color.black.opacity(0.05))
-                                                        )
-                                                        .animation(.easeInOut(duration: 0.2), value: copyButtonShowsCheckmark)
-                                                        .contentShape(RoundedRectangle(cornerRadius: 8))
-                                                }
-                                                .frame(width: 40, height: 40)
-                                                .buttonStyle(PlainButtonStyle())
+                                // AI分析结果
+                                if let enrichedContent = viewModel.recording.enrichedContent, !enrichedContent.isEmpty {
+                                    VStack() {
+                                        // AI总结内容
+                                        MarkdownSectionView(
+                                            content: viewModel.modifiedEnrichedContent.isEmpty ? enrichedContent : viewModel.modifiedEnrichedContent,
+                                            headings: viewModel.headings,
+                                            selectedHeadingId: $viewModel.selectedHeadingId,
+                                            scrollProxy: scrollProxy,
+                                            onEditSection: { index, content in
+                                                isAnyFieldFocused = false
+                                                viewModel.editSection(at: index, content: content)
+                                            },
+                                            onDeleteSection: { index in
+                                                isAnyFieldFocused = false
+                                                viewModel.deleteSection(at: index)
                                             }
-                                            .padding(.horizontal, 24)
-                                            .padding(.bottom, 16)
+                                        )
+                                        .padding(.horizontal, 24)
+                                        .padding(.top, 12)
+
+                                        // 复制按钮 - 右下角
+                                        HStack {
+                                            Spacer()
+                                            Button(action: {
+                                                // 显示对勾状态
+                                                withAnimation(.easeInOut(duration: 0.2)) {
+                                                    copyButtonShowsCheckmark = true
+                                                }
+
+                                                // 获取当前显示的 markdown 内容
+                                                let textToCopy = viewModel.modifiedEnrichedContent.isEmpty
+                                                    ? (viewModel.recording.enrichedContent ?? "")
+                                                    : viewModel.modifiedEnrichedContent
+
+                                                // 复制到剪贴板
+                                                UIPasteboard.general.string = textToCopy
+
+                                                // 触觉反馈
+                                                let impactFeedback = UIImpactFeedbackGenerator(style: .light)
+                                                impactFeedback.impactOccurred()
+
+                                                // 1秒后恢复复制图标
+                                                DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
+                                                    withAnimation(.easeInOut(duration: 0.2)) {
+                                                        copyButtonShowsCheckmark = false
+                                                    }
+                                                }
+                                            }) {
+                                                Image(systemName: copyButtonShowsCheckmark ? "checkmark" : "doc.on.doc")
+                                                    .font(.system(size: 16, weight: .medium))
+                                                    .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
+                                                    .frame(width: 32, height: 32)
+                                                    .background(
+                                                        RoundedRectangle(cornerRadius: 8)
+                                                            .fill(isDarkMode ? Color.white.opacity(0.08) : Color.black.opacity(0.05))
+                                                    )
+                                                    .animation(.easeInOut(duration: 0.2), value: copyButtonShowsCheckmark)
+                                                    .contentShape(RoundedRectangle(cornerRadius: 8))
+                                            }
+                                            .frame(width: 40, height: 40)
+                                            .buttonStyle(PlainButtonStyle())
                                         }
+                                        .padding(.horizontal, 24)
+                                        .padding(.bottom, 16)
                                     }
                                 }
+
+                                // 相似内容（所有类型都显示）
+                                SimilarInspirationView(
+                                    currentRecording: viewModel.recording,
+                                    isDarkMode: isDarkMode,
+                                    audioManager: viewModel.audioManager,
+                                    onRecordingUpdated: viewModel.onRecordingUpdated
+                                )
+                                .padding(.horizontal, 24)
+                                .padding(.top, 12)
+                                .id("similar_content")
                             }
                             
                             // 底部留白（为章节标签栏预留空间）
@@ -309,6 +307,7 @@ struct RecordingDetailView: View {
             if !viewModel.headings.isEmpty {
                 VStack {
                     Spacer()
+                    // 以 ChapterTabBar 为主体，右侧按钮作为 overlay
                     ChapterTabBar(
                         headings: viewModel.headings,
                         selectedHeadingId: $viewModel.selectedHeadingId,
@@ -319,6 +318,40 @@ struct RecordingDetailView: View {
                             }
                         }
                     )
+                    .overlay(alignment: .trailing) {
+                        // 右侧渐变遮罩 + 跳转按钮
+                        HStack(spacing: 0) {
+                            // 渐变遮罩
+                            LinearGradient(
+                                colors: [(isDarkMode ? Color.black : Color.white).opacity(0),
+                                         isDarkMode ? Color.black : Color.white],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                            .frame(width: 20)
+
+                            // 跳转到相似内容按钮
+                            Button(action: {
+                                withAnimation(.easeInOut(duration: 0.4)) {
+                                    scrollProxy?.scrollTo("similar_content", anchor: .top)
+                                }
+                            }) {
+                                ZStack {
+                                    (isDarkMode ? Color.black : Color.white)
+                                    Image(systemName: "link")
+                                        .font(.system(size: 12, weight: .semibold))
+                                        .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.4))
+                                }
+                                .frame(width: 32)
+                            }
+                            .buttonStyle(PlainButtonStyle())
+
+                            // 右侧边距
+                            (isDarkMode ? Color.black : Color.white)
+                                .frame(width: 12)
+                        }
+                        .frame(maxHeight: .infinity)
+                    }
                     .transition(.asymmetric(
                         insertion: .move(edge: .bottom).combined(with: .opacity),
                         removal: .move(edge: .bottom).combined(with: .opacity)

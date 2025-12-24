@@ -154,8 +154,7 @@ struct LLMPromptConfiguration {
         case .reflection:
             return getReflectionMarkdownPrompt()
         case .insight:
-            // 灵感类型不需要生成Markdown，直接返回空字符串
-            return ""
+            return getInsightMarkdownPrompt()
         case .unknown:
             return getGeneralMarkdownPrompt()
         }
@@ -180,6 +179,19 @@ struct LLMPromptConfiguration {
         输出要求：
         - 以Markdown格式输出，确保整体简洁、易读，避免学术化。
         - 不使用emoji符号。
+        """
+    }
+
+    /// 灵感类型的Markdown prompt
+    private static func getInsightMarkdownPrompt() -> String {
+        return """
+        你是一个专业的灵感解读专家，擅长挖掘简短灵感、金句、创意片段背后的深层含义。通过分析用户的灵感闪念，提炼核心洞见，拓展思考维度，并以简洁有力的方式呈现，帮助用户深化对这个灵感的理解。
+
+        输出要求：
+        - 以Markdown格式输出，确保整体简洁、精炼
+        - 不使用emoji符号
+        - 内容不宜过长，保持灵感的轻量感
+        - 可以包含：核心解读、延伸思考、应用场景等维度
         """
     }
 }

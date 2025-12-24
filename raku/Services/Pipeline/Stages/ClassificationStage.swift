@@ -76,14 +76,7 @@ private class ClassificationResultHandler: NSObject, TwoStepLLMServiceDelegate {
 
     func twoStepLLMService(_ service: TwoStepLLMService, didCompleteFirstStep result: FirstStepAnalysis) {
         context.firstStepAnalysis = result
-
-        // 灵感类直接完成，不需要第二步
-        if result.thoughtType == .insight {
-            guard !hasCompleted else { return }
-            hasCompleted = true
-            onComplete(context)
-        }
-        // 思考类等待第二步完成
+        // 所有类型都等待第二步完成
     }
 
     func twoStepLLMService(_ service: TwoStepLLMService, didCompleteFinalAnalysis result: TwoStepAnalysisResult) {

@@ -200,14 +200,8 @@ class TwoStepLLMService: NSObject, ObservableObject {
                 self.currentStep = 2
             }
             
-            // 检查是否为灵感类型
-            if thoughtType == .insight {
-                // 灵感类型：直接更新数据库，向量已在Pipeline中生成
-                self.updateInsightRecording(firstStepResult)
-            } else {
-                // 其他类型：继续第二步
-                self.performSecondStepAnalysis(firstStepResult)
-            }
+            // 所有类型都继续第二步分析生成enrichedContent
+            self.performSecondStepAnalysis(firstStepResult)
             
         } catch {
             print("第一步解析失败: \(error)")
@@ -308,71 +302,6 @@ class TwoStepLLMService: NSObject, ObservableObject {
             DispatchQueue.main.async {
                 self.lastResult = fallbackResult
                 self.delegate?.twoStepLLMService(self, didCompleteFinalAnalysis: fallbackResult)
-            }
-        }
-    }
-    
-    // MARK: - Insight 数据处理（不生成向量，向量已在Pipeline中生成）
-    
-    private func updateInsightRecording(_ firstStepResult: FirstStepAnalysis) {
-        print("🔄 处理灵感类型数据，更新数据库记录...")
-        
-        DispatchQueue.main.async {
-            self.isAnalyzing = false
-            self.currentStep = 0
-        }
-        
-        let databaseManager = DatabaseManager.shared
-        guard let recordingId = currentRecordingId,
-              var recording = databaseManager.getRecording(by: recordingId.uuidString) else {
-            print("❌ 未找到对应的录音记录: \(currentRecordingId?.uuidString ?? "nil")")
-            DispatchQueue.main.async {
-                self.delegate?.twoStepLLMService(self, didFailWithError: TwoStepLLMError.parseError)
-            }
-            return
-        }
-        
-        // 更新录音记录为灵感类型
-        print("dataprocess--- TwoStepLLMService.updateInsightRecording: ID=\(recording.id.uuidString.prefix(8)), 设置contentType=inspiration")
-        recording = AudioRecording(
-            id: recording.id,
-            timestamp: recording.timestamp,
-            duration: recording.duration,
-            transcription: recording.transcription,
-            title: firstStepResult.title,
-            summary: firstStepResult.oneSentenceSummary ?? recording.summary,
-            tags: firstStepResult.tags,
-            audioData: recording.audioData,
-            enrichedContent: recording.enrichedContent,
-            polishedText: firstStepResult.polishedText,
-            contentType: "inspiration"
-        )
-        
-        let updateSuccess = databaseManager.updateRecording(recording)
-        
-        if updateSuccess {
-            print("✅ 灵感录音记录更新成功")
-            
-            // 构建最终结果
-            let finalResult = TwoStepAnalysisResult(
-                title: firstStepResult.title,
-                summary: firstStepResult.oneSentenceSummary ?? "",
-                thoughtType: firstStepResult.thoughtType,
-                tags: firstStepResult.tags,
-                enrichedContent: "灵感已保存，向量已生成", // 简单提示
-                originalText: firstStepResult.originalText,
-                polishedText: firstStepResult.polishedText,
-                timestamp: firstStepResult.timestamp
-            )
-            
-            DispatchQueue.main.async {
-                self.lastResult = finalResult
-                self.delegate?.twoStepLLMService(self, didCompleteFinalAnalysis: finalResult)
-            }
-        } else {
-            print("❌ 灵感录音记录更新失败")
-            DispatchQueue.main.async {
-                self.delegate?.twoStepLLMService(self, didFailWithError: TwoStepLLMError.parseError)
             }
         }
     }

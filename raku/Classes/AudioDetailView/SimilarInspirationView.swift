@@ -1,6 +1,6 @@
 //
 //  SimilarInspirationView.swift
-//  相似灵感展示视图 - 显示与当前灵感类似的其他条目
+//  相似内容展示视图 - 显示与当前记录相似的其他条目
 //
 
 import SwiftUI
@@ -23,7 +23,7 @@ struct SimilarInspirationView: View {
         VStack(alignment: .leading, spacing: 20) {
             // 标题
             HStack {
-                Text("相似灵感")
+                Text("相似内容")
                     .font(.system(size: 18, weight: .semibold))
                     .foregroundColor(isDarkMode ? .white : .black)
 
@@ -63,7 +63,7 @@ struct SimilarInspirationView: View {
                         .font(.system(size: 24))
                         .foregroundColor(isDarkMode ? .white.opacity(0.3) : .gray.opacity(0.5))
 
-                    Text("暂无相似的灵感记录")
+                    Text("暂无相似的内容记录")
                         .font(.system(size: 14))
                         .foregroundColor(isDarkMode ? .white.opacity(0.5) : .gray)
                 }
@@ -230,19 +230,18 @@ struct SimilarInspirationView: View {
             // 从数据库获取所有录音记录
             let allRecordings = DatabaseManager.shared.loadRecordings()
 
-            // 过滤出灵感类型且有向量数据的记录（排除当前记录）
-            let inspirationRecordings = allRecordings.filter { recording in
+            // 过滤出有向量数据的记录（排除当前记录）
+            let candidateRecordings = allRecordings.filter { recording in
                 let hasVector = DatabaseManager.shared.getEmbeddingVector(id: recording.id) != nil
-                let isInspiration = recording.contentType == "inspiration"
                 let isNotCurrent = recording.id != currentRecording.id
-                return isNotCurrent && isInspiration && hasVector
+                return isNotCurrent && hasVector
             }
 
             var similarityResults: [(recording: AudioRecording, similarity: Float)] = []
             let cosineSimilarityCalculator = CosineSimilarityCalculator()
 
             // 计算与每个候选记录的相似度
-            for recording in inspirationRecordings {
+            for recording in candidateRecordings {
                 guard let embedding = DatabaseManager.shared.getEmbeddingVector(id: recording.id) else {
                     continue
                 }

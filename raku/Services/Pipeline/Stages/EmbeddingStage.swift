@@ -58,21 +58,10 @@ final class EmbeddingStage: ProcessingStage {
     }
 
     private func determineEmbeddingContent(_ context: ProcessingContext) -> String {
-        switch context.thoughtType {
-        case .insight:
-            // 灵感类：使用润色文本
-            return context.polishedText ?? context.transcription ?? ""
-
-        case .reflection:
-            // 思考类：组合润色文本和富化内容
-            if let polished = context.polishedText, let enriched = context.enrichedContent {
-                return "\(polished)\n\n\(enriched)"
-            }
-            return context.polishedText ?? context.transcription ?? ""
-
-        case .unknown:
-            // 未分类：使用润色文本或转录
-            return context.polishedText ?? context.transcription ?? ""
+        // 所有类型统一处理：组合润色文本和富化内容
+        if let polished = context.polishedText, let enriched = context.enrichedContent {
+            return "\(polished)\n\n\(enriched)"
         }
+        return context.polishedText ?? context.transcription ?? ""
     }
 }
