@@ -17,9 +17,6 @@ class DatabaseManager {
     internal let sqliteCore: SQLiteCore
     internal let recordingRepository: RecordingRepository
     internal let recordingDataRepository: RecordingDataRepository
-    internal let spaceRepository: SpaceRepository
-    internal let categoryRepository: CategoryRepository
-    internal let spaceArticleRepository: SpaceArticleRepository
     
     // MARK: - Initialization
     
@@ -34,9 +31,6 @@ class DatabaseManager {
         // 初始化各个仓库
         self.recordingRepository = RecordingRepository(sqliteCore: sqliteCore)
         self.recordingDataRepository = RecordingDataRepository(sqliteCore: sqliteCore)
-        self.spaceRepository = SpaceRepository(sqliteCore: sqliteCore)
-        self.categoryRepository = CategoryRepository(sqliteCore: sqliteCore)
-        self.spaceArticleRepository = SpaceArticleRepository(sqliteCore: sqliteCore)
         
         // 初始化数据库
         Task {
@@ -58,9 +52,6 @@ class DatabaseManager {
             // 创建所有表
             try await recordingDataRepository.createTable()  // 先创建录音数据表
             try await recordingRepository.createTable()
-            try await spaceRepository.createTable()  // 创建空间表
-            try await categoryRepository.createTable()  // 创建类别表
-            try await spaceArticleRepository.createTable()  // 创建空间-文章关系表
             
             // 初始统计
             let recordingDataCount = try await recordingDataRepository.count()
@@ -321,159 +312,6 @@ class DatabaseManager {
     
     // 移除复杂的向量合并逻辑
     
-    // MARK: - Space Operations
-    
-    /// 创建空间
-    func createSpace(_ space: Space) -> Bool {
-        return performSync {
-            try await self.spaceRepository.create(space)
-        }
-    }
-    
-    /// 获取所有空间
-    func getAllSpaces() -> [Space] {
-        return performSync {
-            try await self.spaceRepository.list(filter: nil)
-        }
-    }
-    
-    /// 根据ID获取空间
-    func getSpace(by id: UUID) -> Space? {
-        return performSyncOptional {
-            try await self.spaceRepository.read(id: id)
-        }
-    }
-    
-    /// 更新空间
-    func updateSpace(_ space: Space) -> Bool {
-        return performSync {
-            try await self.spaceRepository.update(space)
-        }
-    }
-    
-    /// 删除空间
-    func deleteSpace(id: UUID) -> Bool {
-        return performSync {
-            try await self.spaceRepository.delete(id: id)
-        }
-    }
-    
-    /// 根据名称搜索空间
-    func searchSpaces(by name: String) -> [Space] {
-        return performSync {
-            try await self.spaceRepository.searchByName(name)
-        }
-    }
-    
-    // MARK: - Category Operations
-    
-    /// 创建类别
-    func createCategory(_ category: Category) -> Bool {
-        return performSync {
-            try await self.categoryRepository.create(category)
-        }
-    }
-    
-    /// 获取指定空间的所有类别
-    func getCategories(for spaceId: UUID) -> [Category] {
-        return performSync {
-            try await self.categoryRepository.getCategoriesForSpace(spaceId)
-        }
-    }
-    
-    /// 根据ID获取类别
-    func getCategory(by id: UUID) -> Category? {
-        return performSyncOptional {
-            try await self.categoryRepository.read(id: id)
-        }
-    }
-    
-    /// 更新类别
-    func updateCategory(_ category: Category) -> Bool {
-        return performSync {
-            try await self.categoryRepository.update(category)
-        }
-    }
-    
-    /// 删除类别
-    func deleteCategory(id: UUID) -> Bool {
-        return performSync {
-            try await self.categoryRepository.delete(id: id)
-        }
-    }
-    
-    // MARK: - SpaceArticle Operations
-    
-    /// 添加录音到空间
-    func addRecordingToSpace(recordingId: UUID, spaceId: UUID, categoryId: UUID? = nil) -> Bool {
-        return performSync {
-            try await self.spaceArticleRepository.addRecordingToSpace(recordingId: recordingId, spaceId: spaceId, categoryId: categoryId)
-        }
-    }
-    
-    /// 从空间移除录音
-    func removeRecordingFromSpace(recordingId: UUID, spaceId: UUID) -> Bool {
-        return performSync {
-            try await self.spaceArticleRepository.removeRecordingFromSpace(recordingId: recordingId, spaceId: spaceId)
-        }
-    }
-    
-    /// 获取空间下的所有文章
-    func getArticlesForSpace(_ spaceId: UUID) -> [SpaceArticle] {
-        return performSync {
-            try await self.spaceArticleRepository.getArticlesForSpace(spaceId)
-        }
-    }
-    
-    /// 获取类别下的所有文章
-    func getArticlesForCategory(_ categoryId: UUID) -> [SpaceArticle] {
-        return performSync {
-            try await self.spaceArticleRepository.getArticlesForCategory(categoryId)
-        }
-    }
-    
-    /// 获取空间下无类别的文章
-    func getUncategorizedArticlesForSpace(_ spaceId: UUID) -> [SpaceArticle] {
-        return performSync {
-            try await self.spaceArticleRepository.getUncategorizedArticlesForSpace(spaceId)
-        }
-    }
-    
-    /// 更新录音在空间中的类别
-    func updateRecordingCategory(recordingId: UUID, spaceId: UUID, categoryId: UUID?) -> Bool {
-        return performSync {
-            try await self.spaceArticleRepository.updateRecordingCategory(recordingId: recordingId, spaceId: spaceId, categoryId: categoryId)
-        }
-    }
-    
-    /// 检查录音是否在指定空间中
-    func isRecordingInSpace(recordingId: UUID, spaceId: UUID) -> Bool {
-        return performSync {
-            try await self.spaceArticleRepository.isRecordingInSpace(recordingId: recordingId, spaceId: spaceId)
-        }
-    }
-    
-    /// 获取带详细信息的空间文章
-    func getArticlesWithRecordingInfo(for spaceId: UUID) -> [[String: Any]] {
-        return performSync {
-            try await self.spaceArticleRepository.getArticlesWithRecordingInfo(for: spaceId)
-        }
-    }
-    
-    /// 切换文章的重要标记状态
-    func toggleArticleImportantMark(articleId: UUID) -> Bool {
-        return performSync {
-            try await self.spaceArticleRepository.toggleImportantMark(for: articleId)
-        }
-    }
-    
-    /// 设置文章的重要标记状态
-    func setArticleImportantMark(articleId: UUID, isImportant: Bool) -> Bool {
-        return performSync {
-            try await self.spaceArticleRepository.setImportantMark(for: articleId, isImportant: isImportant)
-        }
-    }
-    
     // MARK: - Utility Methods
     
     /// 同步执行异步操作的辅助方法
@@ -506,12 +344,6 @@ class DatabaseManager {
             } else if T.self == Array<AudioRecording>.self {
                 return [] as! T
             } else if T.self == Array<String>.self {
-                return [] as! T
-            } else if T.self == Array<Space>.self {
-                return [] as! T
-            } else if T.self == Array<Category>.self {
-                return [] as! T
-            } else if T.self == Array<SpaceArticle>.self {
                 return [] as! T
             } else if T.self == Array<[String: Any]>.self {
                 return [] as! T

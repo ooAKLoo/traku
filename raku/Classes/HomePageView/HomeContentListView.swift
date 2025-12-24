@@ -27,14 +27,8 @@ struct HomeContentListView: View {
                     resetSelection()
                 }
         } else {
-            // 根据筛选类型显示不同内容
-            if viewModel.selectedFilter == L("homepage_filter_space") {
-                // 显示空间分类网格
-                SpaceGridView(isDarkMode: isDarkMode)
-            } else {
-                // 显示录音列表
-                recordingListView
-            }
+            // 显示录音列表
+            recordingListView
         }
     }
     

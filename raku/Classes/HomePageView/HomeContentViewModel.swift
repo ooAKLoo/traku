@@ -10,16 +10,13 @@ import Combine
 
 @MainActor
 class HomeContentViewModel: ObservableObject {
-    @Published var selectedFilter = L("homepage_filter_tag")
     @Published var showingSettings = false
-    @Published var hoveredFilter: String? = nil
     @Published var searchText = ""
     @Published var showingSidebar = false
     @Published var selectedTag: String? = nil
     @Published var searchResults: [SearchResult] = []
     @Published var isSearching = false
     @Published var searchError: SearchError?
-    @Published var showingSpaceTemplateSheet = false
     
     private let audioManager: AudioRecordingService
     private var cancellables = Set<AnyCancellable>()
@@ -58,13 +55,6 @@ class HomeContentViewModel: ObservableObject {
         return recordings
     }
     
-    func onFilterChanged(_ newFilter: String) {
-        // 当切换到非标签过滤器时，清除选中的标签
-        if newFilter != L("homepage_filter_tag") {
-            selectedTag = nil
-        }
-    }
-    
     func onSearchTextChanged(_ newValue: String) {
         performSearch(query: newValue)
     }
@@ -76,17 +66,7 @@ class HomeContentViewModel: ObservableObject {
     func updateRecording(_ updatedRecording: AudioRecording) {
         audioManager.updateRecording(updatedRecording)
     }
-    
-    func onSpaceCreated(_ space: Space) {
-        print("✅ 空间创建成功: \(space.name)")
-        print("📝 描述: \(space.description)")
-        
-        // 这里可以添加后续逻辑，比如：
-        // - 显示成功提示
-        // - 刷新空间列表
-        // - 导航到新创建的空间
-    }
-    
+
     private func performSearch(query: String) {
         // 清空之前的结果和错误
         searchError = nil

@@ -11,18 +11,15 @@ import SwiftUI
 struct HomepageHeaderView: View {
     @ObservedObject var audioManager: AudioRecordingService
     let isDarkMode: Bool
-    @Binding var selectedFilter: String
-    @Binding var hoveredFilter: String?
     @Binding var searchText: String
     @Binding var showingSidebar: Bool
 
     @State private var showingSearchBar = false
     @FocusState private var isSearchFieldFocused: Bool
-    let filters = [L("homepage_filter_tag"), L("homepage_filter_space")]
     
     var body: some View {
         VStack(spacing: 0) {
-            // 单行导航栏：[Sidebar按钮] [标签|空间] ---- [搜索按钮] [设置按钮]
+            // 单行导航栏：[Sidebar按钮] [标题] ---- [搜索按钮]
             HStack(spacing: 16) {
                 if showingSearchBar {
                     // 搜索模式：展开搜索框
@@ -87,64 +84,10 @@ struct HomepageHeaderView: View {
                         removal: .move(edge: .leading).combined(with: .opacity)
                     ))
 
-                    // 中间：标签/空间筛选
-                    HStack(spacing: 24) {
-                        ForEach(filters, id: \.self) { filter in
-                            Button(action: {
-                                withAnimation(.interactiveSpring(response: 0.3, dampingFraction: 0.8, blendDuration: 0)) {
-                                    selectedFilter = filter
-                                }
-                            }) {
-                                VStack(spacing: 6) {
-                                    Text(filter)
-                                        .font(.system(size: 16, weight: selectedFilter == filter ? .semibold : .regular))
-                                        .foregroundColor(selectedFilter == filter ?
-                                                         (isDarkMode ? .white : .black) :
-                                                            (hoveredFilter == filter ?
-                                                             (isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8)) :
-                                                                (isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5))))
-                                        .animation(.easeInOut(duration: 0.2), value: selectedFilter)
-                                        .animation(.easeInOut(duration: 0.15), value: hoveredFilter)
-
-                                    // 底部指示线
-                                    ZStack {
-                                        // 背景透明线条（占位）
-                                        Rectangle()
-                                            .fill(Color.clear)
-                                            .frame(width: 40, height: 2)
-
-                                        // 实际显示的线条
-                                        Rectangle()
-                                            .fill(
-                                                LinearGradient(
-                                                    colors: [
-                                                        (isDarkMode ? Color.white : Color.black).opacity(0.8),
-                                                        (isDarkMode ? Color.white : Color.black)
-                                                    ],
-                                                    startPoint: .leading,
-                                                    endPoint: .trailing
-                                                )
-                                            )
-                                            .frame(width: 24, height: 2)
-                                            .cornerRadius(1)
-                                            .scaleEffect(x: selectedFilter == filter ? 1 : 0, y: 1)
-                                            .opacity(selectedFilter == filter ? 1 : 0)
-                                            .animation(.interactiveSpring(response: 0.25, dampingFraction: 0.8), value: selectedFilter)
-                                    }
-                                }
-                            }
-                            .buttonStyle(PlainButtonStyle())
-                            .onHover { isHovered in
-                                withAnimation(.easeInOut(duration: 0.15)) {
-                                    hoveredFilter = isHovered ? filter : nil
-                                }
-                            }
-                        }
-                    }
-                    .transition(.asymmetric(
-                        insertion: .opacity,
-                        removal: .opacity
-                    ))
+                    // 标题
+                    Text(L("homepage_filter_tag"))
+                        .font(.system(size: 17, weight: .semibold))
+                        .foregroundColor(isDarkMode ? .white : .black)
 
                     Spacer()
 
@@ -195,8 +138,6 @@ struct HomepageHeaderView: View {
     HomepageHeaderView(
         audioManager: AudioRecordingService(skipDatabaseLoad: true),
         isDarkMode: false,
-        selectedFilter: .constant("标签"),
-        hoveredFilter: .constant(nil),
         searchText: .constant(""),
         showingSidebar: .constant(false)
     )
@@ -206,8 +147,6 @@ struct HomepageHeaderView: View {
     HomepageHeaderView(
         audioManager: AudioRecordingService(skipDatabaseLoad: true),
         isDarkMode: true,
-        selectedFilter: .constant("标签"),
-        hoveredFilter: .constant(nil),
         searchText: .constant(""),
         showingSidebar: .constant(false)
     )

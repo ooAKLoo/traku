@@ -38,30 +38,19 @@ struct HomepageMainView: View {
                     HomepageHeaderView(
                         audioManager: audioManager,
                         isDarkMode: isDarkMode,
-                        selectedFilter: $viewModel.selectedFilter,
-                        hoveredFilter: $viewModel.hoveredFilter,
                         searchText: $viewModel.searchText,
                         showingSidebar: $viewModel.showingSidebar
                     )
-                    .onChange(of: viewModel.selectedFilter) { newFilter in
-                        viewModel.onFilterChanged(newFilter)
-                    }
                     .onChange(of: viewModel.searchText) { newValue in
                         viewModel.onSearchTextChanged(newValue)
                     }
-                    
-                    // 标签过滤 TabBar（当选择"标签"时显示在 header 下面）
-                    if viewModel.selectedFilter == L("homepage_filter_tag") {
-                        RecordingTagFilter(
-                            allRecordings: audioManager.recordings,
-                            selectedTag: $viewModel.selectedTag
-                        )
-                        .transition(.asymmetric(
-                            insertion: .move(edge: .top).combined(with: .opacity),
-                            removal: .move(edge: .top).combined(with: .opacity)
-                        ))
-                    }
-                    
+
+                    // 标签过滤 TabBar
+                    RecordingTagFilter(
+                        allRecordings: audioManager.recordings,
+                        selectedTag: $viewModel.selectedTag
+                    )
+
                     // 搜索状态指示器
                     if viewModel.isSearching && !viewModel.searchText.isEmpty {
                         HStack {
@@ -111,23 +100,12 @@ struct HomepageMainView: View {
                     Spacer()
                     FloatingRecordingCard(
                         audioManager: audioManager,
-                        selectedFilter: viewModel.selectedFilter,
                         isDarkMode: isDarkMode
                     )
                 }
             }
             .sheet(isPresented: $viewModel.showingSettings) {
                 SettingsView()
-            }
-            .sheet(isPresented: $viewModel.showingSpaceTemplateSheet) {
-                SpaceCreationView(
-                    isPresented: $viewModel.showingSpaceTemplateSheet,
-                    isDarkMode: isDarkMode,
-                    onSpaceCreated: { space in
-                        // 空间创建成功后的逻辑
-                        viewModel.onSpaceCreated(space)
-                    }
-                )
             }
             .overlay {
                 // 侧边栏
