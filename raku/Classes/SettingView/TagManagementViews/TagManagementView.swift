@@ -98,13 +98,13 @@ struct TagManagementView: View {
                                     .font(.system(size: 20))
                                     .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8))
                                     .frame(width: 30)
-                                
+
                                 Text("拆分标签")
                                     .font(.system(size: 16))
                                     .foregroundColor(isDarkMode ? .white : .black)
-                                
+
                                 Spacer()
-                                
+
                                 Image(systemName: "chevron.right")
                                     .font(.system(size: 14))
                                     .foregroundColor(isDarkMode ? .white.opacity(0.3) : .black.opacity(0.3))
@@ -115,14 +115,7 @@ struct TagManagementView: View {
                                     .fill(isDarkMode ? Color.white.opacity(0.05) : Color.white)
                             )
                         }
-                        
-                        // 标签统计
-                        TagStatisticsView(
-                            allTags: allTags,
-                            tagUsageCount: tagUsageCount,
-                            isDarkMode: isDarkMode
-                        )
-                        
+
                         // AI合并建议 - 只有当有结果时才显示
                         if let result = clusteringResult, !result.clusters.isEmpty {
                             TagClusteringSuggestionView(
@@ -306,73 +299,6 @@ struct TagManagementView: View {
                 clusteringResult = nil
             }
         }
-    }
-}
-
-struct TagStatisticsView: View {
-    let allTags: [String]
-    let tagUsageCount: [String: Int]
-    let isDarkMode: Bool
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Image(systemName: "chart.bar")
-                    .font(.system(size: 20))
-                    .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8))
-                    .frame(width: 30)
-                
-                Text("标签统计")
-                    .font(.system(size: 16, weight: .medium))
-                    .foregroundColor(isDarkMode ? .white : .black)
-                
-                Spacer()
-                
-                Text("共 \(allTags.count) 个")
-                    .font(.system(size: 14))
-                    .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
-            }
-            
-            if allTags.isEmpty {
-                Text("暂无标签")
-                    .font(.system(size: 14))
-                    .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
-                    .padding(.horizontal)
-            } else {
-                ScrollView {
-                    LazyVGrid(columns: [
-                        GridItem(.flexible()),
-                        GridItem(.flexible())
-                    ], spacing: 8) {
-                        ForEach(allTags, id: \.self) { tag in
-                            HStack {
-                                Text(tag)
-                                    .font(.system(size: 14))
-                                    .foregroundColor(isDarkMode ? .white : .black)
-                                
-                                Spacer()
-                                
-                                Text("\(tagUsageCount[tag] ?? 0)")
-                                    .font(.system(size: 12, weight: .medium))
-                                    .foregroundColor(isDarkMode ? .white.opacity(0.6) : .black.opacity(0.6))
-                            }
-                            .padding(.horizontal, 12)
-                            .padding(.vertical, 8)
-                            .background(
-                                RoundedRectangle(cornerRadius: 8)
-                                    .fill(isDarkMode ? Color.white.opacity(0.03) : Color.white.opacity(0.7))
-                            )
-                        }
-                    }
-                }
-                .frame(maxHeight: 200)
-            }
-        }
-        .padding()
-        .background(
-            RoundedRectangle(cornerRadius: 12)
-                .fill(isDarkMode ? Color.white.opacity(0.05) : Color.white)
-        )
     }
 }
 

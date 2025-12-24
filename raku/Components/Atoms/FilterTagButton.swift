@@ -14,92 +14,60 @@ struct FilterTagButton: View {
     let isSelected: Bool
     let isDarkMode: Bool
     let onTap: () -> Void
-    
-    // 定义更精致的颜色方案
-    private var backgroundColor: Color {
-        if isSelected {
-            // 选中状态：深色主题色
-            return isDarkMode ? Color.white : Color(red: 0.1, green: 0.1, blue: 0.12)
-        } else {
-            // 未选中状态：更轻的背景
-            return isDarkMode ? Color.white.opacity(0.08) : Color(red: 0.96, green: 0.96, blue: 0.97)
-        }
-    }
-    
+    @State private var isHovered = false
+
     private var textColor: Color {
         if isSelected {
-            // 选中状态：高对比度文字
-            return isDarkMode ? Color.black : Color.white
+            return isDarkMode ? .white : .black
+        } else if isHovered {
+            return isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8)
         } else {
-            // 未选中状态：柔和的文字颜色
-            return isDarkMode ? Color.white.opacity(0.65) : Color(red: 0.4, green: 0.4, blue: 0.45)
+            return isDarkMode ? .white.opacity(0.5) : .black.opacity(0.5)
         }
     }
-    
-    private var countBackgroundColor: Color {
-        if isSelected {
-            // 选中状态：使用纯色而非透明度，避免"脏"的感觉
-            return isDarkMode
-                ? Color(red: 0.92, green: 0.92, blue: 0.93)  // 浅灰色
-                : Color(red: 0.25, green: 0.25, blue: 0.28)  // 深灰色
-        } else {
-            // 未选中状态
-            return isDarkMode
-                ? Color.white.opacity(0.1)
-                : Color(red: 0.88, green: 0.88, blue: 0.9)
-        }
-    }
-    
-    private var countTextColor: Color {
-        if isSelected {
-            // 选中状态：确保清晰的对比度
-            return isDarkMode
-                ? Color(red: 0.2, green: 0.2, blue: 0.22)  // 深灰色文字
-                : Color(red: 0.85, green: 0.85, blue: 0.87)  // 浅灰色文字
-        } else {
-            // 未选中状态
-            return isDarkMode
-                ? Color.white.opacity(0.5)
-                : Color(red: 0.55, green: 0.55, blue: 0.6)
-        }
-    }
-    
+
     var body: some View {
         Button(action: onTap) {
-            HStack(spacing: 8) {
+            VStack(spacing: 6) {
                 Text(title)
-                    .font(.system(size: 12, weight: isSelected ? .semibold : .regular))
+                    .font(.system(size: 14, weight: isSelected ? .semibold : .regular))
                     .foregroundColor(textColor)
-                
-                // 数量标签 - 优化设计
-                Text("\(count)")
-                    .font(.system(size: 10, weight: .semibold))
-                    .foregroundColor(countTextColor)
-                    .frame(width: 18, height: 18)
-                    .background(
-                        Circle()
-                            .fill(countBackgroundColor)
-                    )
+                    .animation(.easeInOut(duration: 0.2), value: isSelected)
+                    .animation(.easeInOut(duration: 0.15), value: isHovered)
+
+                // 底部指示线
+                ZStack {
+                    // 背景透明线条（占位）
+                    Rectangle()
+                        .fill(Color.clear)
+                        .frame(width: 40, height: 2)
+
+                    // 实际显示的线条
+                    Rectangle()
+                        .fill(
+                            LinearGradient(
+                                colors: [
+                                    (isDarkMode ? Color.white : Color.black).opacity(0.8),
+                                    (isDarkMode ? Color.white : Color.black)
+                                ],
+                                startPoint: .leading,
+                                endPoint: .trailing
+                            )
+                        )
+                        .frame(width: 24, height: 2)
+                        .cornerRadius(1)
+                        .scaleEffect(x: isSelected ? 1 : 0, y: 1)
+                        .opacity(isSelected ? 1 : 0)
+                        .animation(.interactiveSpring(response: 0.25, dampingFraction: 0.8), value: isSelected)
+                }
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 8)
-            .background(
-                RoundedRectangle(cornerRadius: 20)
-                    .fill(backgroundColor)
-                    // 选中时添加细微阴影增加层次感
-                    .shadow(
-                        color: isSelected
-                            ? Color.black.opacity(0.08)
-                            : Color.clear,
-                        radius: 4,
-                        x: 0,
-                        y: 2
-                    )
-            )
-            // 选中时轻微放大
-            .scaleEffect(isSelected ? 1.02 : 1.0)
         }
-        .animation(.spring(response: 0.3, dampingFraction: 0.85), value: isSelected)
+        .buttonStyle(PlainButtonStyle())
+        .onHover { hovering in
+            withAnimation(.easeInOut(duration: 0.15)) {
+                isHovered = hovering
+            }
+        }
     }
 }
 

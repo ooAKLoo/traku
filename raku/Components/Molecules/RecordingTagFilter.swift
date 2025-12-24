@@ -86,10 +86,10 @@ struct RecordingTagFilter: View {
                                 Image(systemName: "chevron.down")
                                     .font(.system(size: 11, weight: .semibold))
                                     .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.4))
-                                    .frame(width: UIConstants.TagFilter.expandButtonWidth, height: 40, alignment: .trailing)
                                     .contentShape(Rectangle()) // 确保整个区域可点击
                             }
                             .buttonStyle(PlainButtonStyle()) // 禁用默认的透明度变化缩放效果
+                            .padding(.bottom, 6) // 向上偏移，与底部横条对齐
                         }
                         .frame(width: UIConstants.TagFilter.expandButtonWidth)
 

@@ -16,10 +16,11 @@ struct HomepageHeaderView: View {
 
     @State private var showingSearchBar = false
     @FocusState private var isSearchFieldFocused: Bool
+    @State private var showingSettings = false
     
     var body: some View {
         VStack(spacing: 0) {
-            // 单行导航栏：[Sidebar按钮] [标题] ---- [搜索按钮]
+            // 单行导航栏：[设备图标] [搜索框] [设置按钮]
             HStack(spacing: 16) {
                 if showingSearchBar {
                     // 搜索模式：展开搜索框
@@ -64,23 +65,23 @@ struct HomepageHeaderView: View {
                     ))
                 } else {
                     // 正常模式
-                    // 左侧：Sidebar按钮 - 使用更简约的 SF Symbol
+                    // 左侧：设备图标
                     Button(action: {
-                        withAnimation(.easeInOut(duration: 0.3)) {
-                            showingSidebar.toggle()
-                        }
+                        // TODO: 可以点击跳转到设备列表或其他功能
                     }) {
-                        Image(systemName: "line.3.horizontal")
-                            .font(.system(size: 20, weight: .regular))
-                            .foregroundColor(isDarkMode ? Color.white.opacity(0.85) : Color.black.opacity(0.75))
-                            .frame(width: 24, height: 40, alignment: .leading)
+                        Image("product")
+                            .resizable()
+                            .aspectRatio(contentMode: .fit)
+                            .frame(width: 40, height: 40)
+                            .clipShape(Circle())
                     }
+                    .buttonStyle(PlainButtonStyle())
                     .transition(.asymmetric(
                         insertion: .move(edge: .leading).combined(with: .opacity),
                         removal: .move(edge: .leading).combined(with: .opacity)
                     ))
 
-                    // 右侧：胶囊形搜索框（SmartSearchBar 的缩小版）
+                    // 中间：胶囊形搜索框
                     Button(action: {
                         withAnimation(.easeInOut(duration: 0.3)) {
                             showingSearchBar.toggle()
@@ -111,12 +112,8 @@ struct HomepageHeaderView: View {
                                 .fill(isDarkMode ? Color.white.opacity(0.15) : Color.black.opacity(0.1))
                                 .frame(width: 1, height: 16)
 
-                            // 搜索图标 + placeholder
+                            // placeholder
                             HStack(spacing: 6) {
-                                Image(systemName: "magnifyingglass")
-                                    .font(.system(size: 13, weight: .regular))
-                                    .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.35))
-
                                 Text(L("search_placeholder"))
                                     .font(.system(size: 14))
                                     .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.35))
@@ -131,6 +128,20 @@ struct HomepageHeaderView: View {
                             Capsule()
                                 .fill(isDarkMode ? Color.gray.opacity(0.15) : Color(hex: "EBEBE9").opacity(0.5))
                         )
+                    }
+                    .transition(.asymmetric(
+                        insertion: .move(edge: .trailing).combined(with: .opacity),
+                        removal: .move(edge: .trailing).combined(with: .opacity)
+                    ))
+
+                    // 右侧：设置按钮
+                    Button(action: {
+                        showingSettings = true
+                    }) {
+                        Image(systemName: "line.3.horizontal.decrease")
+                            .font(.system(size: 16, weight: .medium))
+                            .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.7))
+                            .frame(width: 20, height: 40, alignment: .trailing)
                     }
                     .transition(.asymmetric(
                         insertion: .move(edge: .trailing).combined(with: .opacity),
@@ -155,6 +166,9 @@ struct HomepageHeaderView: View {
                     }
                 }
             }
+        }
+        .sheet(isPresented: $showingSettings) {
+            SettingsView()
         }
     }
     

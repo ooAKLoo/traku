@@ -19,7 +19,7 @@ enum UIConstants {
         /// 标签之间的间距
         static let tagSpacing: CGFloat = 10
         /// 垂直内边距
-        static let verticalPadding: CGFloat = 8
+        static let verticalPadding: CGFloat = 12
         /// 展开按钮渐变宽度
         static let gradientWidth: CGFloat = 16
         /// 展开按钮区域宽度
@@ -41,9 +41,9 @@ enum UIConstants {
     // MARK: - 头部导航
     enum Header {
         /// 顶部间距
-        static let topPadding: CGFloat = 12
+        static let topPadding: CGFloat = 16
         /// 底部间距
-        static let bottomPadding: CGFloat = 4
+        static let bottomPadding: CGFloat = 8
         /// 元素之间的间距
         static let elementSpacing: CGFloat = 16
     }
