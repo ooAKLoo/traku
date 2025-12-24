@@ -42,7 +42,7 @@ struct HomepageMainView: View {
                         showingSettings: $viewModel.showingSettings,
                         hoveredFilter: $viewModel.hoveredFilter,
                         searchText: $viewModel.searchText,
-                        showingConnectionConfig: $viewModel.showingConnectionConfig
+                        showingSidebar: $viewModel.showingSidebar
                     )
                     .onChange(of: viewModel.selectedFilter) { newFilter in
                         viewModel.onFilterChanged(newFilter)
@@ -120,9 +120,6 @@ struct HomepageMainView: View {
             .sheet(isPresented: $viewModel.showingSettings) {
                 SettingsView()
             }
-            .sheet(isPresented: $viewModel.showingConnectionConfig) {
-                ConnectionConfigView(audioManager: audioManager)
-            }
             .sheet(isPresented: $viewModel.showingSpaceTemplateSheet) {
                 SpaceCreationView(
                     isPresented: $viewModel.showingSpaceTemplateSheet,
@@ -132,6 +129,15 @@ struct HomepageMainView: View {
                         viewModel.onSpaceCreated(space)
                     }
                 )
+            }
+            .overlay {
+                // 侧边栏
+                HomeSidebarView(
+                    audioManager: audioManager,
+                    isPresented: $viewModel.showingSidebar,
+                    isDarkMode: isDarkMode
+                )
+                .animation(.easeInOut(duration: 0.3), value: viewModel.showingSidebar)
             }
         }
         .preferredColorScheme(isDarkMode ? .dark : .light)

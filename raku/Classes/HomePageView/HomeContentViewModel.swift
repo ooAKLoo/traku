@@ -14,7 +14,7 @@ class HomeContentViewModel: ObservableObject {
     @Published var showingSettings = false
     @Published var hoveredFilter: String? = nil
     @Published var searchText = ""
-    @Published var showingConnectionConfig = false
+    @Published var showingSidebar = false
     @Published var selectedTag: String? = nil
     @Published var searchResults: [SearchResult] = []
     @Published var isSearching = false
