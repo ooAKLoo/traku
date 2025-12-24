@@ -35,14 +35,14 @@ struct HomeContentListView: View {
     // MARK: - 录音列表视图
     private var recordingListView: some View {
         let scrollContent = ScrollView {
-            LazyVStack(spacing: 15) {
+            LazyVStack(spacing: UIConstants.ContentList.cardSpacing) {
                 ForEach(viewModel.filteredRecordings, id: \.id) { recording in
                     cardView(for: recording)
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.top, 10)
-            .padding(.bottom, 120)
+            .padding(.horizontal, 8)
+            .padding(.top, UIConstants.ContentList.topPadding)
+            .padding(.bottom, UIConstants.ContentList.bottomPadding)
         }
         .scrollDismissesKeyboard(.immediately)
         

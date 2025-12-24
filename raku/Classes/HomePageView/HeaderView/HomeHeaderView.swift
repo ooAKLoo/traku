@@ -64,47 +64,73 @@ struct HomepageHeaderView: View {
                     ))
                 } else {
                     // 正常模式
-                    // 左侧：Sidebar按钮
+                    // 左侧：Sidebar按钮 - 使用更简约的 SF Symbol
                     Button(action: {
                         withAnimation(.easeInOut(duration: 0.3)) {
                             showingSidebar.toggle()
                         }
                     }) {
-                        VStack(spacing: 4) {
-                            ForEach(0..<3, id: \.self) { _ in
-                                RoundedRectangle(cornerRadius: 1.5)
-                                    .fill(isDarkMode ? Color.white.opacity(0.85) : Color.black.opacity(0.75))
-                                    .frame(width: 20, height: 2.5)
-                            }
-                        }
-                        .frame(width: 40, height: 40)
+                        Image(systemName: "line.3.horizontal")
+                            .font(.system(size: 20, weight: .regular))
+                            .foregroundColor(isDarkMode ? Color.white.opacity(0.85) : Color.black.opacity(0.75))
+                            .frame(width: 24, height: 40, alignment: .leading)
                     }
                     .transition(.asymmetric(
                         insertion: .move(edge: .leading).combined(with: .opacity),
                         removal: .move(edge: .leading).combined(with: .opacity)
                     ))
 
-                    // 标题
-                    Text(L("homepage_filter_tag"))
-                        .font(.system(size: 17, weight: .semibold))
-                        .foregroundColor(isDarkMode ? .white : .black)
-
-                    Spacer()
-
-                    // 右侧：搜索按钮
+                    // 右侧：胶囊形搜索框（SmartSearchBar 的缩小版）
                     Button(action: {
                         withAnimation(.easeInOut(duration: 0.3)) {
                             showingSearchBar.toggle()
                         }
                     }) {
-                        Circle()
-                            .fill(isDarkMode ? Color.gray.opacity(0.15) : Color.gray.opacity(0.1))
-                            .frame(width: 40, height: 40)
-                            .overlay(
+                        HStack(spacing: 0) {
+                            // 左侧 sparkles 图标
+                            Image(systemName: "sparkles")
+                                .font(.system(size: 14, weight: .medium))
+                                .foregroundStyle(
+                                    LinearGradient(
+                                        colors: isDarkMode ? [
+                                            Color.cyan,
+                                            Color.purple
+                                        ] : [
+                                            Color.orange,
+                                            Color.purple
+                                        ],
+                                        startPoint: .topLeading,
+                                        endPoint: .bottomTrailing
+                                    )
+                                )
+                                .padding(.leading, 14)
+                                .padding(.trailing, 10)
+
+                            // 竖线分隔
+                            Rectangle()
+                                .fill(isDarkMode ? Color.white.opacity(0.15) : Color.black.opacity(0.1))
+                                .frame(width: 1, height: 16)
+
+                            // 搜索图标 + placeholder
+                            HStack(spacing: 6) {
                                 Image(systemName: "magnifyingglass")
-                                    .font(.system(size: 16))
-                                    .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.7))
-                            )
+                                    .font(.system(size: 13, weight: .regular))
+                                    .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.35))
+
+                                Text(L("search_placeholder"))
+                                    .font(.system(size: 14))
+                                    .foregroundColor(isDarkMode ? .white.opacity(0.4) : .black.opacity(0.35))
+
+                                Spacer()
+                            }
+                            .padding(.leading, 10)
+                            .padding(.trailing, 14)
+                        }
+                        .padding(.vertical, 10)
+                        .background(
+                            Capsule()
+                                .fill(isDarkMode ? Color.gray.opacity(0.15) : Color(hex: "EBEBE9").opacity(0.5))
+                        )
                     }
                     .transition(.asymmetric(
                         insertion: .move(edge: .trailing).combined(with: .opacity),
@@ -113,9 +139,9 @@ struct HomepageHeaderView: View {
                 }
             }
         }
-        .padding(.horizontal, 20)
-        .padding(.top, 20)
-        .padding(.bottom, 12)
+        .padding(.horizontal, UIConstants.horizontalPadding)
+        .padding(.top, UIConstants.Header.topPadding)
+        .padding(.bottom, UIConstants.Header.bottomPadding)
         .background(
             (isDarkMode ? Color.black : Color.appBackground)
         )

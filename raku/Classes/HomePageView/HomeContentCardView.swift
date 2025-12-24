@@ -189,7 +189,8 @@ struct HomeContentCardView: View {
                     .transition(.opacity.combined(with: .scale))
                 }
             }
-            .padding(8)
+            .padding(.horizontal, 12)
+            .padding(.vertical, 12)
             .background(
                 RoundedRectangle(cornerRadius: 16)
                     .fill(isDarkMode ? Color.white.opacity(0.03) : Color.white)
@@ -253,7 +254,6 @@ struct HomeContentCardView: View {
                 }
             }
         }
-        .padding(.horizontal, 4)
     }
 }
 
