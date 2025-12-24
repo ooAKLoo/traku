@@ -5,6 +5,7 @@
 
 import Foundation
 import Combine
+import AVFoundation
 
 // MARK: - ASR模型类型
 enum ASRModelType {
@@ -147,25 +148,152 @@ class VolcEngineSpeechService: NSObject, ObservableObject {
     /// 处理录音音频数据
     func processRecordingAudio(_ audioData: Data, duration: TimeInterval) {
         print("🎤 处理音频数据，大小: \(audioData.count) bytes, 时长: \(duration)秒")
-        
-        // 检查是否已经是WAV格式
-        let isWAVFormat = audioData.count > 4 && 
-                         audioData.prefix(4) == Data([0x52, 0x49, 0x46, 0x46]) // "RIFF"
-        
-        let finalAudioData: Data
-        if isWAVFormat {
-            // 已经是WAV格式，直接使用
-            finalAudioData = audioData
-            print("🎤 检测到WAV格式音频")
-        } else {
-            // 原始PCM数据，需要添加WAV头
-            finalAudioData = createWAVFile(from: audioData)
-            print("🎤 将PCM数据转换为WAV格式")
+
+        // 检测音频格式
+        let audioFormat = detectAudioFormat(audioData)
+        print("🎤 检测到音频格式: \(audioFormat)")
+
+        switch audioFormat {
+        case .wav:
+            // WAV格式，直接使用
+            startRecognition()
+            sendAudioData(audioData)
+
+        case .m4a, .aac:
+            // M4A/AAC格式，需要转换为WAV
+            convertToWAV(audioData) { [weak self] result in
+                guard let self = self else { return }
+                switch result {
+                case .success(let wavData):
+                    print("🎤 M4A转WAV成功，大小: \(wavData.count) bytes")
+                    self.startRecognition()
+                    self.sendAudioData(wavData)
+                case .failure(let error):
+                    print("❌ M4A转WAV失败: \(error)")
+                    DispatchQueue.main.async {
+                        self.delegate?.speechService(self, didCompleteWithError: DoubaoSpeechError.audioProcessingError)
+                    }
+                }
+            }
+
+        case .pcm:
+            // PCM数据，添加WAV头
+            let wavData = createWAVFile(from: audioData)
+            startRecognition()
+            sendAudioData(wavData)
         }
-        
-        // 开始语音识别
-        startRecognition()
-        sendAudioData(finalAudioData)
+    }
+
+    // MARK: - 音频格式检测
+    private enum AudioFormat {
+        case wav
+        case m4a
+        case aac
+        case pcm
+    }
+
+    private func detectAudioFormat(_ data: Data) -> AudioFormat {
+        guard data.count >= 12 else { return .pcm }
+
+        // WAV: 以 "RIFF" 开头
+        if data.prefix(4) == Data([0x52, 0x49, 0x46, 0x46]) {
+            return .wav
+        }
+
+        // M4A/MP4: 检查 ftyp box
+        if data.count >= 8 {
+            let ftypSignature = data[4..<8]
+            if ftypSignature == Data([0x66, 0x74, 0x79, 0x70]) { // "ftyp"
+                return .m4a
+            }
+        }
+
+        // AAC: ADTS 帧头 (0xFF 0xF1 或 0xFF 0xF9)
+        if data[0] == 0xFF && (data[1] & 0xF0) == 0xF0 {
+            return .aac
+        }
+
+        return .pcm
+    }
+
+    // MARK: - M4A 转 WAV
+    private func convertToWAV(_ audioData: Data, completion: @escaping (Result<Data, Error>) -> Void) {
+        // 创建临时文件
+        let tempDir = FileManager.default.temporaryDirectory
+        let inputURL = tempDir.appendingPathComponent(UUID().uuidString + ".m4a")
+        let outputURL = tempDir.appendingPathComponent(UUID().uuidString + ".wav")
+
+        do {
+            try audioData.write(to: inputURL)
+        } catch {
+            completion(.failure(error))
+            return
+        }
+
+        // 使用 AVAssetReader 和 AVAssetWriter 转换
+        let asset = AVAsset(url: inputURL)
+
+        asset.loadTracks(withMediaType: .audio) { tracks, error in
+            guard let audioTrack = tracks?.first else {
+                completion(.failure(error ?? NSError(domain: "AudioConversion", code: -1, userInfo: [NSLocalizedDescriptionKey: "无法获取音频轨道"])))
+                self.cleanupTempFiles([inputURL])
+                return
+            }
+
+            do {
+                // 设置读取器
+                let reader = try AVAssetReader(asset: asset)
+
+                let outputSettings: [String: Any] = [
+                    AVFormatIDKey: kAudioFormatLinearPCM,
+                    AVSampleRateKey: 16000,
+                    AVNumberOfChannelsKey: 1,
+                    AVLinearPCMBitDepthKey: 16,
+                    AVLinearPCMIsFloatKey: false,
+                    AVLinearPCMIsBigEndianKey: false
+                ]
+
+                let readerOutput = AVAssetReaderTrackOutput(track: audioTrack, outputSettings: outputSettings)
+                reader.add(readerOutput)
+
+                guard reader.startReading() else {
+                    completion(.failure(reader.error ?? NSError(domain: "AudioConversion", code: -2)))
+                    self.cleanupTempFiles([inputURL])
+                    return
+                }
+
+                // 收集所有 PCM 数据
+                var pcmData = Data()
+                while let sampleBuffer = readerOutput.copyNextSampleBuffer() {
+                    if let blockBuffer = CMSampleBufferGetDataBuffer(sampleBuffer) {
+                        let length = CMBlockBufferGetDataLength(blockBuffer)
+                        var data = Data(count: length)
+                        data.withUnsafeMutableBytes { ptr in
+                            CMBlockBufferCopyDataBytes(blockBuffer, atOffset: 0, dataLength: length, destination: ptr.baseAddress!)
+                        }
+                        pcmData.append(data)
+                    }
+                }
+
+                // 添加 WAV 头
+                let wavData = self.createWAVFile(from: pcmData)
+
+                // 清理临时文件
+                self.cleanupTempFiles([inputURL, outputURL])
+
+                completion(.success(wavData))
+
+            } catch {
+                completion(.failure(error))
+                self.cleanupTempFiles([inputURL])
+            }
+        }
+    }
+
+    private func cleanupTempFiles(_ urls: [URL]) {
+        for url in urls {
+            try? FileManager.default.removeItem(at: url)
+        }
     }
     
     /// 创建WAV文件头
