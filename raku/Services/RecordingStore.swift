@@ -40,7 +40,7 @@ class RecordingStore: ObservableObject {
 
     // MARK: - Public Methods
 
-    /// 更新或添加录音
+    /// 更新或添加录音（同时写入数据库）
     func updateRecording(_ recording: AudioRecording) {
         if let index = recordings.firstIndex(where: { $0.id == recording.id }) {
             recordings[index] = recording
@@ -50,6 +50,15 @@ class RecordingStore: ObservableObject {
 
         // 同步到数据库
         _ = DatabaseManager.shared.saveOrUpdateRecording(recording)
+    }
+
+    /// 仅更新内存状态（不写数据库），用于Pipeline中间状态的UI刷新
+    func updateInMemory(_ recording: AudioRecording) {
+        if let index = recordings.firstIndex(where: { $0.id == recording.id }) {
+            recordings[index] = recording
+        } else {
+            recordings.insert(recording, at: 0)
+        }
     }
 
     /// 删除录音

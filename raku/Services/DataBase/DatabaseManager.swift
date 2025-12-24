@@ -188,9 +188,7 @@ class DatabaseManager {
     /// 获取灵感数量（兼容性方法）
     func getInspirationCount() -> Int {
         return performSync {
-            print("dataprocess--- DatabaseManager.getInspirationCount(): 开始查询")
             let inspirations = try await self.recordingRepository.getInspirationRecordings()
-            print("dataprocess--- DatabaseManager.getInspirationCount(): 返回 \(inspirations.count) 条灵感记录")
             return inspirations.count
         }
     }

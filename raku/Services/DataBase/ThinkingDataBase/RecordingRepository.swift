@@ -191,7 +191,6 @@ class RecordingRepository: Repository {
             
             let modelDict = model.toDict()
             let contentType = modelDict["content_type"] as? String ?? "thinking"
-            print("dataprocess--- RecordingRepository.create(): ID=\(model.id.uuidString.prefix(8)), contentType=\(contentType), from model=\(model.contentType)")
             
             let parameters: [Any] = [
                 modelDict["id"] as Any,
@@ -259,8 +258,7 @@ class RecordingRepository: Repository {
             
             let modelDict = model.toDict()
             let contentType = modelDict["content_type"] as? String ?? "thinking"
-            print("dataprocess--- RecordingRepository.update(): ID=\(model.id.uuidString.prefix(8)), contentType=\(contentType), from model=\(model.contentType)")
-            
+
             let parameters: [Any] = [
                 modelDict["id"] as Any,  // recording_id 暂时与 id 相同
                 modelDict["timestamp"] as Any,
@@ -396,56 +394,45 @@ class RecordingRepository: Repository {
     
     /// 根据内容类型获取记录
     func getRecordingsByContentType(_ contentType: String) async throws -> [AudioRecording] {
-        print("dataprocess--- getRecordingsByContentType(\(contentType)): 开始查询")
         let filter = FilterCriteria(
             whereClause: "content_type = ?",
             parameters: [contentType]
         )
-        let results = try await list(filter: filter)
-        print("dataprocess--- getRecordingsByContentType(\(contentType)): SQL查询返回 \(results.count) 条记录")
-        return results
+        return try await list(filter: filter)
     }
-    
+
     /// 获取思考类型的记录
     func getThinkingRecordings() async throws -> [AudioRecording] {
         return try await getRecordingsByContentType("thinking")
     }
-    
+
     /// 获取灵感类型的记录
     func getInspirationRecordings() async throws -> [AudioRecording] {
-        print("dataprocess--- getInspirationRecordings(): 开始查询")
-        let results = try await getRecordingsByContentType("inspiration")
-        print("dataprocess--- getInspirationRecordings(): 找到 \(results.count) 条记录")
-        for (index, recording) in results.enumerated() {
-            print("dataprocess--- 灵感记录\(index + 1): ID=\(recording.id.uuidString.prefix(8)), contentType=\(recording.contentType), title=\(recording.title)")
-        }
-        return results
+        return try await getRecordingsByContentType("inspiration")
     }
-    
+
     /// 获取灵感使用统计信息（优化版本）
     func getInspirationUsageStats() async throws -> (used: Int, unused: Int) {
         let sql = """
-            SELECT 
+            SELECT
                 COUNT(sa.audio_recording_id) as used,
                 COUNT(*) - COUNT(sa.audio_recording_id) as unused
             FROM \(tableName) ar
             LEFT JOIN space_articles sa ON ar.id = sa.audio_recording_id
             WHERE ar.content_type = 'inspiration'
         """
-        
+
         return try await sqliteCore.performAsync {
             let statement = try self.sqliteCore.prepare(sql)
             defer { self.sqliteCore.finalize(statement) }
-            
+
             guard try self.sqliteCore.step(statement) == SQLITE_ROW else {
                 return (used: 0, unused: 0)
             }
-            
+
             let used = Int(sqlite3_column_int(statement, 0))
             let unused = Int(sqlite3_column_int(statement, 1))
-            
-            print("dataprocess--- 灵感统计: 已使用=\(used), 未使用=\(unused)")
-            
+
             return (used: used, unused: unused)
         }
     }
@@ -499,17 +486,12 @@ class RecordingRepository: Repository {
     
     /// 更新记录的向量嵌入
     func updateEmbeddingVector(id: UUID, embeddingVector: [Float]) async throws -> Bool {
-        let preview = embeddingVector.prefix(5).map { String(format: "%.4f", $0) }.joined(separator: ", ")
-        print("vectorprocess--- updateEmbeddingVector(): ID=\(id.uuidString.prefix(8)), 输入向量维度=\(embeddingVector.count)")
-        print("vectorprocess--- updateEmbeddingVector(): ID=\(id.uuidString.prefix(8)), 向量前5值: [\(preview)]")
-        
         let vectorData = try JSONEncoder().encode(embeddingVector)
         let vectorString = String(data: vectorData, encoding: .utf8) ?? ""
-        print("dataprocess--- updateEmbeddingVector(): ID=\(id.uuidString.prefix(8)), 编码后字符串长度=\(vectorString.count)")
-        
+
         let updateSQL = "UPDATE \(tableName) SET embedding_vector = ? WHERE id = ?"
-        
-        let success: Bool = try await sqliteCore.performAsync {
+
+        return try await sqliteCore.performAsync {
             let statement = try self.sqliteCore.prepare(updateSQL)
             defer { self.sqliteCore.finalize(statement) }
 
@@ -517,75 +499,34 @@ class RecordingRepository: Repository {
             let result = try self.sqliteCore.step(statement)
 
             if result == SQLITE_DONE {
-                print("✅ 向量嵌入更新成功，ID: \(id.uuidString)")
-
-                // 存储完成后，再次打印前5维确认
-                let finalPreview = embeddingVector.prefix(5).map { String(format: "%.4f", $0) }.joined(separator: ", ")
-                print("vectorprocess--- updateEmbeddingVector(): 存储完成，ID=\(id.uuidString.prefix(8)), 最终向量前5值: [\(finalPreview)]")
-
-                let updateSuccess = self.sqliteCore.changes() > 0
-                print("🔷 [service--embedding--VERIFY] 数据库更新结果: \(updateSuccess), 影响行数: \(self.sqliteCore.changes())")
-
-                return updateSuccess
+                return self.sqliteCore.changes() > 0
             } else {
-                print("🔷 [service--embedding--VERIFY] ⚠️ SQL执行结果不是SQLITE_DONE: \(result)")
                 throw DatabaseError.updateFailed("Failed to update embedding vector")
             }
         }
-
-        // 在闭包外部进行异步验证
-        if success {
-            do {
-                let verifyVector = try await self.getEmbeddingVector(id: id)
-                if let vector = verifyVector {
-                    print("🔷 [service--embedding--VERIFY] 验证成功，向量已存储，维度: \(vector.count)")
-                } else {
-                    print("🔷 [service--embedding--VERIFY] ⚠️ 验证失败，向量未找到！")
-                }
-            } catch {
-                print("🔷 [service--embedding--VERIFY] ⚠️ 验证过程出错: \(error)")
-            }
-        }
-
-        return success
     }
     
     /// 获取指定记录的向量嵌入
     func getEmbeddingVector(id: UUID) async throws -> [Float]? {
         let querySQL = "SELECT embedding_vector FROM \(tableName) WHERE id = ?"
-        
+
         return try await sqliteCore.performAsync {
             let statement = try self.sqliteCore.prepare(querySQL)
             defer { self.sqliteCore.finalize(statement) }
-            
+
             try self.sqliteCore.bind(statement, parameters: [id.uuidString])
             let result = try self.sqliteCore.step(statement)
-            
-            guard result == SQLITE_ROW else { 
-                print("vectorprocess--- getEmbeddingVector(): 未找到记录 ID=\(id.uuidString.prefix(8))")
-                return nil 
-            }
-            
+
+            guard result == SQLITE_ROW else { return nil }
+
             if let vectorString = sqlite3_column_text(statement, 0) {
                 let vectorStr = String(cString: vectorString)
-                print("vectorprocess--- getEmbeddingVector(): ID=\(id.uuidString.prefix(8)), 向量字符串长度=\(vectorStr.count)")
-                
-                if let vectorData = vectorStr.data(using: .utf8) {
-                    if let vector = try? JSONDecoder().decode([Float].self, from: vectorData) {
-                        let preview = vector.prefix(5).map { String(format: "%.4f", $0) }.joined(separator: ", ")
-                        print("vectorprocess--- getEmbeddingVector(): ID=\(id.uuidString.prefix(8)), 解析向量成功，维度=\(vector.count)")
-                        print("vectorprocess--- getEmbeddingVector(): ID=\(id.uuidString.prefix(8)), 向量前5值: [\(preview)]")
-                        return vector
-                    } else {
-                        print("vectorprocess--- getEmbeddingVector(): ID=\(id.uuidString.prefix(8)), 向量解析失败")
-                    }
-                } else {
-                    print("vectorprocess--- getEmbeddingVector(): ID=\(id.uuidString.prefix(8)), 字符串转换失败")
+                if let vectorData = vectorStr.data(using: .utf8),
+                   let vector = try? JSONDecoder().decode([Float].self, from: vectorData) {
+                    return vector
                 }
-            } else {
-                print("vectorprocess--- getEmbeddingVector(): ID=\(id.uuidString.prefix(8)), 向量数据为NULL")
             }
-            
+
             return nil
         }
     }
@@ -755,7 +696,6 @@ class RecordingRepository: Repository {
         if let contentTypeText = sqlite3_column_text(statement, 10) {
             contentType = String(cString: contentTypeText)
         }
-        print("dataprocess--- parseRecording(): ID=\(idStr.prefix(8)), contentType从数据库读取=\(contentType)")
         
         var originalText: String?
         if let originalTextData = sqlite3_column_text(statement, 11) {

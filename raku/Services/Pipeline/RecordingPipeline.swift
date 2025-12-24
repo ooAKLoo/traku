@@ -5,6 +5,11 @@
 //  录音处理流水线 - 纯协调器
 //  职责：协调各阶段执行，统一管理状态更新
 //
+//  优化策略：
+//  - 只在关键节点更新Store（UI刷新）
+//  - 只在最终完成时写入数据库
+//  - 第一步完成时更新Store以刷新Card显示
+//
 
 import Foundation
 import UIKit
@@ -32,10 +37,10 @@ final class RecordingPipeline: ObservableObject {
         self.embeddingStage = EmbeddingStage()
         self.metadataStage = MetadataStage()
 
-        // 设置第一步完成回调，及时更新UI
+        // 设置第一步完成回调，及时更新UI（仅更新内存，不写数据库）
         self.classificationStage.onFirstStepComplete = { [weak self] context in
             Task { @MainActor in
-                self?.syncToStore(context)
+                self?.updateStoreInMemory(context)
             }
         }
     }
@@ -103,7 +108,7 @@ final class RecordingPipeline: ObservableObject {
     private func saveInitialData(_ context: ProcessingContext) {
         updateStage(.saving, for: context.id)
 
-        // 保存原始录音数据
+        // 保存原始录音数据到独立表
         let recordingData = RawRecordingData(
             id: context.id,
             timestamp: context.createdAt,
@@ -113,7 +118,7 @@ final class RecordingPipeline: ObservableObject {
         )
         _ = DatabaseManager.shared.saveRecordingData(recordingData)
 
-        // 创建初始录音记录
+        // 创建初始录音记录（仅用于UI显示，不写数据库）
         let initialRecording = AudioRecording(
             id: context.id,
             timestamp: context.createdAt,
@@ -126,9 +131,9 @@ final class RecordingPipeline: ObservableObject {
             enrichedContent: nil
         )
 
-        // 通过 Store 统一更新
+        // 仅更新内存，不写数据库
         Task { @MainActor in
-            store.updateRecording(initialRecording)
+            store.updateInMemory(initialRecording)
         }
     }
 
@@ -148,15 +153,16 @@ final class RecordingPipeline: ObservableObject {
                 return
             }
 
-            // ASR完成，更新Store
-            syncToStore(ctx)
+            // ASR完成，更新内存状态（用于UI显示转录文本）
+            updateStoreInMemory(ctx)
 
             // 阶段2: 分类和富化
             if isLLMEnabled {
                 updateStage(.classification, for: ctx.id)
                 ctx = try await classificationStage.process(ctx)
-                // 分类完成，更新Store（标题、标签、enrichedContent）
-                syncToStore(ctx)
+                // 分类完成后会通过 onFirstStepComplete 回调更新内存
+                // 这里再次更新确保 enrichedContent 也同步
+                updateStoreInMemory(ctx)
             }
 
             // 阶段3: 向量生成
@@ -169,7 +175,7 @@ final class RecordingPipeline: ObservableObject {
             updateStage(.metadata, for: ctx.id)
             ctx = try await metadataStage.process(ctx)
 
-            // 完成处理
+            // 完成处理 - 只在这里写入数据库
             await completeProcessing(ctx)
 
         } catch {
@@ -181,11 +187,11 @@ final class RecordingPipeline: ObservableObject {
         }
     }
 
-    /// 同步context到Store
+    /// 仅更新Store内存状态（不写数据库），用于UI刷新
     @MainActor
-    private func syncToStore(_ context: ProcessingContext) {
+    private func updateStoreInMemory(_ context: ProcessingContext) {
         let recording = context.buildRecording()
-        store.updateRecording(recording)
+        store.updateInMemory(recording)
     }
 
     @MainActor
