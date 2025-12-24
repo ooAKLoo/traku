@@ -102,8 +102,7 @@ struct HomepageMainView: View {
                     if !(!viewModel.searchText.isEmpty && viewModel.searchResults.isEmpty && !viewModel.isSearching) {
                         HomeContentListView(
                             viewModel: viewModel,
-                            audioManager: audioManager,
-                            isDarkMode: isDarkMode
+                            audioManager: audioManager
                         )
                     }
                 }

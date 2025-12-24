@@ -810,6 +810,7 @@ extension AudioProcessingPipeline {
         enrichedContent: String? = nil,
         transcription: String? = nil
     ) {
+        print("🔷 [service--embedding--PIPELINE-START] 录音ID: \(recordingId.uuidString.prefix(8)), 类型: \(thoughtType.rawValue)")
         print("🔄 为录音生成embedding - ID: \(recordingId.uuidString.prefix(8)), 类型: \(thoughtType.rawValue)")
         
         // 根据类型决定embedding内容
@@ -838,6 +839,7 @@ extension AudioProcessingPipeline {
         }
         
         guard let content = embeddingContent, !content.isEmpty else {
+            print("🔷 [service--embedding--PIPELINE-SKIP] 没有可用内容生成embedding，录音ID: \(recordingId.uuidString.prefix(8))")
             print("  ❌ 没有可用内容生成embedding，跳过")
             return
         }
@@ -845,9 +847,12 @@ extension AudioProcessingPipeline {
         // 检查内容是否为占位符文本（说明是未完成处理的记录）
         let trimmedContent = content.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmedContent == "处理中..." || trimmedContent.isEmpty {
+            print("🔷 [service--embedding--PIPELINE-SKIP] 检测到占位符或空内容，录音ID: \(recordingId.uuidString.prefix(8))")
             print("  ⚠️ 检测到占位符或空内容，跳过embedding生成")
             return
         }
+        
+        print("🔷 [service--embedding--PIPELINE-CALL] 调用embedding服务，录音ID: \(recordingId.uuidString.prefix(8)), 内容长度: \(content.count)")
         
         VolcEngineEmbeddingService.shared.generateEmbeddings(
             for: recordingId.uuidString,
@@ -856,9 +861,11 @@ extension AudioProcessingPipeline {
         ) { embeddingResult in
             switch embeddingResult {
             case .success(let embeddings):
+                print("🔷 [service--embedding--PIPELINE-SUCCESS] Embedding生成成功，开始保存到数据库，录音ID: \(recordingId.uuidString.prefix(8))")
                 DatabaseManager.shared.saveEmbeddings(embeddings)
                 print("✅ [Pipeline] Embedding生成成功 - 录音ID: \(recordingId.uuidString.prefix(8)), 类型: \(thoughtType.rawValue)")
             case .failure(let error):
+                print("🔷 [service--embedding--PIPELINE-FAIL] Embedding生成失败，录音ID: \(recordingId.uuidString.prefix(8)), 错误: \(error)")
                 print("❌ [Pipeline] Embedding生成失败 - 录音ID: \(recordingId.uuidString.prefix(8)), 错误: \(error)")
             }
         }

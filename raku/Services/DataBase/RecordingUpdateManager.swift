@@ -7,6 +7,7 @@
 
 import Foundation
 import Combine
+import SwiftUI
 
 // MARK: - 录音更新管理器
 class RecordingUpdateManager: ObservableObject {
@@ -95,14 +96,14 @@ enum UIProcessingStage {
         }
     }
     
-    var color: String {
+    var color: Color {
         switch self {
-        case .idle, .completed: return "clear"
-        case .recording: return "red"
-        case .speechRecognition: return "blue"
-        case .llmAnalysisFirstStep: return "orange"
-        case .llmAnalysisSecondStep: return "purple"
-        case .failed: return "red"
+        case .idle, .completed: return .clear
+        case .recording: return .red
+        case .speechRecognition: return .blue
+        case .llmAnalysisFirstStep: return .orange
+        case .llmAnalysisSecondStep: return .purple
+        case .failed: return .red
         }
     }
 }

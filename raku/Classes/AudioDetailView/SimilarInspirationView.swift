@@ -123,6 +123,8 @@ struct SimilarInspirationView: View {
             )
         }
         .onAppear {
+            print("SimilarInspiration--- 🚀 SimilarInspirationView.onAppear 被调用")
+            print("SimilarInspiration--- 📋 View状态 - isLoading: \(isLoading), searchError: \(searchError ?? "nil")")
             loadSimilarInspiration()
         }
         .globalBatchSelectionToolbar(
@@ -229,30 +231,66 @@ struct SimilarInspirationView: View {
     }
     
     private func loadSimilarInspiration() {
+        print("SimilarInspiration--- 📌 开始加载相似灵感，当前记录ID: \(currentRecording.id)")
+        print("SimilarInspiration--- 📌 当前记录标题: \(currentRecording.title)")
+        print("SimilarInspiration--- 📌 当前记录类型: \(currentRecording.contentType)")
+        
+        // 检查数据库管理器状态
+        print("SimilarInspiration--- 🔍 检查数据库管理器状态...")
+        
         // 获取当前记录的向量
-        guard let currentEmbedding = DatabaseManager.shared.getEmbeddingVector(id: currentRecording.id) else {
-            print("❌ 当前记录没有向量数据，无法进行相似度计算")
+        let currentEmbedding = DatabaseManager.shared.getEmbeddingVector(id: currentRecording.id)
+        print("SimilarInspiration--- 🔍 获取向量结果: \(currentEmbedding != nil ? "成功" : "失败")")
+        
+        if let embedding = currentEmbedding {
+            print("SimilarInspiration--- 📊 向量维度: \(embedding.count)")
+            let preview = embedding.prefix(3).map { String(format: "%.4f", $0) }.joined(separator: ", ")
+            print("SimilarInspiration--- 📊 向量前3值: [\(preview)]")
+        } else {
+            print("SimilarInspiration--- ❌ 当前记录没有向量数据，数据库可能未初始化完成")
+            print("SimilarInspiration--- 🔍 尝试检查数据库中所有记录...")
+            
+            // 检查数据库中是否有其他记录的向量数据
+            let allRecordings = DatabaseManager.shared.loadRecordings()
+            print("SimilarInspiration--- 📊 数据库中总记录数: \(allRecordings.count)")
+            
+            let recordingsWithVectors = allRecordings.filter { 
+                DatabaseManager.shared.getEmbeddingVector(id: $0.id) != nil 
+            }
+            print("SimilarInspiration--- 📊 有向量数据的记录数: \(recordingsWithVectors.count)")
+            
             searchError = "当前记录缺少向量数据"
             isLoading = false
             return
         }
         
-        print("🔍 开始基于向量聚类搜索与'\(currentRecording.title)'相似的灵感记录...")
+        guard let currentEmbedding = currentEmbedding else { return }
+        
+        print("SimilarInspiration--- 🔍 开始基于向量聚类搜索与'\(currentRecording.title)'相似的灵感记录...")
         let currentPreview = currentEmbedding.prefix(5).map { String(format: "%.4f", $0) }.joined(separator: ", ")
-        print("vectorprocess--- 📊 当前记录向量前5值: [\(currentPreview)]")
+        print("SimilarInspiration--- 📊 当前记录向量前5值: [\(currentPreview)]")
         
         DispatchQueue.global(qos: .userInitiated).async { [currentRecording] in
+            print("SimilarInspiration--- 🔄 异步任务开始执行...")
+            
             // 从数据库获取所有录音记录
             let allRecordings = DatabaseManager.shared.loadRecordings()
+            print("SimilarInspiration--- 📊 异步任务中获取所有记录数: \(allRecordings.count)")
             
             // 过滤出灵感类型且有向量数据的记录（排除当前记录）
             let inspirationRecordings = allRecordings.filter { recording in
-                recording.id != currentRecording.id && 
-                recording.contentType == "inspiration" &&
-                DatabaseManager.shared.getEmbeddingVector(id: recording.id) != nil
+                let hasVector = DatabaseManager.shared.getEmbeddingVector(id: recording.id) != nil
+                let isInspiration = recording.contentType == "inspiration"
+                let isNotCurrent = recording.id != currentRecording.id
+                
+                if isInspiration && isNotCurrent {
+                    print("SimilarInspiration--- 🔍 检查记录: \(recording.title), 有向量: \(hasVector)")
+                }
+                
+                return isNotCurrent && isInspiration && hasVector
             }
             
-            print("📊 找到 \(inspirationRecordings.count) 个候选灵感记录进行相似度计算")
+            print("SimilarInspiration--- 📊 找到 \(inspirationRecordings.count) 个候选灵感记录进行相似度计算")
             
             var similarityResults: [(recording: AudioRecording, similarity: Float)] = []
             let cosineSimilarityCalculator = CosineSimilarityCalculator()
@@ -286,13 +324,17 @@ struct SimilarInspirationView: View {
             }
             
             DispatchQueue.main.async {
+                print("SimilarInspiration--- 🔄 回到主线程更新UI...")
                 self.isLoading = false
                 self.similarRecordings = Array(topSimilar)
                 
                 if self.similarRecordings.isEmpty {
-                    print("ℹ️ 未找到足够相似的灵感记录")
+                    print("SimilarInspiration--- ℹ️ 未找到足够相似的灵感记录")
                 } else {
-                    print("✅ 找到 \(self.similarRecordings.count) 个相似的灵感记录")
+                    print("SimilarInspiration--- ✅ 找到 \(self.similarRecordings.count) 个相似的灵感记录")
+                    for (index, recording) in self.similarRecordings.enumerated() {
+                        print("SimilarInspiration--- 📝 相似记录\(index + 1): \(recording.title)")
+                    }
                 }
             }
         }

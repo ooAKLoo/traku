@@ -16,17 +16,20 @@ class AppStartupManager {
     /// 执行所有启动时的检查任务
     func performStartupTasks() {
         print("[StartupManager] 🚀 开始执行应用启动检查任务...")
-        
+
         // 1. 权限检查
         requestPermissions()
-        
+
         // 2. 后台向量化处理
         startBackgroundEmbeddingProcessing()
-        
+
         // 3. AI标签分析检查
         startAITagAnalysisCheck()
-        
-        // 4. 其他启动任务可以在这里添加
+
+        // 4. 激活 WatchConnectivity
+        activateWatchConnectivity()
+
+        // 5. 其他启动任务可以在这里添加
         // performOtherStartupTasks()
     }
     
@@ -58,7 +61,13 @@ class AppStartupManager {
             TagAnalysisManager.shared.performAIAnalysis()
         }
     }
-    
+
+    /// 激活 WatchConnectivity 服务
+    private func activateWatchConnectivity() {
+        print("[StartupManager] ⌚ 激活 WatchConnectivity...")
+        WatchConnectivityService.shared.activate()
+    }
+
     // MARK: - Future Tasks
     
     /// 其他启动任务的示例方法

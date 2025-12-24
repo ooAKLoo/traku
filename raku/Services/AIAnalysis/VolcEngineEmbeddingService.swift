@@ -99,6 +99,9 @@ final class VolcEngineEmbeddingService {
         transcription: String? = nil,
         completion: @escaping (Result<EmbeddingResult, Error>) -> Void
     ) {
+        print("🔷 [service--embedding--START] 录音ID: \(recordingId), 润色文本长度: \(polishedText?.count ?? 0)")
+        print("🔷 [service--embedding--START] 时间戳: \(Date())")
+        
         // 生成统一的语义文本
         let semanticText = generateSemanticText(
             polishedText: polishedText,
@@ -112,6 +115,7 @@ final class VolcEngineEmbeddingService {
         print("  最终内容文本长度: \(semanticText.count)")
         
         guard !semanticText.isEmpty else {
+            print("🔷 [service--embedding--SKIP] 语义文本为空，跳过向量生成，录音ID: \(recordingId)")
             print("  ⚠️ 语义文本为空，跳过向量生成")
             completion(.success(EmbeddingResult(recordingId: recordingId, embedding: [])))
             return
@@ -198,9 +202,11 @@ final class VolcEngineEmbeddingService {
                         recordingId: recordingId,
                         embedding: response.data.embedding
                     )
+                    print("🔷 [service--embedding--SUCCESS] 向量生成成功，录音ID: \(recordingId), 向量维度: \(response.data.embedding.count)")
                     completion(.success(result))
                     
                 case .failure(let error):
+                    print("🔷 [service--embedding--FAIL] 向量生成失败，录音ID: \(recordingId), 错误: \(error)")
                     completion(.failure(error))
                 }
             }
@@ -335,6 +341,8 @@ final class VolcEngineEmbeddingService {
         inputs: [InputItem],
         completion: @escaping (Result<EmbeddingResponse, Error>) -> Void
     ) {
+        print("🔷 [service--embedding--API-CALL] 开始调用API")
+        
         let requestBody = EmbeddingRequest(
             model: model,
             input: inputs
@@ -362,11 +370,14 @@ final class VolcEngineEmbeddingService {
             case .success(let data):
                 do {
                     let embeddingResponse = try JSONDecoder().decode(EmbeddingResponse.self, from: data)
+                    print("🔷 [service--embedding--API-RESPONSE] 收到响应, 向量维度: \(embeddingResponse.data.embedding.count)")
                     completion(.success(embeddingResponse))
                 } catch {
+                    print("🔷 [service--embedding--API-ERROR] 响应解析失败: \(error)")
                     completion(.failure(EmbeddingError.invalidResponse))
                 }
             case .failure(let networkError):
+                print("🔷 [service--embedding--API-ERROR] 网络请求失败: \(networkError)")
                 completion(.failure(self.convertNetworkError(networkError)))
             }
         }

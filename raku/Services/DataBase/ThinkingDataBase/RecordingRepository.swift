@@ -509,25 +509,45 @@ class RecordingRepository: Repository {
         
         let updateSQL = "UPDATE \(tableName) SET embedding_vector = ? WHERE id = ?"
         
-        return try await sqliteCore.performAsync {
+        let success: Bool = try await sqliteCore.performAsync {
             let statement = try self.sqliteCore.prepare(updateSQL)
             defer { self.sqliteCore.finalize(statement) }
-            
+
             try self.sqliteCore.bind(statement, parameters: [vectorString, id.uuidString])
             let result = try self.sqliteCore.step(statement)
-            
+
             if result == SQLITE_DONE {
                 print("✅ 向量嵌入更新成功，ID: \(id.uuidString)")
-                
+
                 // 存储完成后，再次打印前5维确认
                 let finalPreview = embeddingVector.prefix(5).map { String(format: "%.4f", $0) }.joined(separator: ", ")
                 print("vectorprocess--- updateEmbeddingVector(): 存储完成，ID=\(id.uuidString.prefix(8)), 最终向量前5值: [\(finalPreview)]")
-                
-                return self.sqliteCore.changes() > 0
+
+                let updateSuccess = self.sqliteCore.changes() > 0
+                print("🔷 [service--embedding--VERIFY] 数据库更新结果: \(updateSuccess), 影响行数: \(self.sqliteCore.changes())")
+
+                return updateSuccess
             } else {
+                print("🔷 [service--embedding--VERIFY] ⚠️ SQL执行结果不是SQLITE_DONE: \(result)")
                 throw DatabaseError.updateFailed("Failed to update embedding vector")
             }
         }
+
+        // 在闭包外部进行异步验证
+        if success {
+            do {
+                let verifyVector = try await self.getEmbeddingVector(id: id)
+                if let vector = verifyVector {
+                    print("🔷 [service--embedding--VERIFY] 验证成功，向量已存储，维度: \(vector.count)")
+                } else {
+                    print("🔷 [service--embedding--VERIFY] ⚠️ 验证失败，向量未找到！")
+                }
+            } catch {
+                print("🔷 [service--embedding--VERIFY] ⚠️ 验证过程出错: \(error)")
+            }
+        }
+
+        return success
     }
     
     /// 获取指定记录的向量嵌入
