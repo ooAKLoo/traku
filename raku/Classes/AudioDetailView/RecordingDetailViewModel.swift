@@ -31,22 +31,21 @@ class RecordingDetailViewModel: ObservableObject {
     @Published var showingFullTranscription = false
     @Published var isPresented = false
     
-    // MARK: - Internal Properties  
-    let audioManager: AudioRecordingService
-    private let updateManager = RecordingUpdateManager.shared
+    // MARK: - Internal Properties
+    let audioManager = AudioRecordingService.shared
+    private let store = RecordingStore.shared
     private var cancellables = Set<AnyCancellable>()
-    
+
     // MARK: - Callbacks
     var onRecordingUpdated: ((AudioRecording) -> Void)?
     var onDismiss: (() -> Void)?
-    
+
     // MARK: - Initialization
-    init(recording: AudioRecording, audioManager: AudioRecordingService, onRecordingUpdated: ((AudioRecording) -> Void)? = nil) {
+    init(recording: AudioRecording, onRecordingUpdated: ((AudioRecording) -> Void)? = nil) {
         self.recording = recording
-        self.audioManager = audioManager
         self.onRecordingUpdated = onRecordingUpdated
         self.editableTags = recording.tags
-        
+
         setupTranscriptionContent()
         setupEnrichedContent()
         observeUpdates()
@@ -70,22 +69,25 @@ class RecordingDetailViewModel: ObservableObject {
     }
     
     private func observeUpdates() {
-        updateManager.$recordingUpdates
+        store.$recordings
             .receive(on: DispatchQueue.main)
-            .sink { [weak self] recordingUpdates in
-                guard let self = self,
-                      let updatedRecording = recordingUpdates[self.recording.id] else { return }
-                
+            .compactMap { [weak self] (recordings: [AudioRecording]) -> AudioRecording? in
+                guard let self = self else { return nil }
+                return recordings.first { $0.id == self.recording.id }
+            }
+            .sink { [weak self] (updatedRecording: AudioRecording) in
+                guard let self = self else { return }
+
+                // 只更新本地状态，不调用 onRecordingUpdated 回调
+                // 避免与 Store 形成循环更新
                 self.recording = updatedRecording
                 self.editableTags = updatedRecording.tags
                 self.setupTranscriptionContent()
-                
+
                 if let enrichedContent = updatedRecording.enrichedContent, !enrichedContent.isEmpty {
                     self.modifiedEnrichedContent = enrichedContent
                     self.updateHeadings()
                 }
-                
-                self.onRecordingUpdated?(updatedRecording)
             }
             .store(in: &cancellables)
     }
@@ -338,19 +340,12 @@ class RecordingDetailViewModel: ObservableObject {
     private func saveModifiedContentWithResult() -> Bool {
         var updatedRecording = recording
         updatedRecording.enrichedContent = modifiedEnrichedContent
-        
-        let success = DatabaseManager.shared.updateRecording(updatedRecording)
-        
-        if success {
-            recording = updatedRecording
-            updateManager.updateRecording(updatedRecording)
-            onRecordingUpdated?(updatedRecording)
-            print("✅ saveModifiedContent: 数据库和本地状态已同步更新")
-            return true
-        } else {
-            print("❌ saveModifiedContent: 数据库更新失败")
-            return false
-        }
+
+        recording = updatedRecording
+        store.updateRecording(updatedRecording)
+        onRecordingUpdated?(updatedRecording)
+        print("✅ saveModifiedContent: 数据已同步更新")
+        return true
     }
     
     private func presentViewController(_ viewController: UIViewController) {

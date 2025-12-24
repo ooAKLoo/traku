@@ -13,11 +13,9 @@ struct TagEditModal: View {
     @Binding var tags: [String]
     @State private var newTagText = ""
     @AppStorage("isDarkMode") private var isDarkMode = false
-    
+
     // 添加录音记录参数用于数据库持久化
     let recording: AudioRecording?
-    // 添加音频管理器引用用于刷新UI
-    let audioManager: AudioRecordingService?
     @State private var isSaving = false
     @State private var showingSaveError = false
     @State private var saveErrorMessage = ""
@@ -227,10 +225,8 @@ struct TagEditModal: View {
                 
                 if success {
                     print("✅ 标签保存成功: \(tags)")
-                    // 刷新AudioManagerAdapter中的录音记录以更新UI
-                    if let audioManager = audioManager {
-                        audioManager.refreshRecording(recording)
-                    }
+                    // 通知RecordingStore更新UI
+                    RecordingStore.shared.updateRecording(updatedRecording)
                     isPresented = false
                 } else {
                     print("❌ 标签保存失败")
@@ -248,8 +244,7 @@ struct TagEditModal_Previews: PreviewProvider {
         TagEditModal(
             isPresented: .constant(true),
             tags: .constant(["会议", "产品", "开发","sdfsdfwe","dfsds"]),
-            recording: nil,
-            audioManager: nil
+            recording: nil
         )
     }
 }

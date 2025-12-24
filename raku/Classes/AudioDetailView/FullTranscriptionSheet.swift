@@ -206,9 +206,9 @@ struct FullTranscriptionSheet: View {
         let success = DatabaseManager.shared.updateRecording(updatedRecording)
         
         if success {
-            // 重要：通知RecordingUpdateManager更新UI
-            RecordingUpdateManager.shared.updateRecording(updatedRecording)
-            
+            // 通知RecordingStore更新UI
+            RecordingStore.shared.updateRecording(updatedRecording)
+
             let editedContent = currentPage == 0 ? "原文" : "润色版"
             print("✅ \(editedContent)内容更新成功")
         } else {

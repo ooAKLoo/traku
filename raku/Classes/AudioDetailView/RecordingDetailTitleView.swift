@@ -14,7 +14,7 @@ struct RecordingDetailTitleView: View {
     @State private var editedTitle: String
     @FocusState var isTitleFieldFocused: Bool
     let onTitleChanged: ((String) -> Void)?
-    @StateObject private var updateManager = RecordingUpdateManager.shared
+    @ObservedObject private var store = RecordingStore.shared
     
     init(recording: AudioRecording, onTagTap: @escaping () -> Void, onTitleChanged: ((String) -> Void)? = nil) {
         self._recording = State(initialValue: recording)
@@ -102,8 +102,8 @@ struct RecordingDetailTitleView: View {
         .padding(.horizontal, 24)
         .padding(.top, 20)
         .padding(.bottom, 40)
-        .onReceive(updateManager.$recordingUpdates) { recordingUpdates in
-            if let updatedRecording = recordingUpdates[recording.id] {
+        .onReceive(store.$recordings) { recordings in
+            if let updatedRecording = recordings.first(where: { $0.id == recording.id }) {
                 // 只有在用户没有在编辑标题时才更新标题
                 if !isTitleFieldFocused && updatedRecording.title != recording.title {
                     recording = updatedRecording

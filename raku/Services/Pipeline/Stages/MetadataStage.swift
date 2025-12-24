@@ -7,7 +7,7 @@
 
 import Foundation
 
-final class MetadataStage: ProcessingStage {
+final class MetadataStage: PipelineStage {
     let name = "元数据获取"
 
     func process(_ context: ProcessingContext) async throws -> ProcessingContext {

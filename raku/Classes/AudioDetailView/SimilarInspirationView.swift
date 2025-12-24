@@ -8,8 +8,6 @@ import SwiftUI
 struct SimilarInspirationView: View {
     let currentRecording: AudioRecording
     let isDarkMode: Bool
-    let audioManager: AudioRecordingService
-    let onRecordingUpdated: ((AudioRecording) -> Void)?
 
     @State private var similarRecordings: [AudioRecording] = []
     @State private var isLoading = true
@@ -193,12 +191,8 @@ struct SimilarInspirationView: View {
         Group {
             if let recording = selectedRecording {
                 NavigationLink(
-                    destination: RecordingDetailView(
-                        recording: recording,
-                        audioManager: audioManager,
-                        onRecordingUpdated: onRecordingUpdated
-                    )
-                    .navigationBarHidden(true),
+                    destination: RecordingDetailView(recording: recording)
+                        .navigationBarHidden(true),
                     isActive: $isNavigating
                 ) {
                     EmptyView()
@@ -468,9 +462,7 @@ struct SimilarInspirationView_Previews: PreviewProvider {
                 enrichedContent: nil,
                 contentType: "inspiration"
             ),
-            isDarkMode: true,
-            audioManager: AudioRecordingService(skipDatabaseLoad: true),
-            onRecordingUpdated: nil
+            isDarkMode: true
         )
         .padding()
         .background(Color.black)

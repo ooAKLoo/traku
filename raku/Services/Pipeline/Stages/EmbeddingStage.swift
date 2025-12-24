@@ -7,7 +7,7 @@
 
 import Foundation
 
-final class EmbeddingStage: ProcessingStage {
+final class EmbeddingStage: PipelineStage {
     let name = "向量生成"
     private let embeddingService = VolcEngineEmbeddingService.shared
 

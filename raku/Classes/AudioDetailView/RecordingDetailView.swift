@@ -19,10 +19,9 @@ struct RecordingDetailView: View {
     @FocusState private var isAnyFieldFocused: Bool
     @State private var copyButtonShowsCheckmark = false
     
-    init(recording: AudioRecording, audioManager: AudioRecordingService = AudioRecordingService.shared, onRecordingUpdated: ((AudioRecording) -> Void)? = nil) {
+    init(recording: AudioRecording, onRecordingUpdated: ((AudioRecording) -> Void)? = nil) {
         self._viewModel = StateObject(wrappedValue: RecordingDetailViewModel(
             recording: recording,
-            audioManager: audioManager,
             onRecordingUpdated: onRecordingUpdated
         ))
     }
@@ -278,9 +277,7 @@ struct RecordingDetailView: View {
                                 // 相似内容（所有类型都显示）
                                 SimilarInspirationView(
                                     currentRecording: viewModel.recording,
-                                    isDarkMode: isDarkMode,
-                                    audioManager: viewModel.audioManager,
-                                    onRecordingUpdated: viewModel.onRecordingUpdated
+                                    isDarkMode: isDarkMode
                                 )
                                 .padding(.horizontal, 24)
                                 .padding(.top, 12)
@@ -389,8 +386,7 @@ struct RecordingDetailView: View {
             TagEditModal(
                 isPresented: $viewModel.isTagEditModalPresented,
                 tags: $viewModel.editableTags,
-                recording: viewModel.recording,
-                audioManager: viewModel.audioManager
+                recording: viewModel.recording
             )
         }
         .sheet(isPresented: $viewModel.isEditingSectionPresented) {
@@ -497,8 +493,7 @@ struct RecordingDetailView_Previews: PreviewProvider {
                 2. **挑战**：缺乏技术/艺术合作资源 → **应对**：在艺术社群/高校发布招募信息，优先合作学生团队降低成本
                 """,
                 polishedText: "这是一段会议录音的转写内容，讨论了关于新产品开发的进度和计划。我们需要在下个季度完成主要功能的开发，并准备进行用户测试。产品的核心功能包括用户界面设计、后端API开发、数据库优化等多个方面。团队决定采用敏捷开发模式，确保项目能够按时交付。我们也需要考虑用户体验的优化，包括界面的友好性和功能的易用性。在技术选型方面，我们应该使用最新的开发框架和工具，以确保产品的技术先进性和稳定性。"
-            ),
-            audioManager: AudioRecordingService(skipDatabaseLoad: true)
+            )
         )
     }
 }

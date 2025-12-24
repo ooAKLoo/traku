@@ -7,7 +7,7 @@
 
 import Foundation
 
-final class ASRStage: ProcessingStage {
+final class ASRStage: PipelineStage {
     let name = "语音识别"
     private let speechService: VolcEngineSpeechService
 
