@@ -26,11 +26,9 @@ struct HomeContentCardView: View {
     @State private var isHorizontalDrag = false
     
     
-    // 随机天气类型（基于录音ID生成稳定的随机数）
+    // 使用录音中持久化的天气数据
     private var weatherType: WeatherType {
-        let hashValue = abs(recording.id.hashValue)
-        let index = hashValue % WeatherType.allCases.count
-        return WeatherType.allCases[index]
+        recording.weather ?? .sunny
     }
     
     // 删除阈值（圆环完全闭合的滑动距离）- 增加距离防止误触
