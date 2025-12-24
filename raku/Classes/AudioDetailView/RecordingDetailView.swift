@@ -15,6 +15,7 @@ struct RecordingDetailView: View {
     @Environment(\.dismiss) private var dismiss
     @AppStorage("isDarkMode") private var isDarkMode = false
     @StateObject private var viewModel: RecordingDetailViewModel
+    @ObservedObject private var popupManager = GlobalPopupManager.shared
     @State private var scrollProxy: ScrollViewProxy? = nil
     @FocusState private var isAnyFieldFocused: Bool
     @State private var copyButtonShowsCheckmark = false
@@ -300,60 +301,13 @@ struct RecordingDetailView: View {
                 }
             }
             
-            // 底部浮动章节标签栏
-            if !viewModel.headings.isEmpty {
-                VStack {
-                    Spacer()
-                    // 以 ChapterTabBar 为主体，右侧按钮作为 overlay
-                    ChapterTabBar(
-                        headings: viewModel.headings,
-                        selectedHeadingId: $viewModel.selectedHeadingId,
-                        onHeadingSelected: { index in
-                            // 跳转到对应章节
-                            withAnimation(.easeInOut(duration: 0.4)) {
-                                scrollProxy?.scrollTo("section_\(index)", anchor: .top)
-                            }
-                        }
-                    )
-                    .overlay(alignment: .trailing) {
-                        // 右侧渐变遮罩 + 跳转按钮
-                        HStack(spacing: 0) {
-                            // 渐变遮罩
-                            LinearGradient(
-                                colors: [(isDarkMode ? Color.black : Color.white).opacity(0),
-                                         isDarkMode ? Color.black : Color.white],
-                                startPoint: .leading,
-                                endPoint: .trailing
-                            )
-                            .frame(width: 20)
+            // 底部交互层：使用 ZStack 实现平滑的重叠转场 + 共享背景层
+            VStack(spacing: 0) {
+                Spacer()
 
-                            // 跳转到相似内容按钮
-                            Button(action: {
-                                withAnimation(.easeInOut(duration: 0.4)) {
-                                    scrollProxy?.scrollTo("similar_content", anchor: .top)
-                                }
-                            }) {
-                                ZStack {
-                                    (isDarkMode ? Color.black : Color.white)
-                                    Image(systemName: "link")
-                                        .font(.system(size: 12, weight: .semibold))
-                                        .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.4))
-                                }
-                                .frame(width: 32)
-                            }
-                            .buttonStyle(PlainButtonStyle())
-
-                            // 右侧边距
-                            (isDarkMode ? Color.black : Color.white)
-                                .frame(width: 12)
-                        }
-                        .frame(maxHeight: .infinity)
-                    }
-                    .transition(.asymmetric(
-                        insertion: .move(edge: .bottom).combined(with: .opacity),
-                        removal: .move(edge: .bottom).combined(with: .opacity)
-                    ))
-                    .background(
+                ZStack(alignment: .bottom) {
+                    // 共享背景层（当任一工具栏显示时显示）
+                    if (!viewModel.headings.isEmpty || popupManager.isBatchSelectionShowing) {
                         (isDarkMode ? Color.black.opacity(0.85) : Color.white.opacity(0.95))
                             .mask(
                                 // 上边沿渐变虚化
@@ -368,12 +322,90 @@ struct RecordingDetailView: View {
                                 )
                             )
                             .ignoresSafeArea(edges: .bottom)
-                    )
-                    .offset(y:20)
+                            .frame(height: 120)
+                            .offset(y: 20)
+                            .transition(.opacity)
+                            .zIndex(0)
+                    }
+
+                    // 1. 章节标签栏（不在批量选择模式时显示）
+                    if !popupManager.isBatchSelectionShowing && !viewModel.headings.isEmpty {
+                        ChapterTabBar(
+                            headings: viewModel.headings,
+                            selectedHeadingId: $viewModel.selectedHeadingId,
+                            onHeadingSelected: { index in
+                                // 跳转到对应章节
+                                withAnimation(.easeInOut(duration: 0.4)) {
+                                    scrollProxy?.scrollTo("section_\(index)", anchor: .top)
+                                }
+                            }
+                        )
+                        .overlay(alignment: .trailing) {
+                            // 右侧渐变遮罩 + 跳转按钮
+                            HStack(spacing: 0) {
+                                // 渐变遮罩
+                                LinearGradient(
+                                    colors: [(isDarkMode ? Color.black : Color.white).opacity(0),
+                                             isDarkMode ? Color.black : Color.white],
+                                    startPoint: .leading,
+                                    endPoint: .trailing
+                                )
+                                .frame(width: 20)
+
+                                // 跳转到相似内容按钮
+                                Button(action: {
+                                    withAnimation(.easeInOut(duration: 0.4)) {
+                                        scrollProxy?.scrollTo("similar_content", anchor: .top)
+                                    }
+                                }) {
+                                    ZStack {
+                                        (isDarkMode ? Color.black : Color.white)
+                                        Image(systemName: "link")
+                                            .font(.system(size: 12, weight: .semibold))
+                                            .foregroundColor(isDarkMode ? .white.opacity(0.5) : .black.opacity(0.4))
+                                    }
+                                    .frame(width: 32)
+                                }
+                                .buttonStyle(PlainButtonStyle())
+
+                                // 右侧边距
+                                (isDarkMode ? Color.black : Color.white)
+                                    .frame(width: 12)
+                            }
+                            .frame(maxHeight: .infinity)
+                        }
+                        .offset(y: 20)
+                        .transition(.asymmetric(
+                            insertion: .move(edge: .bottom).combined(with: .opacity),
+                            removal: .opacity.combined(with: .scale(scale: 0.95)) // 消失时轻微缩小+淡出
+                        ))
+                        .zIndex(1)
+                    }
+
+                    // 2. 批量选择工具栏
+                    if popupManager.isBatchSelectionShowing, let data = popupManager.batchSelectionData {
+                        GlobalBatchSelectionToolbar(
+                            data: data,
+                            isDarkMode: isDarkMode,
+                            onDismiss: {
+                                popupManager.hideBatchSelection()
+                            }
+                        )
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 10) // 适当抬高，使其看起来是悬浮的
+                        .transition(.asymmetric(
+                            insertion: .move(edge: .bottom).combined(with: .opacity),
+                            removal: .move(edge: .bottom).combined(with: .opacity)
+                        ))
+                        .zIndex(2) // 确保在最上层
+                    }
                 }
-                .animation(.spring(response: 0.5, dampingFraction: 0.8), value: viewModel.headings.count)
             }
+            // 统一管理底部所有组件的弹出动力学
+            .animation(.spring(response: 0.35, dampingFraction: 0.8), value: popupManager.isBatchSelectionShowing)
+            .animation(.spring(response: 0.35, dampingFraction: 0.8), value: viewModel.headings.count)
         }
+        .animation(.spring(response: 0.4, dampingFraction: 0.85), value: popupManager.isBatchSelectionShowing)
         .offset(x: viewModel.isPresented ? 0 : UIScreen.main.bounds.width)
         .animation(.spring(response: 0.5, dampingFraction: 0.85, blendDuration: 0.3), value: viewModel.isPresented)
         .onAppear {

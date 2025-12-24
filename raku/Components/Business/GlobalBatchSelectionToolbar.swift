@@ -40,7 +40,7 @@ struct SelectionRingView: View {
                 // 背景圆环
                 Circle()
                     .stroke(Color.gray.opacity(0.3), lineWidth: 2.5)
-                
+
                 // 进度圆环 - 使用缓变动效
                 Circle()
                     .trim(from: 0, to: animatedProgress)
@@ -50,8 +50,7 @@ struct SelectionRingView: View {
                     )
                     .rotationEffect(.degrees(-90))
                     .opacity(selectedCount > 0 ? 1 : 0)
-                    .animation(.easeInOut(duration: 0.6), value: animatedProgress)
-                
+
                 // 数字显示（白底蓝字）
                 if selectedCount > 0 && !isFullySelected {
                     Text(selectedCount > 99 ? "99+" : "\(selectedCount)")
@@ -59,7 +58,7 @@ struct SelectionRingView: View {
                         .foregroundColor(.blue)
                         .frame(width: 20, height: 20)
                 }
-                
+
                 // 对勾
                 if isFullySelected {
                     Image(systemName: "checkmark")
@@ -68,10 +67,12 @@ struct SelectionRingView: View {
                 }
             }
             .frame(width: 26, height: 26)
+            .drawingGroup() // 使用 drawingGroup 将复杂矢量（圆环）合并为 GPU 纹理
         }
         .frame(width: 36, height: 36)
+        .animation(.none, value: selectedCount) // 禁用 selectedCount 导致的二次动画
         .onChange(of: progress) { newProgress in
-            // 当进度变化时，触发缓变动效
+            // 当进度变化时，触发缓变动效（仅在数字改变时，不在转场时）
             withAnimation(.easeInOut(duration: 0.6)) {
                 animatedProgress = newProgress
             }
@@ -84,15 +85,13 @@ struct GlobalBatchSelectionToolbar: View {
     let data: BatchSelectionData
     let isDarkMode: Bool
     let onDismiss: () -> Void
-    
+
     // 动画状态
-    @State private var isShowing = false
     @State private var buttonScale = 1.0
-    
+
     var body: some View {
-        VStack(spacing: 0) {
-            // 工具栏内容
-            HStack(spacing: 16) {
+        // 工具栏内容
+        HStack(spacing: 16) {
                 // 左侧：全选/取消全选圆环按钮
                 SelectionRingView(
                     selectedCount: data.selectedCount,
@@ -177,63 +176,55 @@ struct GlobalBatchSelectionToolbar: View {
                                 .fill(isDarkMode ? Color.white.opacity(0.08) : Color.gray.opacity(0.08))
                         )
                 }
-            }
-            .frame(height: 63)
-            .padding(.horizontal, 20)
-            .background(
-                // 轻盈的背景效果
-                ZStack {
-                    // 模糊背景
-                    VisualEffectBlur(blurStyle: isDarkMode ? .systemThinMaterialDark : .systemThinMaterialLight)
-                    
-                    // 微妙的渐变叠加
-                    LinearGradient(
-                        colors: [
-                            Color.white.opacity(isDarkMode ? 0.05 : 0.1),
-                            Color.white.opacity(0)
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
+        }
+        .frame(height: 63)
+        .padding(.horizontal, 20)
+        .background(
+            // 轻盈的背景效果
+            ZStack {
+                // 模糊背景
+                VisualEffectBlur(blurStyle: isDarkMode ? .systemThinMaterialDark : .systemThinMaterialLight)
+
+                // 微妙的渐变叠加
+                LinearGradient(
+                    colors: [
+                        Color.white.opacity(isDarkMode ? 0.05 : 0.1),
+                        Color.white.opacity(0)
+                    ],
+                    startPoint: .top,
+                    endPoint: .bottom
+                )
+
+                // 边框高光
+                RoundedRectangle(cornerRadius: 24)
+                    .stroke(
+                        LinearGradient(
+                            colors: [
+                                Color.white.opacity(isDarkMode ? 0.2 : 0.3),
+                                Color.white.opacity(0)
+                            ],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        ),
+                        lineWidth: 0.5
                     )
-                    
-                    // 边框高光
-                    RoundedRectangle(cornerRadius: 24)
-                        .stroke(
-                            LinearGradient(
-                                colors: [
-                                    Color.white.opacity(isDarkMode ? 0.2 : 0.3),
-                                    Color.white.opacity(0)
-                                ],
-                                startPoint: .topLeading,
-                                endPoint: .bottomTrailing
-                            ),
-                            lineWidth: 0.5
-                        )
-                }
-                .clipShape(RoundedRectangle(cornerRadius: 24))
-                .shadow(
-                    color: Color.black.opacity(isDarkMode ? 0.3 : 0.08),
-                    radius: 12,
-                    x: 0,
-                    y: 4
-                )
-                .shadow(
-                    color: Color.black.opacity(isDarkMode ? 0.15 : 0.04),
-                    radius: 32,
-                    x: 0,
-                    y: 8
-                )
-            )
-        }
-        .offset(y: isShowing ? -10 : 150)
-        .opacity(isShowing ? 1 : 0)
-        .animation(.spring(response: 0.5, dampingFraction: 0.85, blendDuration: 0), value: isShowing)
-        .onAppear {
-            // 浮窗弹出动画
-            withAnimation(.spring(response: 0.6, dampingFraction: 0.8).delay(0.1)) {
-                isShowing = true
             }
-        }
+            .clipShape(RoundedRectangle(cornerRadius: 24))
+            .shadow(
+                color: Color.black.opacity(isDarkMode ? 0.3 : 0.08),
+                radius: 12,
+                x: 0,
+                y: 4
+            )
+            .shadow(
+                color: Color.black.opacity(isDarkMode ? 0.15 : 0.04),
+                radius: 32,
+                x: 0,
+                y: 8
+            )
+        )
+        // 使用 drawingGroup 优化包含大量 Shape 的视图动画
+        .drawingGroup()
     }
 }
 

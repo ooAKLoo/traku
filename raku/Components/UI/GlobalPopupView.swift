@@ -21,7 +21,7 @@ struct GlobalPopupView: View {
         GeometryReader { geometry in
             ZStack(alignment: .bottom) {
                 Color.clear
-                
+
                 // 通用浮窗
                 if let popup = popupManager.currentPopup, popupManager.isShowing {
                     popupContent(popup, geometry: geometry)
@@ -30,15 +30,9 @@ struct GlobalPopupView: View {
                             removal: .move(edge: .bottom).combined(with: .opacity)
                         ))
                 }
-                
-                // 批量选择工具栏
-                if popupManager.batchSelectionData != nil && popupManager.isBatchSelectionShowing {
-                    batchSelectionToolbar(geometry: geometry)
-                        .transition(.asymmetric(
-                            insertion: .move(edge: .bottom).combined(with: .opacity),
-                            removal: .move(edge: .bottom).combined(with: .opacity)
-                        ))
-                }
+
+                // 注意：批量选择工具栏已迁移到各页面内部管理（如 RecordingDetailView）
+                // 不再在全局浮窗中渲染，以实现更好的动画协调
             }
         }
         .ignoresSafeArea()
@@ -104,25 +98,6 @@ struct GlobalPopupView: View {
             )
             .padding(.horizontal, 16)
             .padding(.bottom, geometry.safeAreaInsets.bottom + 20)
-        }
-    }
-    
-    // MARK: - 批量选择工具栏
-    private func batchSelectionToolbar(geometry: GeometryProxy) -> some View {
-        VStack {
-            Spacer()
-            
-            if let data = popupManager.batchSelectionData {
-                GlobalBatchSelectionToolbar(
-                    data: data,
-                    isDarkMode: isDarkMode,
-                    onDismiss: {
-                        popupManager.hideBatchSelection()
-                    }
-                )
-                .padding(.horizontal, 16)
-                .padding(.bottom, geometry.safeAreaInsets.bottom + 20)
-            }
         }
     }
 }
