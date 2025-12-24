@@ -12,13 +12,12 @@ struct HomepageHeaderView: View {
     @ObservedObject var audioManager: AudioRecordingService
     let isDarkMode: Bool
     @Binding var selectedFilter: String
-    @Binding var showingSettings: Bool
     @Binding var hoveredFilter: String?
     @Binding var searchText: String
-    @Binding var showingSidebar: Bool  // 新增：控制侧边栏显示
+    @Binding var showingSidebar: Bool
 
     @State private var showingSearchBar = false
-    @FocusState private var isSearchFieldFocused: Bool  // 添加聚焦状态
+    @FocusState private var isSearchFieldFocused: Bool
     let filters = [L("homepage_filter_tag"), L("homepage_filter_space")]
     
     var body: some View {
@@ -149,37 +148,20 @@ struct HomepageHeaderView: View {
 
                     Spacer()
 
-                    // 右侧按钮区域
-                    HStack(spacing: 12) {
-                        // 搜索按钮
-                        Button(action: {
-                            withAnimation(.easeInOut(duration: 0.3)) {
-                                showingSearchBar.toggle()
-                            }
-                        }) {
-                            Circle()
-                                .fill(isDarkMode ? Color.gray.opacity(0.15) : Color.gray.opacity(0.1))
-                                .frame(width: 40, height: 40)
-                                .overlay(
-                                    Image(systemName: "magnifyingglass")
-                                        .font(.system(size: 16))
-                                        .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.7))
-                                )
+                    // 右侧：搜索按钮
+                    Button(action: {
+                        withAnimation(.easeInOut(duration: 0.3)) {
+                            showingSearchBar.toggle()
                         }
-
-                        // 设置按钮
-                        Button(action: {
-                            showingSettings = true
-                        }) {
-                            Circle()
-                                .fill(isDarkMode ? Color.gray.opacity(0.15) : Color.gray.opacity(0.1))
-                                .frame(width: 40, height: 40)
-                                .overlay(
-                                    Image(systemName: "line.3.horizontal.decrease")
-                                        .font(.system(size: 16, weight: .medium))
-                                        .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.7))
-                                )
-                        }
+                    }) {
+                        Circle()
+                            .fill(isDarkMode ? Color.gray.opacity(0.15) : Color.gray.opacity(0.1))
+                            .frame(width: 40, height: 40)
+                            .overlay(
+                                Image(systemName: "magnifyingglass")
+                                    .font(.system(size: 16))
+                                    .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.7))
+                            )
                     }
                     .transition(.asymmetric(
                         insertion: .move(edge: .trailing).combined(with: .opacity),
@@ -214,7 +196,6 @@ struct HomepageHeaderView: View {
         audioManager: AudioRecordingService(skipDatabaseLoad: true),
         isDarkMode: false,
         selectedFilter: .constant("标签"),
-        showingSettings: .constant(false),
         hoveredFilter: .constant(nil),
         searchText: .constant(""),
         showingSidebar: .constant(false)
@@ -226,7 +207,6 @@ struct HomepageHeaderView: View {
         audioManager: AudioRecordingService(skipDatabaseLoad: true),
         isDarkMode: true,
         selectedFilter: .constant("标签"),
-        showingSettings: .constant(false),
         hoveredFilter: .constant(nil),
         searchText: .constant(""),
         showingSidebar: .constant(false)

@@ -39,7 +39,6 @@ struct HomepageMainView: View {
                         audioManager: audioManager,
                         isDarkMode: isDarkMode,
                         selectedFilter: $viewModel.selectedFilter,
-                        showingSettings: $viewModel.showingSettings,
                         hoveredFilter: $viewModel.hoveredFilter,
                         searchText: $viewModel.searchText,
                         showingSidebar: $viewModel.showingSidebar
@@ -135,6 +134,7 @@ struct HomepageMainView: View {
                 HomeSidebarView(
                     audioManager: audioManager,
                     isPresented: $viewModel.showingSidebar,
+                    showingSettings: $viewModel.showingSettings,
                     isDarkMode: isDarkMode
                 )
                 .animation(.easeInOut(duration: 0.3), value: viewModel.showingSidebar)

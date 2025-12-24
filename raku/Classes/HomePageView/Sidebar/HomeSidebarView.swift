@@ -11,6 +11,7 @@ import SwiftUI
 struct HomeSidebarView: View {
     @ObservedObject var audioManager: AudioRecordingService
     @Binding var isPresented: Bool
+    @Binding var showingSettings: Bool
     let isDarkMode: Bool
 
     @State private var showingConnectionConfig = false
@@ -57,7 +58,14 @@ struct HomeSidebarView: View {
                         Spacer()
 
                         // 底部区域
-                        SidebarBottomSection(isDarkMode: isDarkMode)
+                        SidebarBottomSection(isDarkMode: isDarkMode) {
+                            withAnimation(.spring(response: 0.35, dampingFraction: 0.9)) {
+                                isPresented = false
+                            }
+                            DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+                                showingSettings = true
+                            }
+                        }
                     }
                     .frame(width: sidebarWidth)
                     .background(
@@ -219,59 +227,44 @@ private struct DeviceRow: View {
 // MARK: - 底部区域
 private struct SidebarBottomSection: View {
     let isDarkMode: Bool
+    let onSettingsTap: () -> Void
+
+    @State private var isHovered = false
 
     var body: some View {
         VStack(spacing: 0) {
             SidebarDivider(isDarkMode: isDarkMode)
 
-            HStack(spacing: 8) {
-                // 版本信息
-                Text("v1.0.0")
-                    .font(.system(size: 11, weight: .medium, design: .monospaced))
-                    .foregroundColor(isDarkMode ? Color.white.opacity(0.3) : Color.black.opacity(0.3))
+            Button(action: onSettingsTap) {
+                HStack(spacing: 8) {
+                    Image(systemName: "gearshape")
+                        .font(.system(size: 14, weight: .regular))
+                        .foregroundColor(isDarkMode ? Color.white.opacity(0.6) : Color.black.opacity(0.5))
 
-                Spacer()
+                    Text("设置")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundColor(isDarkMode ? Color.white.opacity(0.8) : Color.black.opacity(0.7))
 
-                // 快捷操作按钮
-                HStack(spacing: 4) {
-                    BottomActionButton(icon: "questionmark.circle", isDarkMode: isDarkMode) {
-                        // 帮助
-                    }
+                    Spacer()
                 }
-            }
-            .padding(.horizontal, 16)
-            .padding(.vertical, 14)
-        }
-    }
-}
-
-// MARK: - 底部操作按钮
-private struct BottomActionButton: View {
-    let icon: String
-    let isDarkMode: Bool
-    let action: () -> Void
-
-    @State private var isHovered = false
-
-    var body: some View {
-        Button(action: action) {
-            Image(systemName: icon)
-                .font(.system(size: 14, weight: .regular))
-                .foregroundColor(isDarkMode ? Color.white.opacity(0.4) : Color.black.opacity(0.4))
-                .frame(width: 28, height: 28)
+                .padding(.horizontal, 12)
+                .padding(.vertical, 10)
                 .background(
-                    RoundedRectangle(cornerRadius: 6)
+                    RoundedRectangle(cornerRadius: 8)
                         .fill(isHovered ?
-                            (isDarkMode ? Color.white.opacity(0.08) : Color.black.opacity(0.06)) :
-                            Color.clear
+                            (isDarkMode ? Color.white.opacity(0.1) : Color.black.opacity(0.06)) :
+                            (isDarkMode ? Color.white.opacity(0.06) : Color.black.opacity(0.04))
                         )
                 )
-        }
-        .buttonStyle(PlainButtonStyle())
-        .onHover { hovering in
-            withAnimation(.easeInOut(duration: 0.15)) {
-                isHovered = hovering
             }
+            .buttonStyle(PlainButtonStyle())
+            .onHover { hovering in
+                withAnimation(.easeInOut(duration: 0.15)) {
+                    isHovered = hovering
+                }
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 12)
         }
     }
 }
@@ -281,6 +274,7 @@ private struct BottomActionButton: View {
     HomeSidebarView(
         audioManager: AudioRecordingService(skipDatabaseLoad: true),
         isPresented: .constant(true),
+        showingSettings: .constant(false),
         isDarkMode: false
     )
 }
@@ -289,6 +283,7 @@ private struct BottomActionButton: View {
     HomeSidebarView(
         audioManager: AudioRecordingService(skipDatabaseLoad: true),
         isPresented: .constant(true),
+        showingSettings: .constant(false),
         isDarkMode: true
     )
     .background(Color.black)
