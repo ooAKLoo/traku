@@ -208,21 +208,23 @@ extension WatchConnectivityService: WCSessionDelegate {
     // MARK: - Recording Processing
 
     /// 处理来自 Watch 的录音
-    /// 创建独立的 Pipeline 实例来处理 Watch 录音
+    /// 统一通过 AudioRecordingService 处理，确保状态一致
     private func processWatchRecording(id: String, fileURL: URL, duration: TimeInterval, createdAt: Date) async {
         do {
-            // 读取音频数据
             let audioData = try Data(contentsOf: fileURL)
 
-            // 创建独立的 Pipeline 实例处理 Watch 录音
-            let pipeline = AudioProcessingPipeline()
-
-            // 直接调用处理方法
-            pipeline.processRecording(audioData: audioData, duration: duration)
+            // 统一通过 AudioRecordingService 处理
+            await MainActor.run {
+                AudioRecordingService.shared.processWatchRecording(
+                    audioData: audioData,
+                    duration: duration,
+                    recordingId: id,
+                    createdAt: createdAt
+                )
+            }
 
             print("Watch 录音已提交处理: \(id)")
 
-            // 发送通知
             DispatchQueue.main.async {
                 NotificationCenter.default.post(
                     name: .watchRecordingProcessed,

@@ -141,7 +141,7 @@ struct ConnectionConfigView: View {
                     ToolbarItem(placement: .navigationBarTrailing) {
                         Button("断开") {
                             Task {
-                                await audioManager.disconnectFromDevice()
+                                await audioManager.disconnectESP32()
                             }
                         }
                         .foregroundColor(.red)

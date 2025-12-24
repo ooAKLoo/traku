@@ -32,15 +32,10 @@ class HomeControlsViewModel: ObservableObject {
     func startRecording() {
         isRecording = true
         startTimer()
-        
+
         Task {
             do {
-                // 根据连接状态调用对应的录音方法
-                if audioManager.isConnected {
-                    try await audioManager.startRecording()
-                } else {
-                    try await audioManager.startPhoneRecording()
-                }
+                try await audioManager.startRecording()
             } catch {
                 isRecording = false
                 stopTimer()

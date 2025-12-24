@@ -843,7 +843,7 @@ struct SimilarInspirationView_Previews: PreviewProvider {
                 contentType: "inspiration"
             ),
             isDarkMode: true,
-            audioManager: AudioRecordingService(),
+            audioManager: AudioRecordingService(skipDatabaseLoad: true),
             onRecordingUpdated: nil
         )
         .padding()

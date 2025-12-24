@@ -21,7 +21,10 @@ extension Notification.Name {
 // MARK: - 音频录制服务
 @MainActor
 class AudioRecordingService: NSObject, ObservableObject {
-    
+
+    // MARK: - 单例
+    static let shared = AudioRecordingService()
+
     // MARK: - 发布属性
     @Published var isRecording: Bool = false
     @Published var isPaused: Bool = false
@@ -38,7 +41,7 @@ class AudioRecordingService: NSObject, ObservableObject {
     // MARK: - 录音器实例
     private let phoneRecorder: PhoneRecorder
     private let esp32Recorder: ESP32Recorder
-    private let processingPipeline: AudioProcessingPipeline
+    private let processingPipeline: RecordingPipeline
     
     // 当前活跃的录音器
     private var currentRecorder: AudioRecorder? {
@@ -63,10 +66,10 @@ class AudioRecordingService: NSObject, ObservableObject {
     init(skipDatabaseLoad: Bool = false) {
         self.phoneRecorder = PhoneRecorder()
         self.esp32Recorder = ESP32Recorder()
-        self.processingPipeline = AudioProcessingPipeline()
-        
+        self.processingPipeline = RecordingPipeline()
+
         super.init()
-        
+
         setupRecorderCallbacks()
         observeRecorderStates()
         setupProcessingPipeline()
@@ -144,33 +147,35 @@ class AudioRecordingService: NSObject, ObservableObject {
     /// 停止录音
     func stopRecording() async -> AudioRecordingResult? {
         guard let recorder = currentRecorder else { return nil }
-        
+
         stopRecordingTimer()
         let result = await recorder.stopRecording()
-        
+
         // 触发音频处理流水线
         if let result = result {
             await MainActor.run {
-                // 开始处理完成的录音
                 print("🔄 开始处理录音结果，数据大小: \(result.audioData.count / 1024) KB")
-                processingPipeline.startPhoneRecording()  // 使用手机录音处理流程
-                processingPipeline.processRecording(audioData: result.audioData, duration: result.duration)
+                processingPipeline.processRecording(
+                    audioData: result.audioData,
+                    duration: result.duration,
+                    source: activeSourceType == .phone ? .phone : .esp32
+                )
             }
         }
-        
+
         return result
     }
     
     /// 取消录音
     func cancelRecording() async {
         guard let recorder = currentRecorder else { return }
-        
+
         stopRecordingTimer()
         await recorder.cancelRecording()
-        
+
         // 取消音频处理流水线
         await MainActor.run {
-            processingPipeline.cancelRecording()
+            processingPipeline.cancelProcessing()
         }
     }
     
@@ -192,28 +197,17 @@ class AudioRecordingService: NSObject, ObservableObject {
         try await recorder.resumeRecording()
     }
     
-    // MARK: - 兼容性接口（与AudioManagerAdapter保持一致）
-    
-    /// 开始手机录音（向后兼容）
-    func startPhoneRecording() async throws {
-        try await switchToSource(.phone)
-        try await startRecording()
-    }
-    
-    /// 开始ESP32录音（向后兼容）
-    func startESP32Recording() async throws {
-        try await switchToSource(.esp32)
-        try await startRecording()
-    }
-    
-    /// 连接到设备（兼容旧接口）
-    func connectToDevice(_ device: ESP32Recorder.ESP32Device) async throws {
-        try await connectToESP32(device: device)
-    }
-    
-    /// 断开设备连接
-    func disconnectFromDevice() async {
-        await disconnectESP32()
+    // MARK: - Watch 录音处理
+
+    /// 处理来自 Watch 的录音（统一入口）
+    func processWatchRecording(audioData: Data, duration: TimeInterval, recordingId: String, createdAt: Date) {
+        print("⌚ [AudioRecordingService] 处理 Watch 录音: ID=\(recordingId)")
+        processingPipeline.processWatchRecording(
+            audioData: audioData,
+            duration: duration,
+            recordingId: recordingId,
+            createdAt: createdAt
+        )
     }
     
     // MARK: - 录音管理
@@ -577,68 +571,48 @@ extension AudioRecordingService: AVAudioPlayerDelegate {
     }
 }
 
-// MARK: - AudioProcessingPipelineDelegate
-extension AudioRecordingService: AudioProcessingPipelineDelegate {
-    func pipelineDidStartRecording(_ pipeline: AudioProcessingPipeline) {
-        // 音频处理流水线开始录音，这里可以处理UI更新等
+// MARK: - RecordingPipelineDelegate
+extension AudioRecordingService: RecordingPipelineDelegate {
+    func pipeline(_ pipeline: RecordingPipeline, didStartProcessing context: ProcessingContext) {
+        // 处理开始
+        print("🚀 [AudioRecordingService] 开始处理录音: \(context.id)")
     }
-    
-    func pipeline(_ pipeline: AudioProcessingPipeline, didFinishRecording audioData: Data, duration: TimeInterval) {
-        // 录音完成，开始处理
+
+    func pipeline(_ pipeline: RecordingPipeline, didUpdateStage stage: PipelineStage, progress: Float) {
+        // 阶段更新，可以在这里更新UI进度
     }
-    
-    func pipeline(_ pipeline: AudioProcessingPipeline, didCreateInitialRecording recording: AudioRecording) {
-        // 创建初始录音记录（录音完成后立即创建）
+
+    func pipeline(_ pipeline: RecordingPipeline, didCreateInitialRecording recording: AudioRecording) {
+        // 创建初始录音记录
         if !recordings.contains(where: { $0.id == recording.id }) {
             recordings.insert(recording, at: 0)
-            objectWillChange.send() // 强制触发 UI 更新
-            print("✅ 初始录音记录已添加到列表并触发UI更新 - ID: \(recording.id)")
+            objectWillChange.send()
+            print("✅ 初始录音记录已添加到列表 - ID: \(recording.id)")
         }
     }
-    
-    func pipeline(_ pipeline: AudioProcessingPipeline, didReceiveSpeechResult result: SpeechRecognitionResult) {
-        // 语音识别完成，可以在这里更新UI显示识别进度
-    }
-    
-    func pipeline(_ pipeline: AudioProcessingPipeline, didCompleteFirstStep result: FirstStepAnalysis) {
-        // LLM分析第一步完成
-    }
-    
-    func pipeline(_ pipeline: AudioProcessingPipeline, didCompleteFinalAnalysis recording: AudioRecording) {
-        // 完整处理完成，生成最终录音记录
-        
-        // 首先保存/更新最终录音记录到数据库
-        let saveSuccess = DatabaseManager.shared.saveOrUpdateRecording(recording)
-        print("💾 保存最终录音记录到数据库: \(saveSuccess ? "成功" : "失败")")
-        
+
+    func pipeline(_ pipeline: RecordingPipeline, didComplete recording: AudioRecording) {
+        // 完整处理完成
         if let existingIndex = recordings.firstIndex(where: { $0.id == recording.id }) {
-            // 更新现有记录
             recordings[existingIndex] = recording
-            print("✅ 更新现有录音记录并触发UI更新 - ID: \(recording.id)")
+            print("✅ 更新现有录音记录 - ID: \(recording.id)")
         } else {
-            // 添加新记录
             recordings.insert(recording, at: 0)
-            print("✅ 添加新录音记录并触发UI更新 - ID: \(recording.id)")
+            print("✅ 添加新录音记录 - ID: \(recording.id)")
         }
-        objectWillChange.send() // 确保触发更新
+        objectWillChange.send()
     }
-    
-    func pipeline(_ pipeline: AudioProcessingPipeline, didFailWithError error: AudioProcessingError) {
-        // 处理失败
-        print("音频处理失败: \(error.localizedDescription)")
+
+    func pipeline(_ pipeline: RecordingPipeline, didFailWithError error: Error) {
+        print("❌ 音频处理失败: \(error.localizedDescription)")
     }
-    
-    func pipeline(_ pipeline: AudioProcessingPipeline, didDeleteEmptyRecording recordingId: UUID) {
-        // 删除空录音，从UI中移除
-        print("🗑️ [AudioRecordingService] 收到删除空录音通知，ID: \(recordingId.uuidString.prefix(8))")
-        
-        // 从recordings数组中移除
+
+    func pipeline(_ pipeline: RecordingPipeline, didDeleteEmptyRecording recordingId: UUID) {
+        print("🗑️ [AudioRecordingService] 删除空录音: \(recordingId.uuidString.prefix(8))")
         if let index = recordings.firstIndex(where: { $0.id == recordingId }) {
             recordings.remove(at: index)
-            objectWillChange.send() // 强制触发UI更新
+            objectWillChange.send()
             print("✅ [AudioRecordingService] 已从UI中移除空录音记录")
-        } else {
-            print("⚠️ [AudioRecordingService] 未找到要删除的录音记录")
         }
     }
 }

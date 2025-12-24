@@ -11,18 +11,18 @@ import Combine
 
 // MARK: - 首页主视图
 struct HomepageMainView: View {
-    @StateObject private var audioManager = AudioRecordingService()
+    @ObservedObject private var audioManager: AudioRecordingService
     @AppStorage("isDarkMode") private var isDarkMode = false
     @StateObject private var viewModel: HomeContentViewModel
-    
+
     init() {
-        let audioManager = AudioRecordingService()
-        self._audioManager = StateObject(wrappedValue: audioManager)
-        self._viewModel = StateObject(wrappedValue: HomeContentViewModel(audioManager: audioManager))
+        self.audioManager = AudioRecordingService.shared
+        self._viewModel = StateObject(wrappedValue: HomeContentViewModel(audioManager: AudioRecordingService.shared))
     }
-    
+
+    /// Preview 专用初始化器
     init(audioManager: AudioRecordingService) {
-        self._audioManager = StateObject(wrappedValue: audioManager)
+        self.audioManager = audioManager
         self._viewModel = StateObject(wrappedValue: HomeContentViewModel(audioManager: audioManager))
     }
     

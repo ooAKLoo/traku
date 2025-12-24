@@ -19,16 +19,7 @@ struct RecordingDetailView: View {
     @FocusState private var isAnyFieldFocused: Bool
     @State private var copyButtonShowsCheckmark = false
     
-    init(recording: AudioRecording, onRecordingUpdated: ((AudioRecording) -> Void)? = nil) {
-        let audioManager = AudioRecordingService()
-        self._viewModel = StateObject(wrappedValue: RecordingDetailViewModel(
-            recording: recording,
-            audioManager: audioManager,
-            onRecordingUpdated: onRecordingUpdated
-        ))
-    }
-    
-    init(recording: AudioRecording, audioManager: AudioRecordingService, onRecordingUpdated: ((AudioRecording) -> Void)? = nil) {
+    init(recording: AudioRecording, audioManager: AudioRecordingService = AudioRecordingService.shared, onRecordingUpdated: ((AudioRecording) -> Void)? = nil) {
         self._viewModel = StateObject(wrappedValue: RecordingDetailViewModel(
             recording: recording,
             audioManager: audioManager,

@@ -44,7 +44,7 @@ class RecordingUpdateManager: ObservableObject {
         DispatchQueue.main.async {
             self.recordingUpdates[recording.id] = recording
             
-            // 不在这里清除处理状态，让AudioProcessingPipeline通过updateProcessingStatus来控制
+            // 不在这里清除处理状态，让RecordingPipeline通过updateProcessingStatus来控制
             // 这样可以确保只有在真正完成时才清除状态
         }
     }
