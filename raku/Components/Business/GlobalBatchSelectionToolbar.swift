@@ -67,7 +67,6 @@ struct SelectionRingView: View {
                 }
             }
             .frame(width: 26, height: 26)
-            .drawingGroup() // 使用 drawingGroup 将复杂矢量（圆环）合并为 GPU 纹理
         }
         .frame(width: 36, height: 36)
         .animation(.none, value: selectedCount) // 禁用 selectedCount 导致的二次动画
@@ -223,8 +222,6 @@ struct GlobalBatchSelectionToolbar: View {
                 y: 8
             )
         )
-        // 使用 drawingGroup 优化包含大量 Shape 的视图动画
-        .drawingGroup()
     }
 }
 

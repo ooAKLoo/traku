@@ -301,49 +301,37 @@ struct RecordingDetailView: View {
                 }
             }
             
-            // 底部交互层：使用 ZStack 实现平滑的重叠转场 + 共享背景层
+            // 底部交互层：简化结构，使用单一容器管理两个浮窗的切换
             VStack(spacing: 0) {
                 Spacer()
-
-                ZStack(alignment: .bottom) {
-                    // 共享背景层（当任一工具栏显示时显示）
-                    if (!viewModel.headings.isEmpty || popupManager.isBatchSelectionShowing) {
-                        (isDarkMode ? Color.black.opacity(0.85) : Color.white.opacity(0.95))
-                            .mask(
-                                // 上边沿渐变虚化
-                                LinearGradient(
-                                    gradient: Gradient(stops: [
-                                        .init(color: .clear, location: 0),
-                                        .init(color: .black, location: 0.3),
-                                        .init(color: .black, location: 1)
-                                    ]),
-                                    startPoint: .top,
-                                    endPoint: .bottom
-                                )
-                            )
-                            .ignoresSafeArea(edges: .bottom)
-                            .frame(height: 120)
-                            .offset(y: 20)
-                            .transition(.opacity)
-                            .zIndex(0)
-                    }
-
-                    // 1. 章节标签栏（不在批量选择模式时显示）
-                    if !popupManager.isBatchSelectionShowing && !viewModel.headings.isEmpty {
+                
+                // 使用 Group + 条件判断，避免 ZStack 嵌套动画冲突
+                Group {
+                    if popupManager.isBatchSelectionShowing, let data = popupManager.batchSelectionData {
+                        // 批量选择工具栏（优先级高）
+                        GlobalBatchSelectionToolbar(
+                            data: data,
+                            isDarkMode: isDarkMode,
+                            onDismiss: {
+                                popupManager.hideBatchSelection()
+                            }
+                        )
+                        .padding(.horizontal, 16)
+                        .padding(.bottom, 10)
+                        .id("batch_toolbar") // 使用 id 帮助 SwiftUI 识别视图切换
+                    } else if !viewModel.headings.isEmpty {
+                        // 章节标签栏
                         ChapterTabBar(
                             headings: viewModel.headings,
                             selectedHeadingId: $viewModel.selectedHeadingId,
                             onHeadingSelected: { index in
-                                // 跳转到对应章节
                                 withAnimation(.easeInOut(duration: 0.4)) {
                                     scrollProxy?.scrollTo("section_\(index)", anchor: .top)
                                 }
                             }
                         )
                         .overlay(alignment: .trailing) {
-                            // 右侧渐变遮罩 + 跳转按钮
                             HStack(spacing: 0) {
-                                // 渐变遮罩
                                 LinearGradient(
                                     colors: [(isDarkMode ? Color.black : Color.white).opacity(0),
                                              isDarkMode ? Color.black : Color.white],
@@ -352,7 +340,6 @@ struct RecordingDetailView: View {
                                 )
                                 .frame(width: 20)
 
-                                // 跳转到相似内容按钮
                                 Button(action: {
                                     withAnimation(.easeInOut(duration: 0.4)) {
                                         scrollProxy?.scrollTo("similar_content", anchor: .top)
@@ -368,42 +355,21 @@ struct RecordingDetailView: View {
                                 }
                                 .buttonStyle(PlainButtonStyle())
 
-                                // 右侧边距
                                 (isDarkMode ? Color.black : Color.white)
                                     .frame(width: 12)
                             }
                             .frame(maxHeight: .infinity)
                         }
-                        .offset(y: 20)
-                        .transition(.asymmetric(
-                            insertion: .move(edge: .bottom).combined(with: .opacity),
-                            removal: .opacity.combined(with: .scale(scale: 0.95)) // 消失时轻微缩小+淡出
-                        ))
-                        .zIndex(1)
-                    }
-
-                    // 2. 批量选择工具栏
-                    if popupManager.isBatchSelectionShowing, let data = popupManager.batchSelectionData {
-                        GlobalBatchSelectionToolbar(
-                            data: data,
-                            isDarkMode: isDarkMode,
-                            onDismiss: {
-                                popupManager.hideBatchSelection()
-                            }
-                        )
-                        .padding(.horizontal, 16)
-                        .padding(.bottom, 10) // 适当抬高，使其看起来是悬浮的
-                        .transition(.asymmetric(
-                            insertion: .move(edge: .bottom).combined(with: .opacity),
-                            removal: .move(edge: .bottom).combined(with: .opacity)
-                        ))
-                        .zIndex(2) // 确保在最上层
+                        .id("chapter_tabbar")
                     }
                 }
+                .transition(.asymmetric(
+                    insertion: .move(edge: .bottom).combined(with: .opacity),
+                    removal: .move(edge: .bottom).combined(with: .opacity)
+                ))
             }
-            // 统一管理底部所有组件的弹出动力学
-            .animation(.spring(response: 0.35, dampingFraction: 0.8), value: popupManager.isBatchSelectionShowing)
-            .animation(.spring(response: 0.35, dampingFraction: 0.8), value: viewModel.headings.count)
+            .animation(.spring(response: 0.4, dampingFraction: 0.85), value: popupManager.isBatchSelectionShowing)
+            .animation(.spring(response: 0.4, dampingFraction: 0.85), value: viewModel.headings.isEmpty)
         }
         .animation(.spring(response: 0.4, dampingFraction: 0.85), value: popupManager.isBatchSelectionShowing)
         .offset(x: viewModel.isPresented ? 0 : UIScreen.main.bounds.width)
