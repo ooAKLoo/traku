@@ -13,7 +13,6 @@ struct SimilarInspirationView: View {
     @State private var isLoading = true
     @State private var shouldHide = false
     @State private var selectedRecording: AudioRecording?
-    @State private var isNavigating = false
     @State private var isSelectionMode = false
     @State private var selectedInspirations: Set<UUID> = []
 
@@ -26,7 +25,14 @@ struct SimilarInspirationView: View {
                 contentView
             }
         }
-        .background(navigationLink)
+        .sheet(item: $selectedRecording) { recording in
+            SimilarRecordingPreviewSheet(
+                initialRecording: recording,
+                isDarkMode: isDarkMode
+            )
+            .presentationDetents([.large])
+            .presentationDragIndicator(.visible)
+        }
         .onAppear {
             loadSimilarInspiration()
         }
@@ -106,8 +112,8 @@ struct SimilarInspirationView: View {
                                 if isSelectionMode {
                                     toggleSelection(for: recording.id)
                                 } else {
+                                    // 使用 Sheet 方式预览，避免用户在导航中迷失
                                     selectedRecording = recording
-                                    isNavigating = true
                                 }
                             },
                             onSelectionToggle: {
@@ -182,30 +188,6 @@ struct SimilarInspirationView: View {
             selectedInspirations.remove(id)
         } else {
             selectedInspirations.insert(id)
-        }
-    }
-
-    // MARK: - Navigation Link
-    private var navigationLink: some View {
-        Group {
-            if let recording = selectedRecording {
-                NavigationLink(
-                    destination: RecordingDetailView(recording: recording)
-                        .navigationBarHidden(true),
-                    isActive: $isNavigating
-                ) {
-                    EmptyView()
-                }
-                .hidden()
-                .onChange(of: isNavigating) { navigating in
-                    // 当离开当前页面时立即隐藏批量选择浮窗
-                    if !navigating {
-                        GlobalPopupManager.shared.hideBatchSelectionImmediately()
-                    }
-                }
-            } else {
-                EmptyView()
-            }
         }
     }
 
