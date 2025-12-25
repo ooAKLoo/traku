@@ -11,13 +11,50 @@ struct SimilarInspirationView: View {
 
     @State private var similarRecordings: [AudioRecording] = []
     @State private var isLoading = true
-    @State private var searchError: String?
+    @State private var shouldHide = false
     @State private var selectedRecording: AudioRecording?
     @State private var isNavigating = false
     @State private var isSelectionMode = false
     @State private var selectedInspirations: Set<UUID> = []
 
     var body: some View {
+        Group {
+            if shouldHide {
+                // 没有向量数据时完全隐藏
+                EmptyView()
+            } else {
+                contentView
+            }
+        }
+        .background(navigationLink)
+        .onAppear {
+            loadSimilarInspiration()
+        }
+        .globalBatchSelectionToolbar(
+            isPresented: $isSelectionMode,
+            selectedCount: selectedInspirations.count,
+            totalCount: similarRecordings.count,
+            actionTitle: "批量操作",
+            actionIcon: "checkmark.circle.fill",
+            onSelectAll: {
+                selectedInspirations = Set(similarRecordings.map { $0.id })
+            },
+            onDeselectAll: {
+                selectedInspirations.removeAll()
+            },
+            onAction: {
+                // TODO: 批量操作逻辑
+                exitSelectionMode()
+            }
+        )
+        .onChange(of: isSelectionMode) { newValue in
+            if !newValue {
+                selectedInspirations.removeAll()
+            }
+        }
+    }
+
+    private var contentView: some View {
         VStack(alignment: .leading, spacing: 20) {
             // 标题
             HStack {
@@ -41,18 +78,6 @@ struct SimilarInspirationView: View {
                         SimilarInspirationPlaceholder(isDarkMode: isDarkMode)
                     }
                 }
-
-            } else if let error = searchError {
-                // 错误状态
-                HStack(spacing: 12) {
-                    Image(systemName: "exclamationmark.triangle")
-                        .foregroundColor(.blue)
-
-                    Text(error)
-                        .font(.system(size: 14))
-                        .foregroundColor(isDarkMode ? .white.opacity(0.7) : .gray)
-                }
-                .padding(.vertical, 20)
 
             } else if similarRecordings.isEmpty {
                 // 空状态
@@ -103,32 +128,6 @@ struct SimilarInspirationView: View {
                         )
                     }
                 }
-            }
-        }
-        .background(navigationLink)
-        .onAppear {
-            loadSimilarInspiration()
-        }
-        .globalBatchSelectionToolbar(
-            isPresented: $isSelectionMode,
-            selectedCount: selectedInspirations.count,
-            totalCount: similarRecordings.count,
-            actionTitle: "批量操作",
-            actionIcon: "checkmark.circle.fill",
-            onSelectAll: {
-                selectedInspirations = Set(similarRecordings.map { $0.id })
-            },
-            onDeselectAll: {
-                selectedInspirations.removeAll()
-            },
-            onAction: {
-                // TODO: 批量操作逻辑
-                exitSelectionMode()
-            }
-        )
-        .onChange(of: isSelectionMode) { newValue in
-            if !newValue {
-                selectedInspirations.removeAll()
             }
         }
     }
@@ -215,7 +214,8 @@ struct SimilarInspirationView: View {
         let currentEmbedding = DatabaseManager.shared.getEmbeddingVector(id: currentRecording.id)
 
         guard let currentEmbedding = currentEmbedding else {
-            searchError = "当前记录缺少向量数据"
+            // 没有向量数据时直接隐藏整个视图
+            shouldHide = true
             isLoading = false
             return
         }
@@ -224,18 +224,15 @@ struct SimilarInspirationView: View {
             // 从数据库获取所有录音记录
             let allRecordings = DatabaseManager.shared.loadRecordings()
 
-            // 过滤出有向量数据的记录（排除当前记录）
-            let candidateRecordings = allRecordings.filter { recording in
-                let hasVector = DatabaseManager.shared.getEmbeddingVector(id: recording.id) != nil
-                let isNotCurrent = recording.id != currentRecording.id
-                return isNotCurrent && hasVector
-            }
-
             var similarityResults: [(recording: AudioRecording, similarity: Float)] = []
             let cosineSimilarityCalculator = CosineSimilarityCalculator()
 
-            // 计算与每个候选记录的相似度
-            for recording in candidateRecordings {
+            // 计算与每个候选记录的相似度（排除当前记录，且只处理有向量的记录）
+            for recording in allRecordings {
+                // 排除当前记录
+                guard recording.id != currentRecording.id else { continue }
+
+                // 获取向量并计算相似度（只查询一次数据库）
                 guard let embedding = DatabaseManager.shared.getEmbeddingVector(id: recording.id) else {
                     continue
                 }

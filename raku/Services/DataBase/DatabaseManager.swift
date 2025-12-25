@@ -274,36 +274,27 @@ class DatabaseManager {
     
     /// 保存向量化结果
     func saveEmbeddings(_ embeddingResult: VolcEngineEmbeddingService.EmbeddingResult) {
-        print("🔷 [service--embedding--DB-START] 开始保存, 录音ID: \(embeddingResult.recordingId), 向量维度: \(embeddingResult.embedding.count)")
         Task {
-            print("🔷 [service--embedding--DB-TASK] Task开始执行, 时间: \(Date())")
             do {
                 guard let recordingId = UUID(uuidString: embeddingResult.recordingId) else {
-                    print("🔷 [service--embedding--DB-ERROR] 无效的录音ID: \(embeddingResult.recordingId)")
-                    print("❌ 无效的录音ID: \(embeddingResult.recordingId)")
+                    print("❌ [DatabaseManager] 无效的录音ID: \(embeddingResult.recordingId)")
                     return
                 }
-                
-                // 直接使用统一向量
-                if !embeddingResult.embedding.isEmpty {
-                    let success = try await self.recordingRepository.updateEmbeddingVector(
-                        id: recordingId,
-                        embeddingVector: embeddingResult.embedding
-                    )
-                    if success {
-                        print("🔷 [service--embedding--DB-COMPLETE] 数据库更新完成: \(success), 时间: \(Date())")
-                        print("✅ 成功保存录音 \(embeddingResult.recordingId) 的向量数据 (维度: \(embeddingResult.embedding.count))")
-                    } else {
-                        print("🔷 [service--embedding--DB-FAIL] 数据库更新失败，返回false")
-                    }
-                } else {
-                    print("🔷 [service--embedding--DB-SKIP] 向量数据为空，跳过保存")
-                    print("⚠️ 向量数据为空，跳过保存")
+
+                guard !embeddingResult.embedding.isEmpty else {
+                    return
                 }
-                
+
+                let success = try await self.recordingRepository.updateEmbeddingVector(
+                    id: recordingId,
+                    embeddingVector: embeddingResult.embedding
+                )
+
+                if !success {
+                    print("❌ [DatabaseManager] 保存向量失败，ID: \(embeddingResult.recordingId.prefix(8))...")
+                }
             } catch {
-                print("🔷 [service--embedding--DB-ERROR] 保存异常: \(error)")
-                print("❌ 保存向量数据失败: \(error)")
+                print("❌ [DatabaseManager] 保存向量异常: \(error.localizedDescription)")
             }
         }
     }

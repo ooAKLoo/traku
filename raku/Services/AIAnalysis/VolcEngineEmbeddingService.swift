@@ -4,15 +4,12 @@ import Foundation
 final class VolcEngineEmbeddingService {
     
     // MARK: - Properties
-    
+
     static let shared = VolcEngineEmbeddingService()
-    
-    private let apiKey: String
+
     private let apiEndpoint = "https://ark.cn-beijing.volces.com/api/v3/embeddings/multimodal"
     private let model = "doubao-embedding-vision-250615"
-    private let maxTokensPerElement = 4096
-    private let maxBatchSize = 1  // 新API每次只处理一个输入
-    
+
     private let networkService: NetworkService
     private let processingQueue = DispatchQueue(label: "com.raku.embeddingService", qos: .background)
     
@@ -71,16 +68,14 @@ final class VolcEngineEmbeddingService {
     }
     
     // MARK: - Initialization
-    
+
     private init() {
-        // 直接使用硬编码的API Key
-        self.apiKey = "7dda38f8-2383-434c-9d8d-a26263d4b5d1"
-        
+        // 使用统一的LLM配置获取API Key
+        let config = TwoStepLLMConfiguration.default
         let networkConfig = NetworkConfiguration(
             defaultHeaders: [
-                "Authorization": "Bearer \(apiKey)"
+                "Authorization": "Bearer \(config.apiKey)"
             ]
-            // 使用默认的200秒超时、后台支持、3次重试
         )
         self.networkService = NetworkService(configuration: networkConfig)
     }
@@ -99,29 +94,20 @@ final class VolcEngineEmbeddingService {
         transcription: String? = nil,
         completion: @escaping (Result<EmbeddingResult, Error>) -> Void
     ) {
-        print("🔷 [service--embedding--START] 录音ID: \(recordingId), 润色文本长度: \(polishedText?.count ?? 0)")
-        print("🔷 [service--embedding--START] 时间戳: \(Date())")
-        
         // 生成统一的语义文本
         let semanticText = generateSemanticText(
             polishedText: polishedText,
             transcription: transcription
         )
-        
-        print("[EmbeddingService] 生成录音向量化:")
-        print("  录音ID: \(recordingId)")
-        print("  润色文本长度: \(polishedText?.count ?? 0)")
-        print("  转录文本长度: \(transcription?.count ?? 0)")
-        print("  最终内容文本长度: \(semanticText.count)")
-        
+
+        print("[EmbeddingService] 生成向量 - ID: \(recordingId.prefix(8))..., 文本长度: \(semanticText.count)")
+
         guard !semanticText.isEmpty else {
-            print("🔷 [service--embedding--SKIP] 语义文本为空，跳过向量生成，录音ID: \(recordingId)")
-            print("  ⚠️ 语义文本为空，跳过向量生成")
-            completion(.success(EmbeddingResult(recordingId: recordingId, embedding: [])))
+            print("⚠️ [EmbeddingService] 语义文本为空，跳过向量生成")
+            completion(.failure(EmbeddingError.noData))
             return
         }
-        
-        // 直接调用多模态API
+
         generateMultimodalEmbeddings(
             for: recordingId,
             textInput: semanticText,
@@ -138,14 +124,11 @@ final class VolcEngineEmbeddingService {
         completion: @escaping (Result<[Float], Error>) -> Void
     ) {
         guard !query.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-            print("[EmbeddingService] 搜索查询为空")
             completion(.success([]))
             return
         }
-        
-        print("[EmbeddingService] 生成搜索向量化:")
-        print("  查询内容: \(query)")
-        print("  查询长度: \(query.count)")
+
+        print("[EmbeddingService] 生成搜索向量 - 查询: \(query.prefix(30))...")
         
         // 直接使用查询文本生成向量
         generateMultimodalEmbeddings(
@@ -190,7 +173,7 @@ final class VolcEngineEmbeddingService {
             }
             
             guard !inputItems.isEmpty else {
-                completion(.success(EmbeddingResult(recordingId: recordingId, embedding: [])))
+                completion(.failure(EmbeddingError.noData))
                 return
             }
             
@@ -198,15 +181,15 @@ final class VolcEngineEmbeddingService {
             self.callMultimodalEmbeddingAPI(inputs: inputItems) { result in
                 switch result {
                 case .success(let response):
-                    let result = EmbeddingResult(
+                    let embeddingResult = EmbeddingResult(
                         recordingId: recordingId,
                         embedding: response.data.embedding
                     )
-                    print("🔷 [service--embedding--SUCCESS] 向量生成成功，录音ID: \(recordingId), 向量维度: \(response.data.embedding.count)")
-                    completion(.success(result))
-                    
+                    print("✅ [EmbeddingService] 向量生成成功，维度: \(response.data.embedding.count)")
+                    completion(.success(embeddingResult))
+
                 case .failure(let error):
-                    print("🔷 [service--embedding--FAIL] 向量生成失败，录音ID: \(recordingId), 错误: \(error)")
+                    print("❌ [EmbeddingService] 向量生成失败: \(error.localizedDescription)")
                     completion(.failure(error))
                 }
             }
@@ -261,98 +244,35 @@ final class VolcEngineEmbeddingService {
         polishedText: String?,
         transcription: String?
     ) -> String {
-        // 内容：优先使用润色文本，如果没有则使用原始转录
-        var contentText: String? = nil
-        if let polishedText = polishedText, !polishedText.isEmpty {
-            contentText = polishedText
-            print("  ✅ 使用润色文本生成embedding")
-        } else if let transcription = transcription, !transcription.isEmpty {
-            contentText = transcription
-            print("  ⚠️ 润色文本为空，使用原始转录文本")
+        // 优先使用润色文本，如果没有则使用原始转录
+        let contentText: String
+        if let polished = polishedText, !polished.isEmpty {
+            contentText = polished
+        } else if let trans = transcription, !trans.isEmpty {
+            contentText = trans
         } else {
-            print("  ❌ 警告：没有可用的内容文本（润色文本和转录文本都为空）")
             return ""
         }
-        
+
         // 限制文本长度，避免超出token限制
-        let truncatedText = String(contentText!.prefix(8000))
-        
-        // 如果结果太短，可能导致向量相似
-        if truncatedText.count < 20 {
-            print("  ⚠️ 警告：内容文本太短: \(truncatedText)")
-        }
-        
-        return truncatedText
+        return String(contentText.prefix(8000))
     }
-    
-    // 移除复杂的批处理逻辑，新API每次只处理一个输入
-    
-    private func callEmbeddingAPI(
-        textInputs: [String],
-        completion: @escaping (Result<EmbeddingResponse, Error>) -> Void
-    ) {
-        guard let firstText = textInputs.first else {
-            completion(.failure(EmbeddingError.invalidRequest))
-            return
-        }
-        
-        // 新API每次只处理一个输入
-        let inputItems = [InputItem(text: firstText)]
-        
-        let requestBody = EmbeddingRequest(
-            model: model,
-            input: inputItems
-        )
-        
-        guard let jsonData = try? JSONEncoder().encode(requestBody) else {
-            completion(.failure(EmbeddingError.invalidRequest))
-            return
-        }
-        
-        let parameters: [String: Any]
-        do {
-            parameters = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any] ?? [:]
-        } catch {
-            completion(.failure(error))
-            return
-        }
-        
-        networkService.performJSONRequest(
-            url: apiEndpoint,
-            method: .POST,
-            parameters: parameters
-        ) { result in
-            switch result {
-            case .success(let data):
-                do {
-                    let embeddingResponse = try JSONDecoder().decode(EmbeddingResponse.self, from: data)
-                    completion(.success(embeddingResponse))
-                } catch {
-                    completion(.failure(EmbeddingError.invalidResponse))
-                }
-            case .failure(let networkError):
-                completion(.failure(self.convertNetworkError(networkError)))
-            }
-        }
-    }
-    
+
     /// 调用多模态嵌入API
     private func callMultimodalEmbeddingAPI(
         inputs: [InputItem],
         completion: @escaping (Result<EmbeddingResponse, Error>) -> Void
     ) {
-        print("🔷 [service--embedding--API-CALL] 开始调用API")
-        
         let requestBody = EmbeddingRequest(
             model: model,
             input: inputs
         )
-        
+
         guard let jsonData = try? JSONEncoder().encode(requestBody) else {
             completion(.failure(EmbeddingError.invalidRequest))
             return
         }
-        
+
         let parameters: [String: Any]
         do {
             parameters = try JSONSerialization.jsonObject(with: jsonData) as? [String: Any] ?? [:]
@@ -360,7 +280,7 @@ final class VolcEngineEmbeddingService {
             completion(.failure(error))
             return
         }
-        
+
         networkService.performJSONRequest(
             url: apiEndpoint,
             method: .POST,
@@ -370,14 +290,11 @@ final class VolcEngineEmbeddingService {
             case .success(let data):
                 do {
                     let embeddingResponse = try JSONDecoder().decode(EmbeddingResponse.self, from: data)
-                    print("🔷 [service--embedding--API-RESPONSE] 收到响应, 向量维度: \(embeddingResponse.data.embedding.count)")
                     completion(.success(embeddingResponse))
                 } catch {
-                    print("🔷 [service--embedding--API-ERROR] 响应解析失败: \(error)")
                     completion(.failure(EmbeddingError.invalidResponse))
                 }
             case .failure(let networkError):
-                print("🔷 [service--embedding--API-ERROR] 网络请求失败: \(networkError)")
                 completion(.failure(self.convertNetworkError(networkError)))
             }
         }
