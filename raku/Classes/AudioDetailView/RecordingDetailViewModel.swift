@@ -148,9 +148,9 @@ class RecordingDetailViewModel: ObservableObject {
                 thoughtType = .unknown
             }
 
-            // 调用第二阶段生成 enrichedContent
-            let llmService = TwoStepLLMService()
-            let enrichedContent = try await llmService.performSecondStepOnly(textForAnalysis, thoughtType: thoughtType)
+            // 使用 ContentEnricher 生成 enrichedContent
+            let contentEnricher = ContentEnricher()
+            let enrichedContent = try await contentEnricher.analyze((textForAnalysis, thoughtType))
 
             // 更新录音记录
             var updatedRecording = recording

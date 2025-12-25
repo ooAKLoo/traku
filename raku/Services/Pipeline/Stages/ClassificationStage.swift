@@ -9,14 +9,14 @@ import Foundation
 
 final class ClassificationStage: PipelineStage {
     let name = "内容分类"
-    private let llmService: TwoStepLLMService
+    private let coordinator: AIAnalysisCoordinator
     private var isLLMEnabled: Bool
 
     /// 第一步完成后的回调，用于及时更新UI
     var onFirstStepComplete: ((ProcessingContext) -> Void)?
 
-    init(llmService: TwoStepLLMService = TwoStepLLMService(), isLLMEnabled: Bool = true) {
-        self.llmService = llmService
+    init(coordinator: AIAnalysisCoordinator = AIAnalysisCoordinator(), isLLMEnabled: Bool = true) {
+        self.coordinator = coordinator
         self.isLLMEnabled = isLLMEnabled
     }
 
@@ -38,35 +38,25 @@ final class ClassificationStage: PipelineStage {
         return false
     }
 
-    /// 仅执行第一步分析（标题、分类、标签、润色）- 不执行第二步深度分析
+    /// 仅执行基础分析（标题、分类、标签、润色）- 不执行内容丰富化
     func processFirstStepOnly(_ context: ProcessingContext) async throws -> ProcessingContext {
         guard let transcription = context.transcription else {
             throw ProcessingStageError.emptyTranscription
         }
 
-        print("🤖 [\(name)] 开始第一步LLM分析（仅分类）")
+        print("🤖 [\(name)] 开始基础分析（仅分类）")
 
-        return try await withCheckedThrowingContinuation { continuation in
-            let handler = FirstStepOnlyResultHandler(
-                context: context,
-                onFirstStepComplete: { [weak self] updatedContext in
-                    self?.onFirstStepComplete?(updatedContext)
-                },
-                onComplete: { updatedContext in
-                    print("🤖 [\(self.name)] 第一步分类完成: \(updatedContext.thoughtType)")
-                    continuation.resume(returning: updatedContext)
-                },
-                onError: { error in
-                    print("❌ [\(self.name)] 第一步分类失败: \(error.localizedDescription)")
-                    continuation.resume(throwing: ProcessingStageError.classificationFailed(error))
-                }
-            )
+        var updatedContext = context
 
-            self.llmService.delegate = handler
-            objc_setAssociatedObject(self.llmService, "handler", handler, .OBJC_ASSOCIATION_RETAIN)
+        // 执行基础分析
+        let basicResult = try await coordinator.performBasicAnalysis(transcription)
+        updatedContext.firstStepAnalysis = basicResult.toFirstStepAnalysis()
 
-            self.llmService.analyzeText(transcription, recordingId: context.id)
-        }
+        // 通知外部（用于及时更新UI）
+        onFirstStepComplete?(updatedContext)
+
+        print("🤖 [\(name)] 基础分析完成: \(updatedContext.thoughtType)")
+        return updatedContext
     }
 
     func process(_ context: ProcessingContext) async throws -> ProcessingContext {
@@ -74,126 +64,25 @@ final class ClassificationStage: PipelineStage {
             throw ProcessingStageError.emptyTranscription
         }
 
-        print("🤖 [\(name)] 开始LLM分析")
+        print("🤖 [\(name)] 开始完整AI分析")
 
-        return try await withCheckedThrowingContinuation { continuation in
-            let handler = ClassificationResultHandler(
-                context: context,
-                onFirstStepComplete: { [weak self] updatedContext in
-                    self?.onFirstStepComplete?(updatedContext)
-                },
-                onComplete: { updatedContext in
-                    print("🤖 [\(self.name)] 分类完成: \(updatedContext.thoughtType)")
-                    continuation.resume(returning: updatedContext)
-                },
-                onError: { error in
-                    print("❌ [\(self.name)] 分类失败: \(error.localizedDescription)")
-                    continuation.resume(throwing: ProcessingStageError.classificationFailed(error))
-                }
-            )
+        var updatedContext = context
 
-            self.llmService.delegate = handler
-            objc_setAssociatedObject(self.llmService, "handler", handler, .OBJC_ASSOCIATION_RETAIN)
+        // 步骤1：基础分析
+        let basicResult = try await coordinator.performBasicAnalysis(transcription)
+        updatedContext.firstStepAnalysis = basicResult.toFirstStepAnalysis()
 
-            self.llmService.analyzeText(transcription, recordingId: context.id)
-        }
-    }
-}
+        // 通知外部基础分析已完成（用于及时更新UI）
+        onFirstStepComplete?(updatedContext)
 
-// MARK: - 仅第一步结果处理器（第一步完成后立即返回，不等待第二步）
-private class FirstStepOnlyResultHandler: NSObject, TwoStepLLMServiceDelegate {
-    private var context: ProcessingContext
-    private let onFirstStepComplete: (ProcessingContext) -> Void
-    private let onComplete: (ProcessingContext) -> Void
-    private let onError: (Error) -> Void
-    private var hasCompleted = false
+        // 步骤2：内容丰富化
+        let enrichedContent = try await coordinator.performContentEnrichment(
+            polishedText: basicResult.polishedText,
+            thoughtType: basicResult.thoughtType
+        )
+        updatedContext.enrichedContent = enrichedContent
 
-    init(
-        context: ProcessingContext,
-        onFirstStepComplete: @escaping (ProcessingContext) -> Void,
-        onComplete: @escaping (ProcessingContext) -> Void,
-        onError: @escaping (Error) -> Void
-    ) {
-        self.context = context
-        self.onFirstStepComplete = onFirstStepComplete
-        self.onComplete = onComplete
-        self.onError = onError
-        super.init()
-    }
-
-    func twoStepLLMService(_ service: TwoStepLLMService, didCompleteFirstStep result: FirstStepAnalysis) {
-        guard !hasCompleted else { return }
-        hasCompleted = true
-
-        // 更新 context
-        context.firstStepAnalysis = result
-        print("📝 第一步完成（仅）: 标题=\(result.title), 类型=\(result.thoughtType)")
-
-        // 通知外部，以便及时更新UI
-        onFirstStepComplete(context)
-
-        // 第一步完成后立即返回，不等待第二步
-        // 停止LLM服务继续执行第二步
-        service.stopAnalysis()
-
-        // 返回结果
-        onComplete(context)
-    }
-
-    func twoStepLLMService(_ service: TwoStepLLMService, didCompleteFinalAnalysis result: TwoStepAnalysisResult) {
-        // 在仅第一步模式下，这个回调不应该被触发
-        // 但如果被触发了，我们忽略它
-    }
-
-    func twoStepLLMService(_ service: TwoStepLLMService, didFailWithError error: Error) {
-        guard !hasCompleted else { return }
-        hasCompleted = true
-        onError(error)
-    }
-}
-
-// MARK: - 分类结果处理器（纯数据处理，无副作用）
-private class ClassificationResultHandler: NSObject, TwoStepLLMServiceDelegate {
-    private var context: ProcessingContext
-    private let onFirstStepComplete: (ProcessingContext) -> Void
-    private let onComplete: (ProcessingContext) -> Void
-    private let onError: (Error) -> Void
-    private var hasCompleted = false
-
-    init(
-        context: ProcessingContext,
-        onFirstStepComplete: @escaping (ProcessingContext) -> Void,
-        onComplete: @escaping (ProcessingContext) -> Void,
-        onError: @escaping (Error) -> Void
-    ) {
-        self.context = context
-        self.onFirstStepComplete = onFirstStepComplete
-        self.onComplete = onComplete
-        self.onError = onError
-        super.init()
-    }
-
-    func twoStepLLMService(_ service: TwoStepLLMService, didCompleteFirstStep result: FirstStepAnalysis) {
-        // 更新 context
-        context.firstStepAnalysis = result
-        print("📝 第一步完成: 标题=\(result.title), 类型=\(result.thoughtType)")
-
-        // 通知外部，以便及时更新UI
-        onFirstStepComplete(context)
-    }
-
-    func twoStepLLMService(_ service: TwoStepLLMService, didCompleteFinalAnalysis result: TwoStepAnalysisResult) {
-        guard !hasCompleted else { return }
-        hasCompleted = true
-
-        // 更新 context
-        context.enrichedContent = result.enrichedContent
-        onComplete(context)
-    }
-
-    func twoStepLLMService(_ service: TwoStepLLMService, didFailWithError error: Error) {
-        guard !hasCompleted else { return }
-        hasCompleted = true
-        onError(error)
+        print("🤖 [\(name)] 完整分析完成: \(updatedContext.thoughtType)")
+        return updatedContext
     }
 }
