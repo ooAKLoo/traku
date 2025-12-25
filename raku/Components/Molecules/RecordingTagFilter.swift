@@ -34,35 +34,45 @@ struct RecordingTagFilter: View {
     var body: some View {
         if !allTags.isEmpty {
             // 以 ScrollView 为主体，遮罩作为 overlay 覆盖
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(spacing: UIConstants.TagFilter.tagSpacing) {
-                    FilterTagButton(
-                        title: "全部",
-                        count: allRecordings.count,
-                        isSelected: selectedTag == nil,
-                        isDarkMode: isDarkMode
-                    ) {
-                        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-                            selectedTag = nil
-                        }
-                    }
-
-                    ForEach(allTags, id: \.self) { tag in
+            ScrollViewReader { proxy in
+                ScrollView(.horizontal, showsIndicators: false) {
+                    HStack(spacing: UIConstants.TagFilter.tagSpacing) {
                         FilterTagButton(
-                            title: tag,
-                            count: getTagCount(tag),
-                            isSelected: selectedTag == tag,
+                            title: "全部",
+                            count: allRecordings.count,
+                            isSelected: selectedTag == nil,
                             isDarkMode: isDarkMode
                         ) {
                             withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
-                                selectedTag = selectedTag == tag ? nil : tag
+                                selectedTag = nil
                             }
                         }
+                        .id("tag_all")
+
+                        ForEach(allTags, id: \.self) { tag in
+                            FilterTagButton(
+                                title: tag,
+                                count: getTagCount(tag),
+                                isSelected: selectedTag == tag,
+                                isDarkMode: isDarkMode
+                            ) {
+                                withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                                    selectedTag = selectedTag == tag ? nil : tag
+                                }
+                            }
+                            .id("tag_\(tag)")
+                        }
+                    }
+                    .padding(.leading, UIConstants.horizontalPadding)
+                    .padding(.trailing, showExpandButton ? UIConstants.TagFilter.expandAreaWidth : UIConstants.horizontalPadding)
+                    .padding(.vertical, UIConstants.TagFilter.verticalPadding)
+                }
+                .onChange(of: selectedTag) { newTag in
+                    let targetId = newTag == nil ? "tag_all" : "tag_\(newTag!)"
+                    withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+                        proxy.scrollTo(targetId, anchor: .center)
                     }
                 }
-                .padding(.leading, UIConstants.horizontalPadding)
-                .padding(.trailing, showExpandButton ? UIConstants.TagFilter.expandAreaWidth : UIConstants.horizontalPadding)
-                .padding(.vertical, UIConstants.TagFilter.verticalPadding)
             }
             .background(backgroundColor)
             // 使用 overlay 放置遮罩，高度自动跟随主体
