@@ -360,6 +360,23 @@ struct RecordingDetailView: View {
                             }
                             .frame(maxHeight: .infinity)
                         }
+                        .background(
+                            (isDarkMode ? Color.black.opacity(0.85) : Color.white.opacity(0.95))
+                                .mask(
+                                    // 上边沿渐变虚化
+                                    LinearGradient(
+                                        gradient: Gradient(stops: [
+                                            .init(color: .clear, location: 0),
+                                            .init(color: .black, location: 0.3),
+                                            .init(color: .black, location: 1)
+                                        ]),
+                                        startPoint: .top,
+                                        endPoint: .bottom
+                                    )
+                                )
+                                .ignoresSafeArea(edges: .bottom)
+                        )
+                        .offset(y: 20)
                         .id("chapter_tabbar")
                     }
                 }

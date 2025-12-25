@@ -57,8 +57,3 @@ class AppDelegate: NSObject, WKApplicationDelegate {
     }
 }
 
-// MARK: - Notification Names
-
-extension Notification.Name {
-    static let actionButtonPressed = Notification.Name("actionButtonPressed")
-}

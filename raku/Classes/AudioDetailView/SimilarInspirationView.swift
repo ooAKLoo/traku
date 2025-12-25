@@ -313,10 +313,10 @@ struct SimilarInspirationItem: View {
             onLongPress?()
         }
         .simultaneousGesture(
-            DragGesture(minimumDistance: 10)
+            DragGesture(minimumDistance: 30)
                 .onChanged { value in
-                    // 只在水平方向上且水平位移大于垂直位移时处理
-                    if value.translation.width > 0 && abs(value.translation.width) > abs(value.translation.height) {
+                    // 只在明显的水平右滑手势时处理（水平位移要大于垂直位移的2倍）
+                    if value.translation.width > 0 && abs(value.translation.width) > abs(value.translation.height) * 2 {
                         dragOffset = min(value.translation.width, 50)
                     }
                 }

@@ -7,7 +7,10 @@
 //
 
 import AppIntents
+import Foundation
+#if os(watchOS)
 import WatchKit
+#endif
 
 // MARK: - 捕捉灵感 Intent
 
@@ -26,10 +29,12 @@ struct CaptureInspirationIntent: AppIntent {
     @MainActor
     func perform() async throws -> some IntentResult {
         // 发送通知触发录音切换
-        NotificationCenter.default.post(name: .actionButtonPressed, object: nil)
+//        NotificationCenter.default.post(name: .actionButtonPressed, object: nil)
 
         // 触发触觉反馈
+        #if os(watchOS)
         WKInterfaceDevice.current().play(.click)
+        #endif
 
         return .result()
     }
