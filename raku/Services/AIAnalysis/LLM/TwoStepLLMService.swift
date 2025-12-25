@@ -98,12 +98,173 @@ class TwoStepLLMService: NSObject, ObservableObject {
     func stopAnalysis() {
         currentTask?.cancel()
         currentTask = nil
-        
+
         DispatchQueue.main.async {
             self.isAnalyzing = false
             self.currentStep = 0
             self.currentRecordingId = nil // 清理录音ID
         }
+    }
+
+    /// 仅执行第一步分析（分类、标题、标签、润色）
+    func performFirstStepOnly(_ text: String) async throws -> FirstStepAnalysis {
+        guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw TwoStepLLMError.emptyResponse
+        }
+
+        return try await withCheckedThrowingContinuation { continuation in
+            // 获取用户已有的标签
+            let existingTags = DatabaseManager.shared.getAllUniqueTags()
+            let hasExistingTags = !existingTags.isEmpty
+
+            let systemPrompt = LLMPromptConfiguration.getFirstStepSystemPrompt(needsSummary: false, hasExistingTags: hasExistingTags)
+            let userPrompt = LLMPromptConfiguration.getFirstStepUserPrompt(text: text, existingTags: existingTags)
+
+            let parameters: [String: Any] = [
+                "model": configuration.liteModel,
+                "messages": [
+                    ["role": "system", "content": systemPrompt],
+                    ["role": "user", "content": userPrompt]
+                ],
+                "temperature": 0.3,
+                "top_p": 0.5,
+                "frequency_penalty": 0.2,
+                "presence_penalty": 0.1,
+                "max_tokens": 4096
+            ]
+
+            print("第一步（仅）：使用lite模型进行分类...")
+
+            self.currentTask = self.networkService.performJSONRequest(
+                url: self.configuration.apiURL,
+                method: .POST,
+                parameters: parameters
+            ) { [weak self] result in
+                guard let self = self else {
+                    continuation.resume(throwing: TwoStepLLMError.emptyResponse)
+                    return
+                }
+
+                switch result {
+                case .success(let data):
+                    do {
+                        let firstStepResult = try self.parseFirstStepResponse(data, originalText: text)
+                        continuation.resume(returning: firstStepResult)
+                    } catch {
+                        continuation.resume(throwing: error)
+                    }
+                case .failure(let error):
+                    continuation.resume(throwing: self.convertNetworkError(error))
+                }
+            }
+        }
+    }
+
+    /// 仅执行第二步分析（生成深度Markdown内容）
+    func performSecondStepOnly(_ polishedText: String, thoughtType: FlashThoughtType) async throws -> String {
+        guard !polishedText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            throw TwoStepLLMError.emptyResponse
+        }
+
+        return try await withCheckedThrowingContinuation { continuation in
+            let systemPrompt = LLMPromptConfiguration.getMarkdownPromptForType(thoughtType)
+
+            let parameters: [String: Any] = [
+                "model": configuration.flashModel,
+                "messages": [
+                    ["role": "system", "content": systemPrompt],
+                    ["role": "user", "content": polishedText]
+                ],
+                "temperature": 0.6,
+                "max_tokens": 10000
+            ]
+
+            print("第二步（仅）：使用flash模型进行深度分析...")
+
+            self.currentTask = self.networkService.performJSONRequest(
+                url: self.configuration.apiURL,
+                method: .POST,
+                parameters: parameters
+            ) { [weak self] result in
+                guard let self = self else {
+                    continuation.resume(throwing: TwoStepLLMError.emptyResponse)
+                    return
+                }
+
+                switch result {
+                case .success(let data):
+                    do {
+                        let enrichedContent = try self.parseSecondStepResponse(data)
+                        continuation.resume(returning: enrichedContent)
+                    } catch {
+                        continuation.resume(throwing: error)
+                    }
+                case .failure(let error):
+                    continuation.resume(throwing: self.convertNetworkError(error))
+                }
+            }
+        }
+    }
+
+    // MARK: - Private Parsing Methods
+
+    private func parseFirstStepResponse(_ data: Data, originalText: String) throws -> FirstStepAnalysis {
+        let json = try JSONSerialization.jsonObject(with: data, options: [])
+        guard let response = json as? [String: Any],
+              let choices = response["choices"] as? [[String: Any]],
+              let firstChoice = choices.first,
+              let message = firstChoice["message"] as? [String: Any],
+              let content = message["content"] as? String else {
+            throw TwoStepLLMError.parseError
+        }
+
+        print("第一步响应内容: \(content)")
+
+        // 解析lite模型返回的JSON
+        guard let jsonData = content.data(using: .utf8),
+              let result = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] else {
+            throw TwoStepLLMError.parseError
+        }
+
+        let title = result["title"] as? String ?? "未命名"
+        let typeString = result["type"] as? String ?? "unknown"
+        let tags = result["tags"] as? [String] ?? []
+        let summary = result["summary"] as? String
+        let polishedText = result["polishedText"] as? String ?? originalText
+
+        let thoughtType: FlashThoughtType
+        switch typeString {
+        case "reflection":
+            thoughtType = .reflection
+        case "insight":
+            thoughtType = .insight
+        default:
+            thoughtType = .unknown
+        }
+
+        return FirstStepAnalysis(
+            title: title,
+            oneSentenceSummary: summary,
+            thoughtType: thoughtType,
+            tags: tags,
+            originalText: originalText,
+            polishedText: polishedText,
+            timestamp: Date()
+        )
+    }
+
+    private func parseSecondStepResponse(_ data: Data) throws -> String {
+        let json = try JSONSerialization.jsonObject(with: data, options: [])
+        guard let response = json as? [String: Any],
+              let choices = response["choices"] as? [[String: Any]],
+              let firstChoice = choices.first,
+              let message = firstChoice["message"] as? [String: Any],
+              let content = message["content"] as? String else {
+            throw TwoStepLLMError.parseError
+        }
+
+        print("第二步响应内容: \(content)")
+        return content
     }
     
     // MARK: - Step 1: 分类和标题生成（保持不变）

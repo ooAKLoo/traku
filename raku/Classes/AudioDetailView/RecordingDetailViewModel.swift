@@ -30,6 +30,7 @@ class RecordingDetailViewModel: ObservableObject {
     @Published var hasPolishedText: Bool = false
     @Published var showingFullTranscription = false
     @Published var isPresented = false
+    @Published var isGeneratingEnrichedContent = false
     
     // MARK: - Internal Properties
     let audioManager = AudioRecordingService.shared
@@ -112,6 +113,66 @@ class RecordingDetailViewModel: ObservableObject {
     
     func selectHeading(at index: Int) {
         selectedHeadingId = "\(index)"
+    }
+
+    // MARK: - AI 深度分析手动触发
+
+    /// 检查是否有深度分析内容
+    var hasEnrichedContent: Bool {
+        guard let enrichedContent = recording.enrichedContent else { return false }
+        return !enrichedContent.isEmpty
+    }
+
+    /// 手动触发生成深度分析内容（第二阶段）
+    func generateEnrichedContent() async {
+        guard !isGeneratingEnrichedContent else { return }
+
+        // 获取用于生成的文本（优先使用润色文本）
+        let textForAnalysis = recording.polishedText.isEmpty ? recording.transcription : recording.polishedText
+        guard !textForAnalysis.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+            ToastManager.shared.showWarning("没有可分析的文本内容")
+            return
+        }
+
+        isGeneratingEnrichedContent = true
+
+        do {
+            // 根据 contentType 确定 thoughtType
+            let thoughtType: FlashThoughtType
+            switch recording.contentType {
+            case "inspiration":
+                thoughtType = .insight
+            case "thinking":
+                thoughtType = .reflection
+            default:
+                thoughtType = .unknown
+            }
+
+            // 调用第二阶段生成 enrichedContent
+            let llmService = TwoStepLLMService()
+            let enrichedContent = try await llmService.performSecondStepOnly(textForAnalysis, thoughtType: thoughtType)
+
+            // 更新录音记录
+            var updatedRecording = recording
+            updatedRecording.enrichedContent = enrichedContent
+            recording = updatedRecording
+
+            // 更新本地状态
+            modifiedEnrichedContent = enrichedContent
+            updateHeadings()
+
+            // 同步到 Store
+            store.updateRecording(updatedRecording)
+            onRecordingUpdated?(updatedRecording)
+
+            print("✅ 深度分析生成成功")
+
+        } catch {
+            print("❌ 深度分析生成失败: \(error.localizedDescription)")
+            ToastManager.shared.showError("生成失败，请重试")
+        }
+
+        isGeneratingEnrichedContent = false
     }
     
     func editSection(at index: Int, content: String) {

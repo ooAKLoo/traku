@@ -156,12 +156,12 @@ final class RecordingPipeline: ObservableObject {
             // ASR完成，更新内存状态（用于UI显示转录文本）
             updateStoreInMemory(ctx)
 
-            // 阶段2: 分类和富化
+            // 阶段2: 仅执行第一阶段分类（标题/标签/润色），不执行第二阶段深度分析
+            // 第二阶段 enrichedContent 改为用户手动触发
             if isLLMEnabled {
                 updateStage(.classification, for: ctx.id)
-                ctx = try await classificationStage.process(ctx)
-                // 分类完成后会通过 onFirstStepComplete 回调更新内存
-                // 这里再次更新确保 enrichedContent 也同步
+                ctx = try await classificationStage.processFirstStepOnly(ctx)
+                // 第一步分类完成后会通过 onFirstStepComplete 回调更新内存
                 updateStoreInMemory(ctx)
             }
 

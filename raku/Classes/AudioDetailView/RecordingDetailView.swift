@@ -207,12 +207,13 @@ struct RecordingDetailView: View {
                             
                             // 内容部分 - 统一显示分析结果和相似内容
                             VStack(alignment: .leading, spacing: 24) {
-                                // AI分析结果
-                                if let enrichedContent = viewModel.recording.enrichedContent, !enrichedContent.isEmpty {
-                                    VStack() {
+                                // AI分析结果 或 触发按钮
+                                if viewModel.hasEnrichedContent {
+                                    // 已有深度分析内容 - 显示 Markdown
+                                    VStack {
                                         // AI总结内容
                                         MarkdownSectionView(
-                                            content: viewModel.modifiedEnrichedContent.isEmpty ? enrichedContent : viewModel.modifiedEnrichedContent,
+                                            content: viewModel.modifiedEnrichedContent.isEmpty ? (viewModel.recording.enrichedContent ?? "") : viewModel.modifiedEnrichedContent,
                                             headings: viewModel.headings,
                                             selectedHeadingId: $viewModel.selectedHeadingId,
                                             scrollProxy: scrollProxy,
@@ -273,7 +274,21 @@ struct RecordingDetailView: View {
                                         .padding(.horizontal, 24)
                                         .padding(.bottom, 16)
                                     }
+                                } else {
+                                    // 无深度分析内容 - 显示触发按钮
+                                    AIAnalysisTriggerButton(
+                                        isLoading: viewModel.isGeneratingEnrichedContent,
+                                        onTap: {
+                                            isAnyFieldFocused = false
+                                            Task {
+                                                await viewModel.generateEnrichedContent()
+                                            }
+                                        }
+                                    )
+                                    .padding(.horizontal, 24)
+                                    .padding(.top, 8)
                                 }
+
 
                                 // 相似内容（所有类型都显示）
                                 SimilarInspirationView(
