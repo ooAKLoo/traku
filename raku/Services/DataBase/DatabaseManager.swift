@@ -70,6 +70,12 @@ class DatabaseManager {
                 try await recordingRepository.cleanupInvalidRecords()
             }
             
+            // 清理超过7天的已删除记录
+            let expiredCount = try await recordingRepository.cleanupExpiredDeletedRecords(olderThanDays: 7)
+            if expiredCount > 0 {
+                print("🧹 已自动清理 \(expiredCount) 条过期已删除记录")
+            }
+            
         } catch {
             print("❌ 数据库初始化失败: \(error)")
         }
@@ -159,6 +165,43 @@ class DatabaseManager {
     func getRecordingCount() -> Int {
         return performSync {
             try await self.recordingRepository.count()
+        }
+    }
+    
+    // MARK: - Soft Delete Operations (软删除操作)
+    
+    /// 软删除录音记录（移入回收站）
+    func softDeleteRecording(id: UUID) -> Bool {
+        return performSync {
+            try await self.recordingRepository.softDelete(id: id)
+        }
+    }
+    
+    /// 恢复已删除的录音记录
+    func restoreRecording(id: UUID) -> Bool {
+        return performSync {
+            try await self.recordingRepository.restore(id: id)
+        }
+    }
+    
+    /// 加载已删除的录音记录（回收站）
+    func loadDeletedRecordings() -> [AudioRecording] {
+        return performSync {
+            try await self.recordingRepository.listDeleted()
+        }
+    }
+    
+    /// 清空回收站（永久删除所有已软删除的记录）
+    func emptyTrash() -> Int {
+        return performSync {
+            try await self.recordingRepository.permanentlyDeleteAllSoftDeleted()
+        }
+    }
+    
+    /// 获取回收站中的录音数量
+    func getDeletedRecordingCount() -> Int {
+        return performSync {
+            try await self.recordingRepository.getDeletedCount()
         }
     }
     

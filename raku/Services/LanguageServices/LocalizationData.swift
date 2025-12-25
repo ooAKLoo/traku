@@ -312,6 +312,20 @@ struct LocalizationData {
             "settings_data_import": "数据导入",
             "settings_feedback": "反馈建议",
             
+            // 回收站
+            "settings_trash_bin": "回收站",
+            "trash_empty": "回收站为空",
+            "trash_empty_description": "已删除的录音会在7天后自动永久删除",
+            "trash_clear_all": "清空回收站",
+            "trash_clear_confirm": "确定要永久删除所有项目吗？此操作无法撤销。",
+            "trash_restore": "恢复",
+            "trash_delete_permanently": "永久删除",
+            "trash_days_remaining": "%d天后删除",
+            "trash_deleted_at": "删除于",
+            "trash_success_restored": "录音已恢复",
+            "trash_success_cleared": "回收站已清空",
+            "trash_auto_delete_hint": "点击恢复按钮可恢复录音，7天后自动永久删除",
+            
             // 数据导入
             "data_import_title": "数据导入",
             "data_import_description": "从其他应用导入数据",
@@ -580,6 +594,20 @@ struct LocalizationData {
             "settings_data_import": "Data Import",
             "settings_feedback": "Feedback",
             
+            // Trash Bin
+            "settings_trash_bin": "Trash",
+            "trash_empty": "Trash is empty",
+            "trash_empty_description": "Deleted recordings will be permanently removed after 7 days",
+            "trash_clear_all": "Empty Trash",
+            "trash_clear_confirm": "Are you sure you want to permanently delete all items? This action cannot be undone.",
+            "trash_restore": "Restore",
+            "trash_delete_permanently": "Delete Permanently",
+            "trash_days_remaining": "Deletes in %d days",
+            "trash_deleted_at": "Deleted on",
+            "trash_success_restored": "Recording restored",
+            "trash_success_cleared": "Trash emptied",
+            "trash_auto_delete_hint": "Tap restore button to recover. Auto-delete after 7 days.",
+            
             // Data Import
             "data_import_title": "Data Import",
             "data_import_description": "Import data from other applications",
@@ -823,6 +851,20 @@ struct LocalizationData {
             "settings_privacy_security": "プライバシーとセキュリティ",
             "settings_data_import": "データインポート",
             "settings_feedback": "フィードバック",
+            
+            // ゴミ箱
+            "settings_trash_bin": "ゴミ箱",
+            "trash_empty": "ゴミ箱は空です",
+            "trash_empty_description": "削除された録音は7日後に自動的に完全に削除されます",
+            "trash_clear_all": "ゴミ箱を空にする",
+            "trash_clear_confirm": "すべてのアイテムを完全に削除してもよろしいですか？この操作は取り消せません。",
+            "trash_restore": "復元",
+            "trash_delete_permanently": "完全に削除",
+            "trash_days_remaining": "%d日後に削除",
+            "trash_deleted_at": "削除日",
+            "trash_success_restored": "録音を復元しました",
+            "trash_success_cleared": "ゴミ箱を空にしました",
+            "trash_auto_delete_hint": "復元ボタンをタップして復元。7日後に自動削除されます。",
             
             // データインポート
             "data_import_title": "データインポート",
@@ -1104,6 +1146,20 @@ struct LocalizationData {
             "settings_data_import": "Datenimport",
             "settings_feedback": "Feedback",
             
+            // Papierkorb
+            "settings_trash_bin": "Papierkorb",
+            "trash_empty": "Papierkorb ist leer",
+            "trash_empty_description": "Gelöschte Aufnahmen werden nach 7 Tagen endgültig gelöscht",
+            "trash_clear_all": "Papierkorb leeren",
+            "trash_clear_confirm": "Möchten Sie wirklich alle Elemente endgültig löschen? Diese Aktion kann nicht rückgängig gemacht werden.",
+            "trash_restore": "Wiederherstellen",
+            "trash_delete_permanently": "Endgültig löschen",
+            "trash_days_remaining": "Wird in %d Tagen gelöscht",
+            "trash_deleted_at": "Gelöscht am",
+            "trash_success_restored": "Aufnahme wiederhergestellt",
+            "trash_success_cleared": "Papierkorb geleert",
+            "trash_auto_delete_hint": "Tippen Sie auf Wiederherstellen. Automatische Löschung nach 7 Tagen.",
+            
             // Datenimport
             "data_import_title": "Datenimport",
             "data_import_description": "Daten aus anderen Anwendungen importieren",
@@ -1382,6 +1438,20 @@ struct LocalizationData {
             "settings_privacy_security": "Confidentialité et Sécurité",
             "settings_data_import": "Import de Données",
             "settings_feedback": "Commentaires",
+            
+            // Corbeille
+            "settings_trash_bin": "Corbeille",
+            "trash_empty": "La corbeille est vide",
+            "trash_empty_description": "Les enregistrements supprimés seront définitivement supprimés après 7 jours",
+            "trash_clear_all": "Vider la corbeille",
+            "trash_clear_confirm": "Voulez-vous vraiment supprimer définitivement tous les éléments ? Cette action est irréversible.",
+            "trash_restore": "Restaurer",
+            "trash_delete_permanently": "Supprimer définitivement",
+            "trash_days_remaining": "Suppression dans %d jours",
+            "trash_deleted_at": "Supprimé le",
+            "trash_success_restored": "Enregistrement restauré",
+            "trash_success_cleared": "Corbeille vidée",
+            "trash_auto_delete_hint": "Appuyez sur restaurer pour récupérer. Suppression auto après 7 jours.",
             
             // Import de données
             "data_import_title": "Import de Données",

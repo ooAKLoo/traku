@@ -37,6 +37,22 @@ struct AudioRecording: Identifiable, Equatable, Codable, DatabaseModel {
     var contentType: String = "thinking"  // 内容类型：thinking 或 inspiration
     var weatherType: String?  // 天气类型，存储WeatherType的rawValue
     var weatherLocation: String?  // 天气位置
+    var deletedAt: Date?  // 软删除时间，nil表示未删除
+    
+    // MARK: - 回收站相关计算属性
+    
+    /// 是否在回收站中
+    var isInTrash: Bool {
+        return deletedAt != nil
+    }
+    
+    /// 距离永久删除的剩余天数（7天自动删除）
+    var daysUntilPermanentDeletion: Int? {
+        guard let deletedAt = deletedAt else { return nil }
+        let expirationDate = Calendar.current.date(byAdding: .day, value: 7, to: deletedAt)!
+        let days = Calendar.current.dateComponents([.day], from: Date(), to: expirationDate).day ?? 0
+        return max(0, days)
+    }
     
     // 便捷访问天气类型枚举
     var weather: WeatherType? {
@@ -85,7 +101,7 @@ struct AudioRecording: Identifiable, Equatable, Codable, DatabaseModel {
         }
     }
     
-    init(id: UUID? = nil, timestamp: Date, duration: TimeInterval, transcription: String, title: String, summary: String, tags: [String], audioData: Data?, enrichedContent: String?, polishedText: String = "", contentType: String = "thinking", weatherType: String? = nil, weatherLocation: String? = nil) {
+    init(id: UUID? = nil, timestamp: Date, duration: TimeInterval, transcription: String, title: String, summary: String, tags: [String], audioData: Data?, enrichedContent: String?, polishedText: String = "", contentType: String = "thinking", weatherType: String? = nil, weatherLocation: String? = nil, deletedAt: Date? = nil) {
         self.id = id ?? UUID()
         self.timestamp = timestamp
         self.duration = duration
@@ -99,6 +115,7 @@ struct AudioRecording: Identifiable, Equatable, Codable, DatabaseModel {
         self.contentType = contentType
         self.weatherType = weatherType
         self.weatherLocation = weatherLocation
+        self.deletedAt = deletedAt
     }
     
     static func == (lhs: AudioRecording, rhs: AudioRecording) -> Bool {
@@ -111,7 +128,8 @@ struct AudioRecording: Identifiable, Equatable, Codable, DatabaseModel {
                lhs.polishedText == rhs.polishedText &&
                lhs.contentType == rhs.contentType &&
                lhs.weatherType == rhs.weatherType &&
-               lhs.weatherLocation == rhs.weatherLocation
+               lhs.weatherLocation == rhs.weatherLocation &&
+               lhs.deletedAt == rhs.deletedAt
     }
     
     // MARK: - Codable Support
@@ -123,6 +141,7 @@ struct AudioRecording: Identifiable, Equatable, Codable, DatabaseModel {
         case contentType = "content_type"
         case weatherType = "weather_type"
         case weatherLocation = "weather_location"
+        case deletedAt = "deleted_at"
     }
     
     // MARK: - DatabaseModel Protocol Implementation
@@ -141,6 +160,7 @@ struct AudioRecording: Identifiable, Equatable, Codable, DatabaseModel {
         dict["content_type"] = contentType
         dict["weather_type"] = weatherType
         dict["weather_location"] = weatherLocation
+        dict["deleted_at"] = deletedAt?.timeIntervalSince1970
         
         // 序列化 tags 为 JSON 字符串
         if let tagsData = try? JSONEncoder().encode(tags),
@@ -171,6 +191,7 @@ struct AudioRecording: Identifiable, Equatable, Codable, DatabaseModel {
         let contentType = dict["content_type"] as? String ?? "thinking"
         let weatherType = dict["weather_type"] as? String
         let weatherLocation = dict["weather_location"] as? String
+        let deletedAt: Date? = (dict["deleted_at"] as? Double).map { Date(timeIntervalSince1970: $0) }
         
         // 反序列化 tags
         var tags: [String] = []
@@ -192,7 +213,8 @@ struct AudioRecording: Identifiable, Equatable, Codable, DatabaseModel {
             polishedText: polishedText,
             contentType: contentType,
             weatherType: weatherType,
-            weatherLocation: weatherLocation
+            weatherLocation: weatherLocation,
+            deletedAt: deletedAt
         )
     }
 }

@@ -5,6 +5,7 @@
 //  统一的录音状态管理中心
 //  - 管理所有录音数据
 //  - 管理处理进度状态
+//  - 管理回收站数据
 //  - 作为UI层的唯一数据源
 //
 
@@ -18,6 +19,7 @@ class RecordingStore: ObservableObject {
 
     // MARK: - Published Properties
     @Published private(set) var recordings: [AudioRecording] = []
+    @Published private(set) var deletedRecordings: [AudioRecording] = []  // 回收站数据
     @Published private(set) var processingStates: [UUID: ProcessingState] = [:]
 
     // MARK: - Processing State
@@ -61,18 +63,65 @@ class RecordingStore: ObservableObject {
         }
     }
 
-    /// 删除录音
+    /// 软删除录音（移入回收站）
     func deleteRecording(_ recording: AudioRecording) {
         recordings.removeAll { $0.id == recording.id }
         processingStates.removeValue(forKey: recording.id)
-        _ = DatabaseManager.shared.deleteRecording(id: recording.id)
+        
+        // 执行软删除
+        if DatabaseManager.shared.softDeleteRecording(id: recording.id) {
+            // 更新本地回收站数据
+            var deletedRecording = recording
+            deletedRecording.deletedAt = Date()
+            deletedRecordings.insert(deletedRecording, at: 0)
+        }
     }
 
-    /// 删除录音（通过ID）
+    /// 软删除录音（通过ID）
     func deleteRecording(id: UUID) {
-        recordings.removeAll { $0.id == id }
-        processingStates.removeValue(forKey: id)
-        _ = DatabaseManager.shared.deleteRecording(id: id)
+        if let recording = recordings.first(where: { $0.id == id }) {
+            deleteRecording(recording)
+        } else {
+            // 直接从数据库软删除
+            recordings.removeAll { $0.id == id }
+            processingStates.removeValue(forKey: id)
+            _ = DatabaseManager.shared.softDeleteRecording(id: id)
+            loadDeletedFromDatabase()
+        }
+    }
+    
+    // MARK: - Trash Operations (回收站操作)
+    
+    /// 恢复录音（从回收站恢复）
+    func restoreRecording(_ recording: AudioRecording) {
+        if DatabaseManager.shared.restoreRecording(id: recording.id) {
+            deletedRecordings.removeAll { $0.id == recording.id }
+            var restoredRecording = recording
+            restoredRecording.deletedAt = nil
+            recordings.insert(restoredRecording, at: 0)
+            // 按时间排序
+            recordings.sort { $0.timestamp > $1.timestamp }
+        }
+    }
+    
+    /// 恢复录音（通过ID）
+    func restoreRecording(id: UUID) {
+        if let recording = deletedRecordings.first(where: { $0.id == id }) {
+            restoreRecording(recording)
+        }
+    }
+    
+    /// 清空回收站
+    func emptyTrash() {
+        let count = DatabaseManager.shared.emptyTrash()
+        if count > 0 {
+            deletedRecordings.removeAll()
+        }
+    }
+    
+    /// 获取回收站中的录音数量
+    var deletedCount: Int {
+        return deletedRecordings.count
     }
 
     /// 设置处理状态
@@ -89,6 +138,7 @@ class RecordingStore: ObservableObject {
     /// 从数据库重新加载
     func reload() {
         loadFromDatabase()
+        loadDeletedFromDatabase()
     }
 
     /// 刷新指定录音
@@ -99,11 +149,17 @@ class RecordingStore: ObservableObject {
             }
         }
     }
+    
+    /// 加载回收站数据
+    func loadDeletedFromDatabase() {
+        deletedRecordings = DatabaseManager.shared.loadDeletedRecordings()
+    }
 
     // MARK: - Private Methods
 
     private func loadFromDatabase() {
         recordings = DatabaseManager.shared.loadRecordings()
+        loadDeletedFromDatabase()
     }
 }
 

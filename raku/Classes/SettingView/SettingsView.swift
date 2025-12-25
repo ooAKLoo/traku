@@ -20,7 +20,9 @@ struct SettingsView: View {
     @State private var showingDataExport = false
     @State private var showingTagManagement = false
     @State private var showingFeedback = false
+    @State private var showingTrashBin = false
     @ObservedObject private var localizationManager = LocalizationManager.shared
+    @ObservedObject private var store = RecordingStore.shared
     
     var body: some View {
         NavigationView {
@@ -107,6 +109,12 @@ struct SettingsView: View {
                         SettingsRowView(icon: "info.circle", title: L("settings_about_title"), isDarkMode: isDarkMode, action: {
                             showingAboutView = true
                         })
+                        
+                        // 回收站入口
+                        TrashBinRowView(isDarkMode: isDarkMode, count: store.deletedCount, action: {
+                            showingTrashBin = true
+                        })
+                        
                         SettingsRowView(icon: "cylinder", title: L("settings_database_debug"), isDarkMode: isDarkMode, action: {
                             showingDatabaseDebug = true
                         })
@@ -156,6 +164,9 @@ struct SettingsView: View {
         }
         .sheet(isPresented: $showingFeedback) {
             FeedbackView(isDarkMode: isDarkMode)
+        }
+        .sheet(isPresented: $showingTrashBin) {
+            TrashBinView()
         }
         .onReceive(NotificationCenter.default.publisher(for: .languageDidChange)) { _ in
             // 当语言变更时，强制刷新视图
@@ -221,6 +232,55 @@ struct SettingsRowView: View {
                     .frame(width: 30)
                 
                 Text(title)
+                    .font(.system(size: 16))
+                    .foregroundColor(isDarkMode ? .white : .black)
+                
+                Spacer()
+                
+                Image(systemName: "chevron.right")
+                    .font(.system(size: 14))
+                    .foregroundColor(isDarkMode ? .white.opacity(0.3) : .black.opacity(0.3))
+            }
+            .padding()
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(isDarkMode ? Color.white.opacity(0.05) : Color.white)
+            )
+        }
+    }
+}
+
+// MARK: - 回收站行视图（带数量角标）
+struct TrashBinRowView: View {
+    let isDarkMode: Bool
+    let count: Int
+    let action: () -> Void
+    
+    var body: some View {
+        Button(action: action) {
+            HStack {
+                ZStack(alignment: .topTrailing) {
+                    Image(systemName: "trash")
+                        .font(.system(size: 20))
+                        .foregroundColor(isDarkMode ? .white.opacity(0.8) : .black.opacity(0.8))
+                        .frame(width: 30)
+                    
+                    // 数量角标
+                    if count > 0 {
+                        Text("\(count)")
+                            .font(.system(size: 10, weight: .bold))
+                            .foregroundColor(.white)
+                            .padding(.horizontal, 5)
+                            .padding(.vertical, 2)
+                            .background(
+                                Capsule()
+                                    .fill(Color.red)
+                            )
+                            .offset(x: 8, y: -5)
+                    }
+                }
+                
+                Text(L("settings_trash_bin"))
                     .font(.system(size: 16))
                     .foregroundColor(isDarkMode ? .white : .black)
                 

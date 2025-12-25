@@ -70,7 +70,8 @@ class RecordingRepository: Repository {
             "ALTER TABLE \(tableName) ADD COLUMN original_text TEXT;",
             "ALTER TABLE \(tableName) ADD COLUMN embedding_vector TEXT;",
             "ALTER TABLE \(tableName) ADD COLUMN weather_type TEXT;",
-            "ALTER TABLE \(tableName) ADD COLUMN weather_location TEXT;"
+            "ALTER TABLE \(tableName) ADD COLUMN weather_location TEXT;",
+            "ALTER TABLE \(tableName) ADD COLUMN deleted_at REAL;"  // 软删除时间戳
         ]
         
         for sql in columnsToAdd {
@@ -78,8 +79,15 @@ class RecordingRepository: Repository {
                 try await sqliteCore.performAsync {
                     try self.sqliteCore.executeInternal(sql)
                 }
+                // 列添加成功
+                if sql.contains("deleted_at") {
+                    print("✅ deleted_at 列添加成功")
+                }
             } catch {
                 // 忽略错误（列可能已存在）
+                if sql.contains("deleted_at") {
+                    print("⚠️ deleted_at 列添加失败或已存在: \(error.localizedDescription)")
+                }
             }
         }
     }
@@ -334,19 +342,67 @@ class RecordingRepository: Repository {
         }
     }
     
+    /// 协议要求的 list 方法 - 默认不包含已删除记录
     func list(filter: FilterCriteria? = nil) async throws -> [AudioRecording] {
-        var querySQL = """
-            SELECT id, recording_id, timestamp, duration, transcription, title, summary, tags, 
-                   enriched_content, polished_text, content_type, original_text, embedding_vector, weather_type, weather_location
-            FROM \(tableName)
+        return try await listRecordings(filter: filter, includeDeleted: false)
+    }
+    
+    /// 检查 deleted_at 列是否存在
+    private func hasDeletedAtColumn() async -> Bool {
+        let pragmaSQL = "PRAGMA table_info(\(tableName))"
+        do {
+            return try await sqliteCore.performAsync {
+                let statement = try self.sqliteCore.prepare(pragmaSQL)
+                defer { self.sqliteCore.finalize(statement) }
+                
+                while try self.sqliteCore.step(statement) == SQLITE_ROW {
+                    if let name = sqlite3_column_text(statement, 1) {
+                        let columnName = String(cString: name)
+                        if columnName == "deleted_at" {
+                            return true
+                        }
+                    }
+                }
+                return false
+            }
+        } catch {
+            return false
+        }
+    }
+    
+    /// 内部方法：支持包含/不包含已删除记录
+    func listRecordings(filter: FilterCriteria? = nil, includeDeleted: Bool = false) async throws -> [AudioRecording] {
+        // 检查 deleted_at 列是否存在（兼容数据库迁移尚未完成的情况）
+        let hasDeletedAt = await hasDeletedAtColumn()
+        
+        var selectColumns = """
+            id, recording_id, timestamp, duration, transcription, title, summary, tags, 
+            enriched_content, polished_text, content_type, original_text, embedding_vector, weather_type, weather_location
         """
+        
+        if hasDeletedAt {
+            selectColumns += ", deleted_at"
+        }
+        
+        var querySQL = "SELECT \(selectColumns) FROM \(tableName)"
         
         var parameters: [Any] = []
         
         if let filter = filter {
+            var whereConditions: [String] = []
+            
+            // 默认过滤已删除记录（仅当 deleted_at 列存在时）
+            if !includeDeleted && hasDeletedAt {
+                whereConditions.append("deleted_at IS NULL")
+            }
+            
             if let whereClause = filter.whereClause {
-                querySQL += " WHERE \(whereClause)"
+                whereConditions.append(whereClause)
                 parameters.append(contentsOf: filter.parameters ?? [])
+            }
+            
+            if !whereConditions.isEmpty {
+                querySQL += " WHERE " + whereConditions.joined(separator: " AND ")
             }
             
             if let orderBy = filter.orderBy {
@@ -365,6 +421,10 @@ class RecordingRepository: Repository {
                 }
             }
         } else {
+            // 默认过滤已删除记录（仅当 deleted_at 列存在时）
+            if !includeDeleted && hasDeletedAt {
+                querySQL += " WHERE deleted_at IS NULL"
+            }
             querySQL += " ORDER BY timestamp DESC"
         }
         
@@ -378,7 +438,7 @@ class RecordingRepository: Repository {
             
             var recordings: [AudioRecording] = []
             while try self.sqliteCore.step(statement) == SQLITE_ROW {
-                if let recording = self.parseRecording(from: statement) {
+                if let recording = self.parseRecording(from: statement, hasDeletedAt: hasDeletedAt) {
                     recordings.append(recording)
                 }
             }
@@ -647,7 +707,7 @@ class RecordingRepository: Repository {
     // MARK: - Helper Methods
     
     /// 从 SQLite statement 解析统一的录音记录（支持思考和灵感类型）
-    private func parseRecording(from statement: OpaquePointer?) -> AudioRecording? {
+    private func parseRecording(from statement: OpaquePointer?, hasDeletedAt: Bool = true) -> AudioRecording? {
         guard let statement = statement else { return nil }
         
         guard let idString = sqlite3_column_text(statement, 0),
@@ -721,6 +781,15 @@ class RecordingRepository: Repository {
             weatherLocation = String(cString: weatherLocationText)
         }
         
+        // 删除时间字段解析（仅当列存在时）
+        var deletedAt: Date?
+        if hasDeletedAt {
+            let deletedAtValue = sqlite3_column_double(statement, 15)
+            if deletedAtValue > 0 {
+                deletedAt = Date(timeIntervalSince1970: deletedAtValue)
+            }
+        }
+        
         return AudioRecording(
             id: uuid,
             timestamp: timestamp,
@@ -734,7 +803,8 @@ class RecordingRepository: Repository {
             polishedText: polishedText,
             contentType: contentType,
             weatherType: weatherType,
-            weatherLocation: weatherLocation
+            weatherLocation: weatherLocation,
+            deletedAt: deletedAt
         )
     }
     
@@ -793,6 +863,135 @@ class RecordingRepository: Repository {
             }
             
             return Array(allTags).sorted()
+        }
+    }
+    
+    // MARK: - Soft Delete Operations
+    
+    /// 软删除录音（设置 deleted_at 时间戳）
+    func softDelete(id: UUID) async throws -> Bool {
+        let updateSQL = "UPDATE \(tableName) SET deleted_at = ? WHERE id = ?"
+        
+        return try await sqliteCore.performAsync {
+            let statement = try self.sqliteCore.prepare(updateSQL)
+            defer { self.sqliteCore.finalize(statement) }
+            
+            try self.sqliteCore.bind(statement, parameters: [Date().timeIntervalSince1970, id.uuidString])
+            let result = try self.sqliteCore.step(statement)
+            
+            if result == SQLITE_DONE {
+                print("🗑️ 录音软删除成功，ID: \(id.uuidString)")
+                return self.sqliteCore.changes() > 0
+            } else {
+                throw DatabaseError.updateFailed("Failed to soft delete recording")
+            }
+        }
+    }
+    
+    /// 恢复已删除的录音（清除 deleted_at）
+    func restore(id: UUID) async throws -> Bool {
+        let updateSQL = "UPDATE \(tableName) SET deleted_at = NULL WHERE id = ?"
+        
+        return try await sqliteCore.performAsync {
+            let statement = try self.sqliteCore.prepare(updateSQL)
+            defer { self.sqliteCore.finalize(statement) }
+            
+            try self.sqliteCore.bind(statement, parameters: [id.uuidString])
+            let result = try self.sqliteCore.step(statement)
+            
+            if result == SQLITE_DONE {
+                print("♻️ 录音恢复成功，ID: \(id.uuidString)")
+                return self.sqliteCore.changes() > 0
+            } else {
+                throw DatabaseError.updateFailed("Failed to restore recording")
+            }
+        }
+    }
+    
+    /// 获取所有已删除的录音（回收站）
+    func listDeleted() async throws -> [AudioRecording] {
+        let querySQL = """
+            SELECT id, recording_id, timestamp, duration, transcription, title, summary, tags, 
+                   enriched_content, polished_text, content_type, original_text, embedding_vector, weather_type, weather_location, deleted_at
+            FROM \(tableName)
+            WHERE deleted_at IS NOT NULL
+            ORDER BY deleted_at DESC
+        """
+        
+        return try await sqliteCore.performAsync {
+            let statement = try self.sqliteCore.prepare(querySQL)
+            defer { self.sqliteCore.finalize(statement) }
+            
+            var recordings: [AudioRecording] = []
+            while try self.sqliteCore.step(statement) == SQLITE_ROW {
+                if let recording = self.parseRecording(from: statement) {
+                    recordings.append(recording)
+                }
+            }
+            
+            print("🗑️ 回收站加载 \(recordings.count) 条已删除录音")
+            return recordings
+        }
+    }
+    
+    /// 清理超过指定天数的已删除记录（永久删除）
+    func cleanupExpiredDeletedRecords(olderThanDays: Int = 7) async throws -> Int {
+        let expirationDate = Calendar.current.date(byAdding: .day, value: -olderThanDays, to: Date())!
+        let deleteSQL = "DELETE FROM \(tableName) WHERE deleted_at IS NOT NULL AND deleted_at < ?"
+        
+        return try await sqliteCore.performAsync {
+            let statement = try self.sqliteCore.prepare(deleteSQL)
+            defer { self.sqliteCore.finalize(statement) }
+            
+            try self.sqliteCore.bind(statement, parameters: [expirationDate.timeIntervalSince1970])
+            let result = try self.sqliteCore.step(statement)
+            
+            if result == SQLITE_DONE {
+                let deletedCount = Int(self.sqliteCore.changes())
+                if deletedCount > 0 {
+                    print("🧹 已永久删除 \(deletedCount) 条过期录音（超过 \(olderThanDays) 天）")
+                }
+                return deletedCount
+            } else {
+                throw DatabaseError.deleteFailed("Failed to cleanup expired records")
+            }
+        }
+    }
+    
+    /// 永久删除所有已软删除的记录（清空回收站）
+    func permanentlyDeleteAllSoftDeleted() async throws -> Int {
+        let deleteSQL = "DELETE FROM \(tableName) WHERE deleted_at IS NOT NULL"
+        
+        return try await sqliteCore.performAsync {
+            let statement = try self.sqliteCore.prepare(deleteSQL)
+            defer { self.sqliteCore.finalize(statement) }
+            
+            let result = try self.sqliteCore.step(statement)
+            
+            if result == SQLITE_DONE {
+                let deletedCount = Int(self.sqliteCore.changes())
+                print("🗑️ 回收站已清空，永久删除 \(deletedCount) 条录音")
+                return deletedCount
+            } else {
+                throw DatabaseError.deleteFailed("Failed to empty trash")
+            }
+        }
+    }
+    
+    /// 获取回收站中的录音数量
+    func getDeletedCount() async throws -> Int {
+        let countSQL = "SELECT COUNT(*) FROM \(tableName) WHERE deleted_at IS NOT NULL"
+        
+        return try await sqliteCore.performAsync {
+            let statement = try self.sqliteCore.prepare(countSQL)
+            defer { self.sqliteCore.finalize(statement) }
+            
+            let result = try self.sqliteCore.step(statement)
+            guard result == SQLITE_ROW else {
+                throw DatabaseError.queryFailed("Failed to get deleted count")
+            }
+            
+            return Int(sqlite3_column_int(statement, 0))
         }
     }
 }
